@@ -1,69 +1,72 @@
-const CACHE_NAME = 'music-routine-v2-offline';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'music-routine-v3-offline';
+
+// Assets estáticos que SÍ existen en dist/ (sin hash)
+const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './css/styles.css',
-  './js/app.js',
-  './js/state.js',
-  './js/audio.js',
-  './js/worker.js',
-  './js/utils.js',
-  './js/views/dashboard.js',
-  './js/views/details.js',
-  './js/views/sidebar.js',
-  './js/views/stats.js',
-  './js/views/modals.js',
-  // External CDN libraries
-  'https://cdn.tailwindcss.com',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js',
-  'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-// 1. Installation: Cache static assets
+// 1. Install: solo cachear lo que sabemos que existe
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching assets');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+      console.log('[SW] Caching static assets');
+      return cache.addAll(STATIC_ASSETS);
+    }).then(() => self.skipWaiting())
   );
 });
 
-// 2. Activation: Clean old caches
+// 2. Activate: tomar control + limpiar caches viejas
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keyList) => {
-      return Promise.all(
-        keyList.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    Promise.all([
+      clients.claim(),
+      caches.keys().then((keyList) =>
+        Promise.all(
+          keyList
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      )
+    ])
   );
 });
 
-// 3. Fetch: Serve from cache or fetch and cache dynamically
+// 3. Fetch: network-first, fallback a caché
 self.addEventListener('fetch', (e) => {
+  // No interceptar requests de chrome-extension ni de cache API
+  if (!e.request.url.startsWith('http')) return;
+
   e.respondWith(
-    caches.match(e.request).then((response) => {
-      if (response) {
-        return response;
-      }
-      return fetch(e.request).then((response) => {
-        if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
-          return response;
+    fetch(e.request)
+      .then((response) => {
+        // Cachear sólo respuestas válidas de nuestra origen o CDNs
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            // No cachear cosas tipo text/event-stream o similares
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('text/event-stream')) {
+              cache.put(e.request, clone);
+            }
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(e.request, responseToCache);
-        });
         return response;
-      });
-    })
+      })
+      .catch(() => {
+        // Sin conexión — buscar en caché
+        return caches.match(e.request).then((cached) => {
+          if (cached) return cached;
+          // Si es navegación, servir index.html (SPA fallback)
+          if (e.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          // Para CDNs offline, devolver respuesta vacía (mejor que error)
+          return new Response('', { status: 200, statusText: 'OK' });
+        });
+      })
   );
 });
