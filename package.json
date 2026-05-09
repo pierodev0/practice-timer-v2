@@ -1,0 +1,21 @@
+{
+  "name": "music-routine-app",
+  "version": "2.0.0",
+  "description": "Music practice routine tracker with metronome, stats, and PWA support",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "keywords": ["music", "practice", "routine", "metronome", "pwa"],
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^8.0.11"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss": "^4.3.0"
+  }
+}

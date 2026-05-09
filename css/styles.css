@@ -1,0 +1,74 @@
+/* =========================================================
+   Music Routine App — Custom Styles
+   Tailwind CSS is imported via npm (@tailwindcss/vite).
+   ========================================================= */
+
+/* Import Tailwind CSS (v4 style) */
+@import "tailwindcss";
+
+/* --- Tailwind component layers --- */
+@layer components {
+  .btn-primary {
+    @apply bg-[#E53935] text-white rounded shadow-sm font-medium hover:bg-red-600 transition-colors;
+  }
+  .btn-secondary {
+    @apply bg-white text-[#E53935] border border-red-100 rounded shadow-sm font-medium hover:bg-gray-50 transition-colors;
+  }
+  .btn-icon {
+    @apply w-8 h-8 rounded-full flex items-center justify-center transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  }
+  .sidebar-btn {
+    @apply flex items-center gap-3 font-medium opacity-90 hover:opacity-100 hover:bg-white/10 w-full p-2 rounded text-left text-sm transition-colors;
+  }
+  .view-section {
+    @apply hidden h-screen flex-col bg-[#F5F5F5] overflow-y-auto;
+  }
+  .view-section.active {
+    @apply flex;
+  }
+}
+
+/* --- CSS Custom Properties --- */
+:root {
+  --primary-red: #E53935;
+  --bg-light: #F5F5F5;
+}
+
+/* --- Global styles --- */
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--bg-light);
+  overscroll-behavior-y: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- Drag & drop --- */
+.draggable-item {
+  cursor: grab;
+}
+
+/* --- Progress bar animation --- */
+.progress-bar-fill {
+  transition: width 0.3s linear;
+}
+
+/* --- Lightbox zoom animation --- */
+#lightbox-img {
+  transition: transform 0.3s ease;
+}
+
+/* --- Scrollbar styling --- */
+.view-section::-webkit-scrollbar {
+  width: 4px;
+}
+.view-section::-webkit-scrollbar-track {
+  background: transparent;
+}
+.view-section::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+}

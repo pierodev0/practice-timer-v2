@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Music Routine App v2 - PWA</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#E53935">
+  <link rel="icon" type="image/x-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- CDN Dependencies (Tailwind CSS is bundled via Vite) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <!-- App Entry Point (ES Module) -->
+  <script type="module" src="js/app.js"></script>
+</head>
+<body class="overflow-hidden">
+
+  <!-- ============================================================
+       IMAGE LIGHTBOX
+       ============================================================ -->
+  <div id="image-lightbox" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-2 cursor-zoom-out">
+    <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl scale-95">
+    <button id="lightbox-close" class="absolute top-4 right-4 text-white text-4xl opacity-80 hover:opacity-100">&times;</button>
+  </div>
+
+  <!-- ============================================================
+       STAT INPUT MODAL
+       ============================================================ -->
+  <div id="stat-input-modal" class="fixed inset-0 bg-black/50 z-[90] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl p-6 text-center transform transition-all scale-100">
+      <h3 class="text-xl font-bold text-gray-800 mb-2" id="stat-modal-title">Record Stat</h3>
+      <p class="text-gray-500 text-sm mb-4">Enter your result for today:</p>
+      <input type="number" id="stat-input-value" class="text-4xl font-bold text-center w-32 border-b-2 border-[#E53935] outline-none text-[#E53935] mb-6 bg-transparent" placeholder="0" autofocus>
+      <div class="flex gap-3 justify-center">
+        <button id="stat-skip-btn" class="px-4 py-2 text-gray-400 font-medium hover:text-gray-600">Skip</button>
+        <button id="stat-save-btn" class="bg-[#E53935] text-white px-8 py-2 rounded shadow-lg font-bold hover:bg-red-600 transition-transform active:scale-95">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       EDIT STATS MODAL
+       ============================================================ -->
+  <div id="edit-stats-modal" class="fixed inset-0 bg-black/50 z-[95] hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
+      <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+        <h3 class="font-bold text-gray-800">Edit Data History</h3>
+        <button id="edit-stats-close" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+      </div>
+      <div id="edit-stats-list" class="overflow-y-auto p-4 space-y-2 flex-1 bg-gray-50/50"></div>
+      <div class="p-3 border-t border-gray-100 text-center">
+        <button id="edit-stats-close-btn" class="text-sm text-[#E53935] font-medium">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SIDEBAR OVERLAY
+       ============================================================ -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden"></div>
+
+  <!-- ============================================================
+       SIDEBAR MENU
+       ============================================================ -->
+  <div id="sidebar-menu" class="fixed inset-y-0 left-0 w-72 bg-[#E53935] text-white z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl">
+    <div class="p-4 pb-2">
+      <h2 class="text-xl font-bold mb-4 px-2">My Routines</h2>
+      <ul id="routine-list-container" class="space-y-2 mb-4 overflow-y-auto max-h-[40vh]"></ul>
+
+      <div class="flex items-center gap-2 mt-2 pt-4 border-t border-white/20">
+        <button id="sidebar-new-routine" class="flex-1 flex items-center justify-center gap-2 font-medium hover:bg-white/10 p-2 rounded text-sm bg-black/10 transition-colors">
+          <i class="fas fa-plus"></i> New
+        </button>
+        <button id="sidebar-import" class="flex-1 flex items-center justify-center gap-2 font-medium hover:bg-white/10 p-2 rounded text-sm bg-black/10 transition-colors">
+          <i class="fas fa-file-import"></i> Import
+        </button>
+        <input type="file" id="import-smart-input" class="hidden" accept=".json">
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-white/20 border-b">
+      <button id="sidebar-archived" class="sidebar-btn">
+        <i class="fas fa-archive"></i> Archived Exercises
+      </button>
+    </div>
+
+    <div class="p-4 border-b border-white/20">
+      <h3 class="text-xs uppercase text-white/60 font-bold mb-3 tracking-wider">Full System Backup</h3>
+      <div class="space-y-2">
+        <button id="sidebar-export" class="sidebar-btn"><i class="fas fa-save w-5"></i> Backup All (Export)</button>
+        <button id="sidebar-restore" class="sidebar-btn text-red-100 hover:text-white"><i class="fas fa-exclamation-circle w-5"></i> Restore &amp; Overwrite</button>
+        <input type="file" id="import-full-input" class="hidden" accept=".json">
+      </div>
+    </div>
+
+    <div class="mt-auto p-4 space-y-6 pb-8">
+      <button id="sidebar-stats" class="sidebar-btn"><i class="fas fa-chart-line w-6"></i> Stats &amp; Progress</button>
+      <a href="#" class="sidebar-btn"><i class="fas fa-cog w-6"></i> Settings</a>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       DASHBOARD VIEW (main)
+       ============================================================ -->
+  <div id="dashboard-view" class="view-section active relative">
+    <header class="bg-[#E53935] text-white pt-4 pb-6 px-4 rounded-b-3xl shadow-lg z-10 relative">
+      <div class="flex justify-between items-center mb-4 relative">
+        <button id="sidebar-toggle" class="p-2 -ml-2 active:bg-white/20 rounded-full transition-colors">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+        <h1 class="text-lg font-medium absolute left-1/2 -translate-x-1/2 w-2/3 text-center truncate" id="current-routine-title">My routine</h1>
+        <div class="w-8"></div>
+      </div>
+
+      <div class="flex justify-between items-center px-2">
+        <div class="flex flex-col items-center w-1/3">
+          <i id="bpm-up" class="fas fa-caret-up cursor-pointer p-2 active:text-gray-200"></i>
+          <span class="text-xl font-bold" id="global-bpm-display">120 BPM</span>
+          <i id="bpm-down" class="fas fa-caret-down cursor-pointer p-2 active:text-gray-200"></i>
+        </div>
+        <div class="w-1/3 flex justify-center">
+          <button id="global-play-btn" class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30 backdrop-blur-sm active:scale-95 transition-transform">
+            <i class="fas fa-play text-3xl text-white pl-1" id="global-play-icon"></i>
+          </button>
+        </div>
+        <div class="flex flex-col items-center w-1/3">
+          <span class="text-2xl font-bold">1/4</span>
+        </div>
+      </div>
+
+      <div class="mt-6 text-center relative px-2">
+        <p class="text-sm opacity-90 italic">Practice Time <span id="global-practice-timer">0:00</span> / <span id="total-routine-time">0:00</span></p>
+        <div class="flex items-center justify-between w-full mt-2">
+          <label class="flex items-center gap-1 text-xs bg-black/10 px-2 py-1 rounded cursor-pointer hover:bg-black/20 transition-colors">
+            <input type="checkbox" id="autoplay-toggle" class="accent-white w-3 h-3">
+            <span class="font-medium text-white/90">Autoplay</span>
+          </label>
+          <div class="flex gap-2">
+            <button id="finish-btn" class="bg-white text-[#E53935] text-xs px-3 py-1 rounded shadow-sm font-bold hover:bg-white/90 transition-colors">
+              <i class="fas fa-flag-checkered mr-1"></i> FINISH
+            </button>
+            <button id="reset-btn" class="bg-white/20 text-xs px-2 py-1 rounded hover:bg-white/30 font-medium">RESET</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 space-y-4 pb-24" id="exercise-list"></main>
+
+    <button id="add-exercise-fab" class="fixed bottom-6 right-6 w-14 h-14 bg-[#E53935] text-white rounded-full shadow-xl flex items-center justify-center text-2xl active:scale-90 transition-transform z-20">
+      <i class="fas fa-plus"></i>
+    </button>
+  </div>
+
+  <!-- ============================================================
+       DETAILS VIEW
+       ============================================================ -->
+  <div id="details-view" class="view-section">
+    <div class="bg-[#E53935] text-white p-4 pt-6 pb-4 shadow-md flex justify-between items-center sticky top-0 z-20">
+      <button id="detail-back" class="text-xl p-2 -ml-2"><i class="fas fa-arrow-left"></i></button>
+      <h2 class="text-lg font-medium">Details</h2>
+      <div class="w-8"></div>
+    </div>
+    <div class="p-4 space-y-4 pb-10">
+      <div class="card p-6">
+        <input type="text" id="detail-title-input" class="text-2xl text-gray-800 mb-1 font-normal w-full bg-transparent border-b border-transparent focus:border-[#E53935] outline-none transition-colors" value="Title">
+
+        <div class="flex items-center gap-2 mb-4 text-sm text-gray-500">
+          <i class="fas fa-chart-bar text-[#E53935] opacity-70"></i>
+          <input type="text" id="detail-stat-name-input" class="w-full bg-transparent border-b border-gray-100 focus:border-[#E53935] outline-none text-gray-600 italic placeholder-gray-300" placeholder="Set Stat Name (e.g. BPM)...">
+        </div>
+
+        <p class="text-gray-500 mb-6 flex justify-between items-center">
+          <span>Time: <span id="detail-time-display">0:00</span></span>
+          <span id="detail-reps-indicator" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">Rep 1/1</span>
+        </p>
+        <div class="flex gap-3">
+          <button id="detail-reset-btn" class="flex-1 py-3 text-[#E53935] border border-red-100 bg-red-50 rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Reset</button>
+          <button id="detail-play-btn" class="flex-1 py-3 text-[#E53935] border border-gray-100 bg-white rounded-lg font-medium shadow-lg shadow-red-50 active:scale-95 transition-transform">Start</button>
+          <button id="detail-complete-btn" class="flex-1 py-3 text-[#E53935] border border-gray-100 bg-white rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Complete</button>
+        </div>
+      </div>
+
+      <div class="card p-4 space-y-6">
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Repetitions</span>
+          <div class="flex items-center gap-3">
+            <button id="detail-reps-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-16 text-center" id="detail-reps-display">1</span>
+            <button id="detail-reps-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Minutes</span>
+          <div class="flex items-center gap-3">
+            <button id="detail-min-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-16 text-center" id="detail-min-display">10 min</span>
+            <button id="detail-min-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Seconds</span>
+          <div class="flex items-center gap-3">
+            <button id="detail-sec-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-16 text-center" id="detail-sec-display">00 sec</span>
+            <button id="detail-sec-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Tempo</span>
+          <div class="flex items-center gap-3">
+            <button id="detail-bpm-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-16 text-center" id="detail-bpm">120 BPM</span>
+            <button id="detail-bpm-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Metronome Auto-Start</span>
+          <input type="checkbox" id="detail-autostart" class="w-5 h-5 accent-[#E53935]">
+        </div>
+
+        <div class="relative pt-4 border-t border-gray-100">
+          <button id="details-menu-btn" class="flex items-center gap-2 text-gray-500 hover:text-[#E53935]">
+            <i class="fas fa-cog"></i> Advanced Actions
+          </button>
+          <div id="details-menu-dropdown" class="hidden absolute left-0 top-12 bg-white rounded-lg shadow-xl w-48 py-2 z-50 text-gray-700 border border-gray-100">
+            <button id="details-menu-duplicate" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="far fa-copy text-gray-400"></i> Duplicate</button>
+            <button id="details-menu-archive" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-box-archive text-gray-400"></i> Archive</button>
+            <button id="details-menu-delete" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-red-500"><i class="far fa-trash-alt"></i> Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-4 pb-8">
+        <p class="text-gray-700 font-medium mb-2">Comment</p>
+        <textarea id="detail-comment" class="w-full text-sm text-gray-600 border-none outline-none resize-none bg-transparent mb-2" rows="3" placeholder="Add notes (paste URLs here)..."></textarea>
+        <div id="detail-attachments" class="mt-3 space-y-3">
+          <div id="detail-link-list" class="flex flex-col gap-2"></div>
+          <div id="detail-image-preview" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       STATS VIEW
+       ============================================================ -->
+  <div id="stats-view" class="view-section">
+    <div class="bg-[#E53935] text-white p-4 pt-6 pb-4 shadow-md flex justify-between items-center sticky top-0 z-20">
+      <button id="stats-back" class="text-xl p-2 -ml-2"><i class="fas fa-arrow-left"></i></button>
+      <h2 class="text-lg font-medium">Professional Stats</h2>
+      <div class="w-8"></div>
+    </div>
+
+    <div class="p-4 space-y-6 pb-12">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card p-4">
+          <div class="text-gray-500 text-xs uppercase font-bold mb-1">Total Practiced</div>
+          <div class="text-2xl font-bold text-[#E53935]" id="stat-total-time">0h 0m</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-500 text-xs uppercase font-bold mb-1">Streak</div>
+          <div class="text-2xl font-bold text-gray-800"><span id="stat-streak">0</span> <span class="text-sm font-normal text-gray-500">days</span></div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-chart-line text-[#E53935]"></i> Progress History</h3>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4 items-end bg-gray-50 p-2 rounded-lg">
+          <label class="flex flex-col text-xs text-gray-500 font-bold">Start:
+            <input type="date" id="stat-filter-start" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
+          </label>
+          <label class="flex flex-col text-xs text-gray-500 font-bold">End:
+            <input type="date" id="stat-filter-end" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
+          </label>
+          <div class="ml-auto flex gap-2 self-end">
+            <button id="stats-filter-btn" class="bg-[#E53935] text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-red-600">Filter</button>
+            <button id="stats-manage-btn" class="bg-white text-gray-600 border border-gray-300 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50" title="Edit Data"><i class="fas fa-edit"></i> Manage Data</button>
+          </div>
+        </div>
+
+        <div class="h-64"><canvas id="progressChart"></canvas></div>
+      </div>
+
+      <div class="card p-5">
+        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="far fa-calendar-alt text-[#E53935]"></i> Last 7 Days (By Routine)</h3>
+        <div class="h-64"><canvas id="weeklyChart"></canvas></div>
+      </div>
+
+      <div class="card p-5">
+        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-[#E53935]"></i> Focus Distribution</h3>
+        <div class="h-48 flex justify-center"><canvas id="routineChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       CREATE EXERCISE MODAL
+       ============================================================ -->
+  <div id="create-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl">
+      <div class="p-4 border-b border-gray-100">
+        <input type="text" id="new-title" placeholder="Exercise title" class="text-xl w-full outline-none text-gray-700">
+        <input type="text" id="new-stat-name" placeholder="Statistic Name (Optional, e.g. BPM, Changes)" class="mt-3 text-sm w-full outline-none text-gray-500 border-b border-gray-200 focus:border-[#E53935] transition-colors pb-1">
+      </div>
+      <div class="p-6 space-y-6">
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Repetitions</span>
+          <div class="flex items-center gap-3">
+            <button id="new-reps-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-20 text-center" id="new-reps-display">1</span>
+            <button id="new-reps-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Tempo</span>
+          <div class="flex items-center gap-3">
+            <button id="new-bpm-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-20 text-center" id="new-bpm-display">100 BPM</span>
+            <button id="new-bpm-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Minutes</span>
+          <div class="flex items-center gap-3">
+            <button id="new-min-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-20 text-center" id="new-min-display">2 min</span>
+            <button id="new-min-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Seconds</span>
+          <div class="flex items-center gap-3">
+            <button id="new-sec-minus" class="btn-icon border border-gray-300 text-gray-500">-</button>
+            <span class="font-medium w-20 text-center" id="new-sec-display">00 sec</span>
+            <button id="new-sec-plus" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center">
+          <span class="text-gray-700">Metronome Auto-Start</span>
+          <input type="checkbox" id="new-autostart" checked class="w-5 h-5 accent-[#E53935]">
+        </div>
+        <div class="flex justify-end gap-2 pt-4">
+          <button id="create-modal-cancel" class="px-4 py-2 text-gray-500">Cancel</button>
+          <button id="create-modal-create" class="btn-primary px-6 py-2">create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
