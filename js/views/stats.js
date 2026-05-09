@@ -203,7 +203,7 @@ function renderProgressChart(s) {
   const datasets = allStats
     .map(stat => {
       const data = sortedDates.map(date => {
-        const entry = stat.logs.find(l => l.date === date);
+        const entry = stat.logs.findLast(l => l.date === date);
         return entry ? entry.value : null;
       });
       if (data.every(v => v === null)) return null;
