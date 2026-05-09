@@ -47,11 +47,21 @@ export function renderStats() {
 
   // --- Total practiced time ---
   const totalSecondsAllTime = entries.reduce((acc, [_, data]) => acc + (data.totalSec || 0), 0);
+  const totalHours = Math.floor(totalSecondsAllTime / 3600);
+  const totalMinutes = Math.floor((totalSecondsAllTime % 3600) / 60);
   document.getElementById('stat-total-time').innerText =
-    `${Math.floor(totalSecondsAllTime / 3600)}h ${Math.floor((totalSecondsAllTime % 3600) / 60)}m`;
+    totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m`;
+
+  // --- Sessions (days with practice) ---
+  const dates = Object.keys(s.stats).sort();
+  const sessionsCount = dates.length;
+  document.getElementById('stat-sessions').innerText = sessionsCount;
+
+  // --- Average session time ---
+  const avgMinutes = sessionsCount > 0 ? Math.round(totalSecondsAllTime / 60 / sessionsCount) : 0;
+  document.getElementById('stat-avg-session').innerText = `${avgMinutes}m`;
 
   // --- Streak calculation ---
-  const dates = Object.keys(s.stats).sort();
   let streak = 0;
   if (dates.length > 0) {
     const todayStr = new Date().toISOString().split('T')[0];

@@ -215,32 +215,46 @@
     </div>
 
     <div class="p-4 space-y-6 pb-12">
-      <div class="grid grid-cols-2 gap-4">
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 gap-3">
         <div class="card p-4">
-          <div class="text-gray-500 text-xs uppercase font-bold mb-1">Total Practiced</div>
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Total Practicado</div>
           <div class="text-2xl font-bold text-[#E53935]" id="stat-total-time">0h 0m</div>
+          <div class="text-xs text-gray-400 mt-1">tiempo acumulado</div>
         </div>
         <div class="card p-4">
-          <div class="text-gray-500 text-xs uppercase font-bold mb-1">Streak</div>
-          <div class="text-2xl font-bold text-gray-800"><span id="stat-streak">0</span> <span class="text-sm font-normal text-gray-500">days</span></div>
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Racha</div>
+          <div class="text-2xl font-bold text-gray-800"><span id="stat-streak">0</span></div>
+          <div class="text-xs text-gray-400 mt-1">días consecutivos</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Sesiones</div>
+          <div class="text-2xl font-bold text-gray-800" id="stat-sessions">0</div>
+          <div class="text-xs text-gray-400 mt-1">días con práctica</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Promedio</div>
+          <div class="text-2xl font-bold text-gray-800" id="stat-avg-session">0m</div>
+          <div class="text-xs text-gray-400 mt-1">minutos por sesión</div>
         </div>
       </div>
 
       <div class="card p-5">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-chart-line text-[#E53935]"></i> Progress History</h3>
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-chart-line text-[#E53935]"></i> Progreso por Ejercicio</h3>
         </div>
+        <p class="text-xs text-gray-400 mb-4">Evolución del valor registrado en cada ejercicio a lo largo del tiempo</p>
 
         <div class="flex flex-wrap gap-2 mb-4 items-end bg-gray-50 p-2 rounded-lg">
-          <label class="flex flex-col text-xs text-gray-500 font-bold">Start:
+          <label class="flex flex-col text-xs text-gray-500 font-bold">Inicio:
             <input type="date" id="stat-filter-start" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
           </label>
-          <label class="flex flex-col text-xs text-gray-500 font-bold">End:
+          <label class="flex flex-col text-xs text-gray-500 font-bold">Fin:
             <input type="date" id="stat-filter-end" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
           </label>
           <div class="ml-auto flex gap-2 self-end">
-            <button id="stats-filter-btn" class="bg-[#E53935] text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-red-600">Filter</button>
-            <button id="stats-manage-btn" class="bg-white text-gray-600 border border-gray-300 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50" title="Edit Data"><i class="fas fa-edit"></i> Manage Data</button>
+            <button id="stats-filter-btn" class="bg-[#E53935] text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-red-600">Filtrar</button>
+            <button id="stats-manage-btn" class="bg-white text-gray-600 border border-gray-300 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50" title="Edit Data"><i class="fas fa-edit"></i> Gestionar Datos</button>
           </div>
         </div>
 
@@ -248,12 +262,14 @@
       </div>
 
       <div class="card p-5">
-        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="far fa-calendar-alt text-[#E53935]"></i> Last 7 Days (By Routine)</h3>
+        <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="far fa-calendar-alt text-[#E53935]"></i> Últimos 7 Días</h3>
+        <p class="text-xs text-gray-400 mb-4">Minutos de práctica por rutina en los últimos 7 días</p>
         <div class="h-64"><canvas id="weeklyChart"></canvas></div>
       </div>
 
       <div class="card p-5">
-        <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-[#E53935]"></i> Focus Distribution</h3>
+        <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-chart-pie text-[#E53935]"></i> Distribución por Rutina</h3>
+        <p class="text-xs text-gray-400 mb-4">Porcentaje del tiempo total invertido en cada rutina</p>
         <div class="h-48 flex justify-center"><canvas id="routineChart"></canvas></div>
       </div>
     </div>
