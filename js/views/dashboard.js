@@ -31,7 +31,6 @@ export function onWorkerTick() {
   if (!s.isExercisePlaying) return;
 
   s.globalSeconds++;
-  recordProgressSeconds(1);
 
   if (s.activeExerciseId && s.exerciseRemaining > 0) {
     s.exerciseRemaining--;
@@ -231,6 +230,7 @@ export function finishRoutine() {
   if (!confirm('Finish routine? This resets exercises.')) return;
   const s = getState();
   pauseSequence();
+  recordProgressSeconds(s.globalSeconds);
   s.activeExerciseId = null;
   s.exerciseRemaining = 0;
   s.globalSeconds = 0;
