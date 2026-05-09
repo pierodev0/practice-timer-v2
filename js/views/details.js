@@ -3,6 +3,7 @@
  * Allows editing title, BPM, duration, reps, comments, etc.
  */
 
+import { nanoid } from 'nanoid';
 import { getState, getExerciseById, saveData, getCurrentRoutine, setBpm } from '../state.js';
 import { formatTime } from '../utils.js';
 import { startMetronome, stopMetronome, playBellSound, setAudioOn } from '../audio.js';
@@ -294,7 +295,7 @@ export function duplicateExercise() {
   const original = getExerciseById(s.viewingExerciseId);
   if (!original) return;
   const copy = JSON.parse(JSON.stringify(original));
-  copy.id = Date.now();
+  copy.id = nanoid();
   copy.title += ' (Copy)';
   copy.completed = false;
   copy.remainingSec = copy.durationSec;

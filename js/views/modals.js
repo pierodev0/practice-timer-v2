@@ -3,6 +3,7 @@
  * image lightbox, and edit-stats modal.
  */
 
+import { nanoid } from 'nanoid';
 import { getState, getExerciseById, saveData, getCurrentRoutine } from '../state.js';
 import { deepClone } from '../utils.js';
 
@@ -54,7 +55,7 @@ export function addNewExercise() {
   const s = getState();
   const total = (s.newExerciseForm.min * 60) + s.newExerciseForm.sec;
   const newExercise = {
-    id: Date.now(),
+    id: nanoid(),
     title: t,
     bpm: s.newExerciseForm.bpm,
     durationSec: total,

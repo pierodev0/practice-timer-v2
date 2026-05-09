@@ -3,6 +3,7 @@
  * Replaces the sidebar-only routine management.
  */
 
+import { nanoid } from 'nanoid';
 import { getState, saveData, getCurrentRoutine } from '../state.js';
 import { downloadJSON, sanitizeImportedRoutine } from '../utils.js';
 
@@ -116,7 +117,7 @@ export function showNewRoutineInput() {
   if (name && name.trim()) {
     const s = getState();
     s.routines.push({
-      id: Date.now().toString(),
+      id: nanoid(),
       name: name.trim(),
       exercises: []
     });

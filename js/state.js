@@ -5,6 +5,7 @@
  *   import { getState, subscribe, saveData, loadData, getCurrentRoutine, getExerciseById } from './state.js';
  */
 
+import { nanoid } from 'nanoid';
 import { formatTime, deepClone, todayStr } from './utils.js';
 import { module1Routine, module2Routine } from './routines-sample.js';
 
@@ -124,7 +125,7 @@ export function getCurrentRoutine() {
       routine = _state.routines[0];
     } else {
       routine = {
-        id: 'default-' + Date.now(),
+        id: nanoid(),
         name: 'Rutina Recuperada',
         exercises: []
       };

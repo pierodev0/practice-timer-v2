@@ -1,3 +1,5 @@
+import { nanoid } from 'nanoid';
+
 /**
  * Pure utility functions — no DOM, no state, no side effects.
  */
@@ -50,10 +52,10 @@ export function downloadJSON(content, filename) {
  */
 export function sanitizeImportedRoutine(r) {
   return {
-    id: Date.now() + Math.random().toString(),
+    id: nanoid(),
     name: r.name + " (Import)",
     exercises: (r.exercises || []).map(ex => ({
-      id: Date.now() + Math.floor(Math.random() * 100000),
+      id: nanoid(),
       title: ex.title || "Untitled",
       bpm: ex.bpm || 100,
       durationSec: ex.durationSec || 60,
