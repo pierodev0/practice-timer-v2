@@ -96,7 +96,6 @@ export function resetCurrentDetailExercise() {
   if (ex.completed) {
     const d = ex.durationSec;
     s.globalSeconds = Math.max(0, s.globalSeconds - d);
-    import('../state.js').then(m => m.recordProgressSeconds(-d));
   }
 
   ex.remainingSec = ex.durationSec;
@@ -160,7 +159,6 @@ function forceFinishDetail() {
   }
 
   s.globalSeconds += timeToAdd;
-  import('../state.js').then(m => m.recordProgressSeconds(timeToAdd));
   ex.completed = true;
   ex.remainingSec = 0;
   saveData();
@@ -297,6 +295,7 @@ export function duplicateExercise() {
   const copy = JSON.parse(JSON.stringify(original));
   copy.id = nanoid();
   copy.title += ' (Copy)';
+  copy.statisticLogs = [];
   copy.completed = false;
   copy.remainingSec = copy.durationSec;
   copy.currentRep = 1;
