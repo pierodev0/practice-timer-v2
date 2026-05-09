@@ -1,7 +1,10 @@
 # Music Routine App 🎵
 
-> **Practice tracker with metronome, progress stats, and PWA support.**
-> Refactored from a monolithic HTML file to a modular ES module architecture.
+> **Organiza y cronometra tus rutinas de práctica musical.**
+> Crea ejercicios con tiempo, BPM y repeticiones. El metrónomo integrado te marca el ritmo
+> mientras un timer preciso (Web Worker) lleva la cuenta. Al finalizar cada ronda, registra
+> estadísticas opcionales (BPM alcanzado, cambios logrados, etc.) y visualiza tu progreso
+> con gráficas. Todo funciona offline como PWA.
 
 ---
 
