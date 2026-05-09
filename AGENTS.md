@@ -15,18 +15,25 @@ Refactor the monolithic `index.html` (HTML + CSS + JS inline) into a modular, sc
 - **Frontend:** Vanilla JS ES modules + Tailwind CSS (v4 via npm) + FontAwesome (CDN) + Sortable.js (CDN) + Chart.js (CDN) + Tone.js (CDN)
 - **PWA:** Service Worker in `public/`, copied directly to `dist/`
 
-## Original Files (Pre-Refactoring)
+## ⚠️ Fuente de verdad: el código refactorizado (`js/`)
 
-Los archivos originales del monolito se conservan como referencia para debug:
+**El código fuente real y actualizado está en `js/` (módulos ES) y `css/`.** 
+Usa SIEMPRE esos archivos como referencia para entender el comportamiento, estructura de datos,
+formatos de import/export, etc.
 
-| Archivo Original | Backup |
+## Original Files (Pre-Refactoring) — Solo para debug
+
+Los archivos del monolito original se conservan **exclusivamente** para depurar bugs
+cuando el comportamiento refactorizado no coincida con el esperado.
+
+| Archivo Original | Backup (solo debug) |
 |---|---|
 | `index.html` (1145 líneas) | **`legacy/index.html`** — HTML+CSS+JS todo en uno |
 | `sw.js` | **`legacy/sw.js`** — Service Worker original |
 
-> Cuando un LLM necesite entender el comportamiento original de una función,
-> puede buscarla en `legacy/index.html` y luego usar `FUNCTION_INDEX.md`
-> para encontrar su equivalente en la nueva arquitectura modular.
+> **Regla:** Si necesitas entender cómo funciona algo (importar, exportar, sanitizar, 
+> renderizar, etc.), busca DIRECTAMENTE en `js/`. Recurre a `legacy/` ÚNICAMENTE 
+> cuando una función no se comporte como esperas y necesites contrastar con el original.
 
 ## Function Index (Old → New Mapping)
 
