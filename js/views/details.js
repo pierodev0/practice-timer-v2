@@ -41,6 +41,9 @@ export function openDetailsView(id) {
 
   renderCommentAttachments(ex.comment);
   updateDetailsUI();
+
+  // Sync bottom nav — details is a sub-view of Practice
+  import('../views/bottom-nav.js').then(m => m.setActiveTab('practice'));
 }
 
 export function closeDetailsView() {
@@ -49,6 +52,8 @@ export function closeDetailsView() {
   document.getElementById('details-view').classList.remove('active');
   document.getElementById('dashboard-view').classList.add('active');
   import('./dashboard.js').then(m => m.updateUI());
+  // Sync bottom nav active tab
+  import('../views/bottom-nav.js').then(m => m.setActiveTab('practice'));
 }
 
 // ============================================================

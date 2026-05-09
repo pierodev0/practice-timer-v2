@@ -24,10 +24,19 @@
     @apply flex items-center gap-3 font-medium opacity-90 hover:opacity-100 hover:bg-white/10 w-full p-2 rounded text-left text-sm transition-colors;
   }
   .view-section {
-    @apply hidden h-screen flex-col bg-[#F5F5F5] overflow-y-auto;
+    @apply hidden h-screen flex-col bg-[#F5F5F5] overflow-y-auto pb-16;
   }
   .view-section.active {
     @apply flex;
+  }
+  .bottom-nav-tab {
+    @apply flex flex-col items-center justify-center flex-1 py-1.5 text-gray-400 transition-colors active:scale-95 cursor-pointer;
+  }
+  .bottom-nav-tab.active {
+    @apply text-[#E53935];
+  }
+  .bottom-nav-tab.active i {
+    @apply drop-shadow-sm;
   }
 }
 
@@ -35,6 +44,11 @@
 :root {
   --primary-red: #E53935;
   --bg-light: #F5F5F5;
+}
+
+/* --- Bottom navigation safe area (iOS notch) --- */
+#bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* --- Global styles --- */

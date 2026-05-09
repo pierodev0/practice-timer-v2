@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
+    "nanoid": "^5.1.11",
     "tailwindcss": "^4.3.0"
   }
 }

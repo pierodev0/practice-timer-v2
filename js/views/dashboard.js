@@ -369,7 +369,7 @@ export function renderExercises() {
   // Attach event listeners for the rendered exercises
   list.querySelectorAll('[data-toggle-exercise]').forEach(el => {
     el.addEventListener('click', () => {
-      const id = parseInt(el.dataset.toggleExercise);
+      const id = el.dataset.toggleExercise;
       const ex = getExerciseById(id);
       if (ex && !ex.completed) toggleListExercise(id);
     });
@@ -377,7 +377,7 @@ export function renderExercises() {
 
   list.querySelectorAll('[data-detail-view]').forEach(el => {
     el.addEventListener('click', () => {
-      const id = parseInt(el.dataset.detailView);
+      const id = el.dataset.detailView;
       import('./details.js').then(m => m.openDetailsView(id));
     });
   });

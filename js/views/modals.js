@@ -208,13 +208,13 @@ export function openEditStatsModal() {
     list.querySelectorAll('[data-edit-stat]').forEach(btn => {
       btn.addEventListener('click', () => {
         const [rId, eId, idx] = btn.dataset.editStat.split('|');
-        editStatValue(rId, parseInt(eId), parseInt(idx));
+        editStatValue(rId, eId, parseInt(idx));
       });
     });
     list.querySelectorAll('[data-delete-stat]').forEach(btn => {
       btn.addEventListener('click', () => {
         const [rId, eId, idx] = btn.dataset.deleteStat.split('|');
-        deleteStatLog(rId, parseInt(eId), parseInt(idx));
+        deleteStatLog(rId, eId, parseInt(idx));
       });
     });
   }

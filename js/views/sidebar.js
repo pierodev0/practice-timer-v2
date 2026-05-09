@@ -9,7 +9,7 @@ import { downloadJSON, sanitizeImportedRoutine } from '../utils.js';
 // SIDEBAR TOGGLE
 // ============================================================
 
-export function toggleSidebar(show) {
+export function toggleSidebar(show, section) {
   const menu = document.getElementById('sidebar-menu');
   const overlay = document.getElementById('sidebar-overlay');
 
@@ -22,6 +22,17 @@ export function toggleSidebar(show) {
     menu.classList.remove('-translate-x-full');
     overlay.classList.remove('hidden');
     renderSidebarRoutines();
+
+    // Scroll to the requested section after render
+    if (section) {
+      setTimeout(() => {
+        const targetId = section === 'settings' ? 'sidebar-settings-section' : 'sidebar-routines-section';
+        const target = document.getElementById(targetId);
+        if (target) {
+          menu.scrollTop = section === 'settings' ? menu.scrollHeight : 0;
+        }
+      }, 150);
+    }
   } else {
     menu.classList.add('-translate-x-full');
     overlay.classList.add('hidden');
@@ -94,6 +105,8 @@ export function switchRoutine(id) {
   toggleSidebar(false);
   // Trigger re-render
   import('./dashboard.js').then(m => m.updateUI());
+  // Sync bottom nav
+  import('./bottom-nav.js').then(m => m.setActiveTab('practice'));
 }
 
 export function showAddRoutineInput() {
@@ -204,7 +217,7 @@ export function restoreAllRoutines(input) {
       const s = getState();
       s.routines = json.routines || (Array.isArray(json) ? json : []);
       s.stats = json.stats || s.stats;
-      s.currentRoutineId = s.routines[0]?.id || 'default';
+      s.currentRoutineId = s.routines[0]?.id || 'module-1';
       saveData();
 
       // Reset routine logic

@@ -18,15 +18,26 @@ export function openStatsView() {
   // Close sidebar if open
   import('./sidebar.js').then(m => m.toggleSidebar(false));
 
-  document.getElementById('dashboard-view').classList.remove('active');
-  document.getElementById('details-view').classList.remove('active');
+  // Hide all views, then show stats
+  ['dashboard-view', 'details-view', 'routines-view', 'settings-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
   document.getElementById('stats-view').classList.add('active');
+
+  // Sync bottom nav active tab (visual only)
+  import('../views/bottom-nav.js').then(m => m.setActiveTab('stats'));
+
   renderStats();
 }
 
 export function closeStatsView() {
   document.getElementById('stats-view').classList.remove('active');
   document.getElementById('dashboard-view').classList.add('active');
+
+  // Sync bottom nav active tab (visual only)
+  import('../views/bottom-nav.js').then(m => m.setActiveTab('practice'));
+  import('./dashboard.js').then(m => m.updateUI());
 }
 
 // ============================================================

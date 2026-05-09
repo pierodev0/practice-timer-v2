@@ -11,6 +11,9 @@ import { setupSidebar, toggleSidebar } from './views/sidebar.js';
 import { setupDetails } from './views/details.js';
 import { setupStats } from './views/stats.js';
 import { setupModals } from './views/modals.js';
+import { setupBottomNav } from './views/bottom-nav.js';
+import { setupRoutines } from './views/routines.js';
+import { setupSettings } from './views/settings.js';
 
 // ============================================================
 // WEB WORKER (real file, not Blob)
@@ -99,6 +102,9 @@ window.onload = function () {
   setupDetails();
   setupStats();
   setupModals();
+  setupBottomNav();
+  setupRoutines();
+  setupSettings();
 
   // 5. Set up Sortable drag & drop
   setupSortable();

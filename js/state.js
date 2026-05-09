@@ -6,42 +6,9 @@
  */
 
 import { formatTime, deepClone, todayStr } from './utils.js';
+import { module1Routine, module2Routine } from './routines-sample.js';
 
 const STORAGE_KEY = 'musicRoutineApp_v36_stats';
-
-// --- Initial exercises for a fresh routine ---
-const initialExercises = [
-  {
-    id: 1,
-    title: 'Major Scale',
-    bpm: 80,
-    durationSec: 10,
-    remainingSec: 10,
-    completed: false,
-    autoStart: true,
-    archived: false,
-    reps: 1,
-    currentRep: 1,
-    comment: 'Sheet Music: https://jtgt-static.b-cdn.net/images/modules/INT1/IM-113-MajorScale-P1.jpg',
-    statisticName: null,
-    statisticLogs: []
-  },
-  {
-    id: 2,
-    title: 'One Minute Changes',
-    bpm: 120,
-    durationSec: 60,
-    remainingSec: 60,
-    completed: false,
-    autoStart: false,
-    archived: false,
-    reps: 1,
-    currentRep: 1,
-    comment: 'G to C changes',
-    statisticName: 'Chord Changes',
-    statisticLogs: []
-  }
-];
 
 // --- Internal state (not exported directly) ---
 const _state = {
@@ -55,13 +22,10 @@ const _state = {
   autoplayRoutine: false,
   pendingDetailCompletion: false,
   routines: [
-    {
-      id: 'default',
-      name: 'Rutina 1',
-      exercises: deepClone(initialExercises)
-    }
+    deepClone(module1Routine),
+    deepClone(module2Routine)
   ],
-  currentRoutineId: 'default',
+  currentRoutineId: 'module-1',
   newExerciseForm: { bpm: 100, min: 2, sec: 0, reps: 1 },
   stats: {}
 };
@@ -119,7 +83,7 @@ export function loadData() {
     try {
       const parsed = JSON.parse(data);
       _state.routines = parsed.routines;
-      _state.currentRoutineId = parsed.currentRoutineId || 'default';
+      _state.currentRoutineId = parsed.currentRoutineId || 'module-1';
       _state.stats = parsed.stats || {};
       _state.globalSeconds = parsed.globalSeconds || 0;
 
@@ -140,6 +104,7 @@ export function loadData() {
           ex.statisticLogs = ex.statisticLogs || [];
         })
       );
+
     } catch (e) {
       console.error('Error loading data', e);
     }
