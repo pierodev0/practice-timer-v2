@@ -63,50 +63,7 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       SIDEBAR OVERLAY
-       ============================================================ -->
-  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden"></div>
-
-  <!-- ============================================================
-       SIDEBAR MENU
-       ============================================================ -->
-  <div id="sidebar-menu" class="fixed inset-y-0 left-0 w-72 bg-[#E53935] text-white z-50 transform -translate-x-full transition-transform duration-300 flex flex-col shadow-2xl overflow-y-auto">
-    <div id="sidebar-routines-section" class="p-4 pb-2">
-      <h2 class="text-xl font-bold mb-4 px-2">My Routines</h2>
-      <ul id="routine-list-container" class="space-y-2 mb-4 overflow-y-auto max-h-[40vh]"></ul>
-
-      <div class="flex items-center gap-2 mt-2 pt-4 border-t border-white/20">
-        <button id="sidebar-new-routine" class="flex-1 flex items-center justify-center gap-2 font-medium hover:bg-white/10 p-2 rounded text-sm bg-black/10 transition-colors">
-          <i class="fas fa-plus"></i> New
-        </button>
-        <button id="sidebar-import" class="flex-1 flex items-center justify-center gap-2 font-medium hover:bg-white/10 p-2 rounded text-sm bg-black/10 transition-colors">
-          <i class="fas fa-file-import"></i> Import
-        </button>
-        <input type="file" id="import-smart-input" class="hidden" accept=".json">
-      </div>
-    </div>
-
-    <div class="p-4 border-t border-white/20 border-b">
-      <button id="sidebar-archived" class="sidebar-btn">
-        <i class="fas fa-archive"></i> Archived Exercises
-      </button>
-    </div>
-
-    <div class="p-4 border-b border-white/20">
-      <h3 class="text-xs uppercase text-white/60 font-bold mb-3 tracking-wider">Full System Backup</h3>
-      <div class="space-y-2">
-        <button id="sidebar-export" class="sidebar-btn"><i class="fas fa-save w-5"></i> Backup All (Export)</button>
-        <button id="sidebar-restore" class="sidebar-btn text-red-100 hover:text-white"><i class="fas fa-exclamation-circle w-5"></i> Restore &amp; Overwrite</button>
-        <input type="file" id="import-full-input" class="hidden" accept=".json">
-      </div>
-    </div>
-
-    <div id="sidebar-settings-section" class="mt-auto p-4 space-y-6 pb-8">
-      <button id="sidebar-stats" class="sidebar-btn"><i class="fas fa-chart-line w-6"></i> Stats &amp; Progress</button>
-      <a href="#" class="sidebar-btn"><i class="fas fa-cog w-6"></i> Settings</a>
-    </div>
-  </div>
+  <!-- Sidebar eliminado — la navegación ahora es via Bottom Nav -->
 
   <!-- ============================================================
        DASHBOARD VIEW (main)
@@ -114,11 +71,7 @@
   <div id="dashboard-view" class="view-section active relative">
     <header class="bg-[#E53935] text-white pt-4 pb-6 px-4 rounded-b-3xl shadow-lg z-10 relative">
       <div class="flex justify-between items-center mb-4 relative">
-        <button id="sidebar-toggle" class="p-2 -ml-2 active:bg-white/20 rounded-full transition-colors">
-          <i class="fas fa-bars text-xl"></i>
-        </button>
-        <h1 class="text-lg font-medium absolute left-1/2 -translate-x-1/2 w-2/3 text-center truncate" id="current-routine-title">My routine</h1>
-        <div class="w-8"></div>
+        <h1 class="text-lg font-medium w-full text-center truncate" id="current-routine-title">My routine</h1>
       </div>
 
       <div class="flex justify-between items-center px-2">

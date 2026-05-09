@@ -37,12 +37,6 @@ function hideAllViews() {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-
-  // Close sidebar if open
-  const sidebar = document.getElementById('sidebar-menu');
-  if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
-    import('./sidebar.js').then(m => m.toggleSidebar(false));
-  }
 }
 
 // ============================================================

@@ -15,9 +15,6 @@ let progressChartInstance = null;
 // ============================================================
 
 export function openStatsView() {
-  // Close sidebar if open
-  import('./sidebar.js').then(m => m.toggleSidebar(false));
-
   // Hide all views, then show stats
   ['dashboard-view', 'details-view', 'routines-view', 'settings-view'].forEach(id => {
     const el = document.getElementById(id);

@@ -7,7 +7,7 @@
 import { loadData, saveData, getCurrentRoutine, getState } from './state.js';
 import { initAudio, setAudioOn } from './audio.js';
 import { onWorkerTick, updateUI, setWorker, setupDashboard } from './views/dashboard.js';
-import { setupSidebar, toggleSidebar } from './views/sidebar.js';
+
 import { setupDetails } from './views/details.js';
 import { setupStats } from './views/stats.js';
 import { setupModals } from './views/modals.js';
@@ -98,7 +98,7 @@ window.onload = function () {
 
   // 4. Set up event listeners for all views
   setupDashboard();
-  setupSidebar();
+
   setupDetails();
   setupStats();
   setupModals();
@@ -121,15 +121,4 @@ window.onload = function () {
   console.log('🎵 Music Routine App initialized (modular)');
 };
 
-// ============================================================
-// GLOBAL EVENT DELEGATION (for window-level clicks)
-// ============================================================
 
-// Some UI interactions need document-level listeners
-document.addEventListener('click', function (e) {
-  // Close sidebar when clicking overlay
-  const overlay = document.getElementById('sidebar-overlay');
-  if (overlay && !overlay.classList.contains('hidden')) {
-    // handled by overlay's own click, but just in case
-  }
-});
