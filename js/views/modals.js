@@ -114,8 +114,11 @@ function hideStatModal() {
 export function submitStatInput() {
   const val = parseFloat(document.getElementById('stat-input-value').value);
   if (!isNaN(val)) {
-    if (_statOnSave) _statOnSave(val);
-    else {
+    if (_statOnSave) {
+      _statOnSave(val);
+      hideStatModal();
+      return;
+    } else {
       // Fallback: save to active exercise
       const s = getState();
       const ex = getExerciseById(s.activeExerciseId);
@@ -125,15 +128,18 @@ export function submitStatInput() {
         ex.statisticLogs.push({ date: today, value: val });
         saveData();
       }
+      hideStatModal();
     }
   }
-  if (_statOnSkip) _statOnSkip(val);
-  else hideStatModal();
 }
 
 export function skipStatInput() {
-  if (_statOnSkip) _statOnSkip();
-  else hideStatModal();
+  if (_statOnSkip) {
+    _statOnSkip();
+    hideStatModal();
+  } else {
+    hideStatModal();
+  }
 }
 
 // ============================================================
