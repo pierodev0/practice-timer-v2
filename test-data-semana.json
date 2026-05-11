@@ -1,0 +1,529 @@
+{
+  "routines": [
+    {
+      "id": "module-1",
+      "name": "Module 1",
+      "exercises": [
+        {
+          "id": "m1-ex-1",
+          "title": "Chord Perfect: D (3)",
+          "bpm": 70,
+          "durationSec": 180,
+          "remainingSec": 180,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Pulgar bien posicionado",
+          "statisticName": "Clean Hits",
+          "statisticLogs": [
+            { "date": "2026-05-04", "value": 6 },
+            { "date": "2026-05-05", "value": 7 },
+            { "date": "2026-05-06", "value": 8 },
+            { "date": "2026-05-08", "value": 9 }
+          ]
+        },
+        {
+          "id": "m1-ex-2",
+          "title": "Chord Perfect: A (3)",
+          "bpm": 70,
+          "durationSec": 180,
+          "remainingSec": 180,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": "Clean Hits",
+          "statisticLogs": [
+            { "date": "2026-05-04", "value": 5 },
+            { "date": "2026-05-05", "value": 6 },
+            { "date": "2026-05-06", "value": 7 },
+            { "date": "2026-05-08", "value": 8 }
+          ]
+        },
+        {
+          "id": "m1-ex-3",
+          "title": "Anchor Finger Practice",
+          "bpm": 80,
+          "durationSec": 120,
+          "remainingSec": 120,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Dedo indice como ancla",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m1-ex-4",
+          "title": "One Minute Changes: A to D",
+          "bpm": 60,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": "Changes",
+          "statisticLogs": [
+            { "date": "2026-05-04", "value": 12 },
+            { "date": "2026-05-05", "value": 14 },
+            { "date": "2026-05-06", "value": 16 },
+            { "date": "2026-05-08", "value": 18 }
+          ]
+        },
+        {
+          "id": "m1-ex-5",
+          "title": "One Minute Changes: D to A",
+          "bpm": 60,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Cuesta mas que A a D",
+          "statisticName": "Changes",
+          "statisticLogs": [
+            { "date": "2026-05-04", "value": 10 },
+            { "date": "2026-05-05", "value": 12 },
+            { "date": "2026-05-06", "value": 14 },
+            { "date": "2026-05-08", "value": 15 }
+          ]
+        },
+        {
+          "id": "m1-ex-6",
+          "title": "L1 10 Min Song Practice",
+          "bpm": 90,
+          "durationSec": 600,
+          "remainingSec": 600,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Tocando Knockin' on Heaven's Door lento",
+          "statisticName": null,
+          "statisticLogs": []
+        }
+      ]
+    },
+    {
+      "id": "module-2",
+      "name": "Module 2",
+      "exercises": [
+        {
+          "id": "m2-ex-1",
+          "title": "Chord Perfect: E",
+          "bpm": 70,
+          "durationSec": 120,
+          "remainingSec": 120,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Acorde E major, bien abierto",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m2-ex-2",
+          "title": "Chord Perfect: A",
+          "bpm": 70,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m2-ex-3",
+          "title": "Chord Perfect: D",
+          "bpm": 70,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m2-ex-4",
+          "title": "Anchor Finger Practice",
+          "bpm": 80,
+          "durationSec": 120,
+          "remainingSec": 120,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Mantener ancla en el 3er traste",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m2-ex-5",
+          "title": "One Minute Changes: A to D",
+          "bpm": 60,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": "Changes",
+          "statisticLogs": [
+            { "date": "2026-05-06", "value": 15 },
+            { "date": "2026-05-07", "value": 17 },
+            { "date": "2026-05-08", "value": 19 },
+            { "date": "2026-05-09", "value": 20 }
+          ]
+        },
+        {
+          "id": "m2-ex-6",
+          "title": "One Minute Changes: A to E",
+          "bpm": 55,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Nuevo cambio, cuesta coordinar",
+          "statisticName": "Changes",
+          "statisticLogs": [
+            { "date": "2026-05-06", "value": 8 },
+            { "date": "2026-05-07", "value": 11 },
+            { "date": "2026-05-08", "value": 13 },
+            { "date": "2026-05-09", "value": 14 }
+          ]
+        },
+        {
+          "id": "m2-ex-7",
+          "title": "One Minute Changes: D to E",
+          "bpm": 55,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": "Changes",
+          "statisticLogs": [
+            { "date": "2026-05-07", "value": 9 },
+            { "date": "2026-05-08", "value": 10 },
+            { "date": "2026-05-09", "value": 12 }
+          ]
+        },
+        {
+          "id": "m2-ex-8",
+          "title": "Riff: Peter Gunn Theme",
+          "bpm": 90,
+          "durationSec": 60,
+          "remainingSec": 60,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Primera vez que toco un riff!",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "m2-ex-9",
+          "title": "L2 10 Min Song Practice",
+          "bpm": 95,
+          "durationSec": 600,
+          "remainingSec": 600,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Practicando Wonderwall (acoustic)",
+          "statisticName": null,
+          "statisticLogs": []
+        }
+      ]
+    },
+    {
+      "id": "routine-calentamiento",
+      "name": "Calentamiento Rápido",
+      "exercises": [
+        {
+          "id": "cal-ex-1",
+          "title": "Cromatic Scale 5 min",
+          "bpm": 60,
+          "durationSec": 300,
+          "remainingSec": 300,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Dedos 1-2-3-4 en cada cuerda",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "cal-ex-2",
+          "title": "Strumming Pattern: Down Down Up",
+          "bpm": 80,
+          "durationSec": 180,
+          "remainingSec": 180,
+          "completed": false,
+          "autoStart": true,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "",
+          "statisticName": null,
+          "statisticLogs": []
+        },
+        {
+          "id": "cal-ex-3",
+          "title": "Cambio G-C-D lento",
+          "bpm": 50,
+          "durationSec": 120,
+          "remainingSec": 120,
+          "completed": false,
+          "autoStart": false,
+          "archived": false,
+          "reps": 1,
+          "currentRep": 1,
+          "comment": "Tres acordes básicos para canciones",
+          "statisticName": null,
+          "statisticLogs": []
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "2026-05-04": {
+      "totalSec": 1260,
+      "routines": { "Module 1": 1260 }
+    },
+    "2026-05-05": {
+      "totalSec": 1380,
+      "routines": {
+        "Module 1": 1200,
+        "Module 2": 180
+      }
+    },
+    "2026-05-06": {
+      "totalSec": 2520,
+      "routines": { "Module 2": 1200, "Calentamiento Rápido": 600 }
+    },
+    "2026-05-07": {
+      "totalSec": 1800,
+      "routines": { "Module 2": 1800 }
+    },
+    "2026-05-08": {
+      "totalSec": 2100,
+      "routines": { "Module 1": 1260, "Module 2": 840 }
+    },
+    "2026-05-09": {
+      "totalSec": 2700,
+      "routines": { "Calentamiento Rápido": 600, "Module 2": 1260, "Module 1": 840 }
+    }
+  },
+  "sessions": [
+    {
+      "id": "ses-lun-1",
+      "date": "2026-05-04",
+      "routineId": "module-1",
+      "routineName": "Module 1",
+      "totalSec": 1200,
+      "completedAt": "2026-05-04T18:30:00.000Z",
+      "exercises": [
+        { "exerciseId": "m1-ex-1", "title": "Chord Perfect: D (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 6,  "repsCompleted": 1, "comment": "Pulgar bien posicionado" },
+        { "exerciseId": "m1-ex-2", "title": "Chord Perfect: A (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 5,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-3", "title": "Anchor Finger Practice",   "bpm": 80,  "durationSec": 120, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "Dedo indice como ancla" },
+        { "exerciseId": "m1-ex-4", "title": "One Minute Changes: A to D","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 12,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-5", "title": "One Minute Changes: D to A","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 10,  "repsCompleted": 1, "comment": "Cuesta mas que A a D" },
+        { "exerciseId": "m1-ex-6", "title": "L1 10 Min Song Practice",  "bpm": 90,  "durationSec": 600, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "Tocando Knockin' on Heaven's Door lento" }
+      ]
+    },
+    {
+      "id": "ses-mar-1",
+      "date": "2026-05-05",
+      "routineId": "module-1",
+      "routineName": "Module 1",
+      "totalSec": 1200,
+      "completedAt": "2026-05-05T19:15:00.000Z",
+      "exercises": [
+        { "exerciseId": "m1-ex-1", "title": "Chord Perfect: D (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 7, "repsCompleted": 1, "comment": "Pulgar bien posicionado" },
+        { "exerciseId": "m1-ex-2", "title": "Chord Perfect: A (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 6, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-3", "title": "Anchor Finger Practice",   "bpm": 80,  "durationSec": 120, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-4", "title": "One Minute Changes: A to D","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 14, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-5", "title": "One Minute Changes: D to A","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 12, "repsCompleted": 1, "comment": "Cuesta mas que A a D" },
+        { "exerciseId": "m1-ex-6", "title": "L1 10 Min Song Practice",  "bpm": 90,  "durationSec": 600, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-mar-2",
+      "date": "2026-05-05",
+      "routineId": "module-2",
+      "routineName": "Module 2",
+      "totalSec": 180,
+      "completedAt": "2026-05-05T19:40:00.000Z",
+      "exercises": [
+        { "exerciseId": "m2-ex-1", "title": "Chord Perfect: E",        "bpm": 70,  "durationSec": 120, "statName": null,     "statValue": null, "repsCompleted": 1, "comment": "Acorde E major, bien abierto" },
+        { "exerciseId": "m2-ex-2", "title": "Chord Perfect: A",        "bpm": 70,  "durationSec": 60,  "statName": null,     "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-mie-1",
+      "date": "2026-05-06",
+      "routineId": "routine-calentamiento",
+      "routineName": "Calentamiento Rápido",
+      "totalSec": 600,
+      "completedAt": "2026-05-06T17:45:00.000Z",
+      "exercises": [
+        { "exerciseId": "cal-ex-1", "title": "Cromatic Scale 5 min",        "bpm": 60,  "durationSec": 300, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "Dedos 1-2-3-4 en cada cuerda" },
+        { "exerciseId": "cal-ex-2", "title": "Strumming Pattern: Down Down Up","bpm": 80, "durationSec": 180, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "cal-ex-3", "title": "Cambio G-C-D lento",          "bpm": 50,  "durationSec": 120, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "Tres acordes básicos para canciones" }
+      ]
+    },
+    {
+      "id": "ses-mie-2",
+      "date": "2026-05-06",
+      "routineId": "module-2",
+      "routineName": "Module 2",
+      "totalSec": 1200,
+      "completedAt": "2026-05-06T18:30:00.000Z",
+      "exercises": [
+        { "exerciseId": "m2-ex-1", "title": "Chord Perfect: E",             "bpm": 70,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-2", "title": "Chord Perfect: A",             "bpm": 70,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-3", "title": "Chord Perfect: D",             "bpm": 70,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-4", "title": "Anchor Finger Practice",       "bpm": 80,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "Mantener ancla en el 3er traste" },
+        { "exerciseId": "m2-ex-5", "title": "One Minute Changes: A to D",   "bpm": 60,  "durationSec": 60,  "statName": "Changes", "statValue": 15,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-6", "title": "One Minute Changes: A to E",   "bpm": 55,  "durationSec": 60,  "statName": "Changes", "statValue": 8,   "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-8", "title": "Riff: Peter Gunn Theme",       "bpm": 90,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "Primera vez que toco un riff!" },
+        { "exerciseId": "m2-ex-9", "title": "L2 10 Min Song Practice",      "bpm": 95,  "durationSec": 600, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "Practicando Wonderwall" }
+      ]
+    },
+    {
+      "id": "ses-jue-1",
+      "date": "2026-05-07",
+      "routineId": "module-2",
+      "routineName": "Module 2",
+      "totalSec": 1320,
+      "completedAt": "2026-05-07T20:00:00.000Z",
+      "exercises": [
+        { "exerciseId": "m2-ex-1", "title": "Chord Perfect: E",             "bpm": 70,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-2", "title": "Chord Perfect: A",             "bpm": 70,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-3", "title": "Chord Perfect: D",             "bpm": 70,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-4", "title": "Anchor Finger Practice",       "bpm": 80,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-5", "title": "One Minute Changes: A to D",   "bpm": 60,  "durationSec": 60,  "statName": "Changes", "statValue": 17,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-6", "title": "One Minute Changes: A to E",   "bpm": 55,  "durationSec": 60,  "statName": "Changes", "statValue": 11,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-7", "title": "One Minute Changes: D to E",   "bpm": 55,  "durationSec": 60,  "statName": "Changes", "statValue": 9,   "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-8", "title": "Riff: Peter Gunn Theme",       "bpm": 90,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-9", "title": "L2 10 Min Song Practice",      "bpm": 95,  "durationSec": 600, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-vie-1",
+      "date": "2026-05-08",
+      "routineId": "module-1",
+      "routineName": "Module 1",
+      "totalSec": 1260,
+      "completedAt": "2026-05-08T18:15:00.000Z",
+      "exercises": [
+        { "exerciseId": "m1-ex-1", "title": "Chord Perfect: D (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 9, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-2", "title": "Chord Perfect: A (3)", "bpm": 70,  "durationSec": 180, "statName": "Clean Hits", "statValue": 8, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-3", "title": "Anchor Finger Practice",   "bpm": 80,  "durationSec": 120, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-4", "title": "One Minute Changes: A to D","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 18, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-5", "title": "One Minute Changes: D to A","bpm": 60,  "durationSec": 60,  "statName": "Changes",    "statValue": 15, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-6", "title": "L1 10 Min Song Practice",  "bpm": 90,  "durationSec": 600, "statName": null,        "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-vie-2",
+      "date": "2026-05-08",
+      "routineId": "module-2",
+      "routineName": "Module 2",
+      "totalSec": 840,
+      "completedAt": "2026-05-08T19:00:00.000Z",
+      "exercises": [
+        { "exerciseId": "m2-ex-4", "title": "Anchor Finger Practice",       "bpm": 80,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-5", "title": "One Minute Changes: A to D",   "bpm": 60,  "durationSec": 60,  "statName": "Changes", "statValue": 19,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-6", "title": "One Minute Changes: A to E",   "bpm": 55,  "durationSec": 60,  "statName": "Changes", "statValue": 13,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-7", "title": "One Minute Changes: D to E",   "bpm": 55,  "durationSec": 60,  "statName": "Changes", "statValue": 10,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-8", "title": "Riff: Peter Gunn Theme",       "bpm": 90,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-9", "title": "L2 10 Min Song Practice",      "bpm": 95,  "durationSec": 600, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-sab-1",
+      "date": "2026-05-09",
+      "routineId": "routine-calentamiento",
+      "routineName": "Calentamiento Rápido",
+      "totalSec": 600,
+      "completedAt": "2026-05-09T10:00:00.000Z",
+      "exercises": [
+        { "exerciseId": "cal-ex-1", "title": "Cromatic Scale 5 min",         "bpm": 65,  "durationSec": 300, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "Dedos 1-2-3-4 en cada cuerda" },
+        { "exerciseId": "cal-ex-2", "title": "Strumming Pattern: Down Down Up","bpm": 85, "durationSec": 180, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "cal-ex-3", "title": "Cambio G-C-D lento",           "bpm": 55,  "durationSec": 120, "statName": null, "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-sab-2",
+      "date": "2026-05-09",
+      "routineId": "module-2",
+      "routineName": "Module 2",
+      "totalSec": 1260,
+      "completedAt": "2026-05-09T11:00:00.000Z",
+      "exercises": [
+        { "exerciseId": "m2-ex-1", "title": "Chord Perfect: E",             "bpm": 75,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-2", "title": "Chord Perfect: A",             "bpm": 75,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-3", "title": "Chord Perfect: D",             "bpm": 75,  "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-4", "title": "Anchor Finger Practice",       "bpm": 85,  "durationSec": 120, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-5", "title": "One Minute Changes: A to D",   "bpm": 65,  "durationSec": 60,  "statName": "Changes", "statValue": 20,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-6", "title": "One Minute Changes: A to E",   "bpm": 60,  "durationSec": 60,  "statName": "Changes", "statValue": 14,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-7", "title": "One Minute Changes: D to E",   "bpm": 60,  "durationSec": 60,  "statName": "Changes", "statValue": 12,  "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-8", "title": "Riff: Peter Gunn Theme",       "bpm": 100, "durationSec": 60,  "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m2-ex-9", "title": "L2 10 Min Song Practice",      "bpm": 100, "durationSec": 600, "statName": null,      "statValue": null, "repsCompleted": 1, "comment": "" }
+      ]
+    },
+    {
+      "id": "ses-sab-3",
+      "date": "2026-05-09",
+      "routineId": "module-1",
+      "routineName": "Module 1",
+      "totalSec": 840,
+      "completedAt": "2026-05-09T11:30:00.000Z",
+      "exercises": [
+        { "exerciseId": "m1-ex-3", "title": "Anchor Finger Practice",        "bpm": 80,  "durationSec": 120, "statName": null,       "statValue": null, "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-4", "title": "One Minute Changes: A to D",    "bpm": 65,  "durationSec": 60,  "statName": "Changes",   "statValue": 19,   "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-5", "title": "One Minute Changes: D to A",    "bpm": 65,  "durationSec": 60,  "statName": "Changes",   "statValue": 16,   "repsCompleted": 1, "comment": "" },
+        { "exerciseId": "m1-ex-6", "title": "L1 10 Min Song Practice",       "bpm": 95,  "durationSec": 600, "statName": null,       "statValue": null,  "repsCompleted": 1, "comment": "" }
+      ]
+    }
+  ]
+}
