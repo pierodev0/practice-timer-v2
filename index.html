@@ -436,6 +436,31 @@
   </div>
 
   <!-- ============================================================
+       HISTORY VIEW
+       ============================================================ -->
+  <div id="history-view" class="view-section">
+    <div class="bg-[#E53935] text-white p-4 pt-6 pb-4 shadow-md sticky top-0 z-20">
+      <h2 class="text-lg font-medium text-center"><i class="fas fa-history mr-2"></i>Historial</h2>
+    </div>
+
+    <div class="p-4 pb-12">
+      <!-- Month navigation -->
+      <div class="flex items-center justify-between mb-4">
+        <button id="history-prev-month" class="text-[#E53935] text-xl p-2 hover:bg-red-50 rounded-lg transition-colors" aria-label="Mes anterior">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <span id="history-current-month" class="text-lg font-bold text-gray-800"></span>
+        <button id="history-next-month" class="text-[#E53935] text-xl p-2 hover:bg-red-50 rounded-lg transition-colors" aria-label="Mes siguiente">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Session list -->
+      <div id="history-list" class="space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
        BOTTOM NAVIGATION BAR
        ============================================================ -->
   <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex justify-around items-center shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
@@ -446,6 +471,10 @@
     <button data-tab="routines" class="bottom-nav-tab">
       <i class="fas fa-list text-xl"></i>
       <span class="text-[10px] mt-0.5 font-medium">Rutinas</span>
+    </button>
+    <button data-tab="history" class="bottom-nav-tab">
+      <i class="fas fa-history text-xl"></i>
+      <span class="text-[10px] mt-0.5 font-medium">Historial</span>
     </button>
     <button data-tab="stats" class="bottom-nav-tab">
       <i class="fas fa-chart-line text-xl"></i>

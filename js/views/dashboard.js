@@ -3,8 +3,8 @@
  * This is the main view of the application.
  */
 
-import { getState, getExerciseById, getCurrentRoutine, getVisibleExercises, saveData, recordProgressSeconds, adjustBpm, setBpm, subscribe } from '../state.js';
-import { formatTime, getFirstImage, getFirstUrl } from '../utils.js';
+import { getState, getExerciseById, getCurrentRoutine, getVisibleExercises, saveData, recordProgressSeconds, addSession, adjustBpm, setBpm, subscribe } from '../state.js';
+import { formatTime, getFirstImage, getFirstUrl, todayStr } from '../utils.js';
 import { initAudio, startMetronome, stopMetronome, setMetronomeBpm, playBellSound, setAudioOn } from '../audio.js';
 import { showStatModal } from './modals.js';
 
@@ -230,11 +230,37 @@ export function finishRoutine() {
   if (!confirm('Finish routine? This resets exercises.')) return;
   const s = getState();
   pauseSequence();
+
+  // Capture session data before reset
+  const routine = getCurrentRoutine();
+  const today = todayStr();
+  const completedExercises = routine.exercises
+    .filter(ex => ex.completed)
+    .map(ex => ({
+      exerciseId: ex.id,
+      title: ex.title,
+      durationSec: ex.durationSec,
+      statName: ex.statisticName || null,
+      statValue: getLastTodayStat(ex.statisticLogs),
+      repsCompleted: ex.reps
+    }));
+
+  if (completedExercises.length > 0 || s.globalSeconds > 0) {
+    addSession({
+      date: today,
+      routineId: routine.id,
+      routineName: routine.name,
+      totalSec: s.globalSeconds,
+      completedAt: new Date().toISOString(),
+      exercises: completedExercises
+    });
+  }
+
   recordProgressSeconds(s.globalSeconds);
   s.activeExerciseId = null;
   s.exerciseRemaining = 0;
   s.globalSeconds = 0;
-  getCurrentRoutine().exercises.forEach(e => {
+  routine.exercises.forEach(e => {
     e.completed = false;
     e.remainingSec = e.durationSec;
     e.currentRep = 1;
@@ -242,6 +268,15 @@ export function finishRoutine() {
   saveData();
   updateUI();
   alert('Routine Completed!');
+}
+
+function getLastTodayStat(logs) {
+  if (!logs || logs.length === 0) return null;
+  const today = todayStr();
+  for (let i = logs.length - 1; i >= 0; i--) {
+    if (logs[i].date === today) return logs[i].value;
+  }
+  return null;
 }
 
 export function resetRoutine() {

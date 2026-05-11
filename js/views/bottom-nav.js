@@ -32,7 +32,7 @@ export function getActiveTab() {
 // ============================================================
 
 function hideAllViews() {
-  const views = ['dashboard-view', 'details-view', 'stats-view', 'routines-view', 'settings-view'];
+  const views = ['dashboard-view', 'details-view', 'stats-view', 'routines-view', 'settings-view', 'history-view'];
   views.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
@@ -74,6 +74,15 @@ export async function activateTab(tabName) {
       if (routinesView) {
         routinesView.classList.add('active');
         import('./routines.js').then(m => m.renderRoutines());
+      }
+      break;
+
+    case 'history':
+      hideAllViews();
+      const historyView = document.getElementById('history-view');
+      if (historyView) {
+        historyView.classList.add('active');
+        import('./history.js').then(m => m.renderHistory());
       }
       break;
 

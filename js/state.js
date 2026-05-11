@@ -28,7 +28,8 @@ const _state = {
   ],
   currentRoutineId: 'module-1',
   newExerciseForm: { bpm: 100, min: 2, sec: 0, reps: 1 },
-  stats: {}
+  stats: {},
+  sessions: []
 };
 
 // --- Subscribers (pub/sub) ---
@@ -72,7 +73,8 @@ export function saveData() {
     routines: _state.routines,
     currentRoutineId: _state.currentRoutineId,
     stats: _state.stats,
-    globalSeconds: _state.globalSeconds
+    globalSeconds: _state.globalSeconds,
+    sessions: _state.sessions
   }));
 
   _notify();
@@ -86,6 +88,7 @@ export function loadData() {
       _state.routines = parsed.routines;
       _state.currentRoutineId = parsed.currentRoutineId || 'module-1';
       _state.stats = parsed.stats || {};
+      _state.sessions = parsed.sessions || [];
       _state.globalSeconds = parsed.globalSeconds || 0;
 
       // Migrate / normalize exercises
@@ -179,6 +182,31 @@ export function recordProgressSeconds(seconds) {
       (_state.stats[today].routines[routine.name] || 0) + seconds
     );
   }
+}
+
+/**
+ * Add a completed routine session to the history log.
+ * @param {Object} sessionData - { date, routineId, routineName, totalSec, completedAt, exercises[] }
+ */
+export function addSession(sessionData) {
+  _state.sessions.push({
+    id: nanoid(),
+    ...sessionData
+  });
+  saveData();
+}
+
+/**
+ * Get sessions with optional filters.
+ * @param {Object} [options] - { startDate, endDate, routineId }
+ * @returns {Array} sorted sessions (newest first)
+ */
+export function getSessions({ startDate, endDate, routineId } = {}) {
+  let filtered = _state.sessions.filter(() => true);
+  if (startDate) filtered = filtered.filter(s => s.date >= startDate);
+  if (endDate) filtered = filtered.filter(s => s.date <= endDate);
+  if (routineId) filtered = filtered.filter(s => s.routineId === routineId);
+  return filtered.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
 }
 
 /**

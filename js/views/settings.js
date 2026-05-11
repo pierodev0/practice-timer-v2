@@ -47,7 +47,7 @@ export function showArchivedExercises() {
 export function exportAllData() {
   const s = getState();
   downloadJSON(
-    JSON.stringify({ routines: s.routines, stats: s.stats }, null, 2),
+    JSON.stringify({ routines: s.routines, stats: s.stats, sessions: s.sessions }, null, 2),
     `backup_${new Date().toISOString().slice(0, 10)}.json`
   );
 }
@@ -66,6 +66,7 @@ export function restoreAllData(input) {
 
       s.routines = json.routines || [];
       s.stats = json.stats || s.stats;
+      s.sessions = json.sessions || [];
       s.currentRoutineId = s.routines[0]?.id || 'module-1';
       saveData();
 

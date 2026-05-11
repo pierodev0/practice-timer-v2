@@ -14,6 +14,7 @@ import { setupModals } from './views/modals.js';
 import { setupBottomNav } from './views/bottom-nav.js';
 import { setupRoutines } from './views/routines.js';
 import { setupSettings } from './views/settings.js';
+import { setupHistory } from './views/history.js';
 
 // ============================================================
 // WEB WORKER (real file, not Blob)
@@ -105,6 +106,7 @@ window.onload = function () {
   setupBottomNav();
   setupRoutines();
   setupSettings();
+  setupHistory();
 
   // 5. Set up Sortable drag & drop
   setupSortable();
