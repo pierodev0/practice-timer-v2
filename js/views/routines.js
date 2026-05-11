@@ -52,15 +52,26 @@ export function renderRoutines() {
         <button data-routine-select="${r.id}" class="w-9 h-9 rounded-full flex items-center justify-center ${isCurrent ? 'text-[#E53935] bg-red-50' : 'text-gray-400 hover:text-[#E53935] hover:bg-red-50'} transition-colors" title="Seleccionar">
           <i class="fas fa-play"></i>
         </button>
-        <button data-routine-rename="${r.id}" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Renombrar">
-          <i class="fas fa-pencil-alt text-xs"></i>
-        </button>
-        <button data-routine-export="${r.id}" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors" title="Exportar">
-          <i class="fas fa-file-export text-xs"></i>
-        </button>
-        <button data-routine-delete="${r.id}" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Eliminar">
-          <i class="fas fa-trash text-xs"></i>
-        </button>
+        <div class="relative routine-menu-container">
+          <button data-routine-menu="${r.id}" class="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Menú">
+            <i class="fas fa-ellipsis-v"></i>
+          </button>
+          <div data-routine-dropdown="${r.id}" class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[170px] z-50 hidden">
+            <button data-routine-rename="${r.id}" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors text-left">
+              <i class="fas fa-pencil-alt text-xs w-4"></i>Renombrar
+            </button>
+            <button data-routine-export="${r.id}" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors text-left">
+              <i class="fas fa-file-export text-xs w-4"></i>Exportar
+            </button>
+            <button data-routine-duplicate="${r.id}" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left">
+              <i class="fas fa-copy text-xs w-4"></i>Duplicar
+            </button>
+            <hr class="my-1 border-gray-100">
+            <button data-routine-delete="${r.id}" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left">
+              <i class="fas fa-trash text-xs w-4"></i>Eliminar
+            </button>
+          </div>
+        </div>
       </div>
     `;
 
@@ -90,8 +101,44 @@ export function renderRoutines() {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       deleteRoutine(el.dataset.routineDelete);
+      closeAllDropdowns();
     });
   });
+
+  // Menu (hamburger) toggle
+  container.querySelectorAll('[data-routine-menu]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = el.dataset.routineMenu;
+      const dropdown = document.querySelector(`[data-routine-dropdown="${id}"]`);
+      if (dropdown) {
+        closeAllDropdowns();
+        dropdown.classList.remove('dropdown-up');
+        dropdown.classList.toggle('hidden');
+        // If dropdown overflows viewport, flip it upward
+        if (!dropdown.classList.contains('hidden')) {
+          const rect = dropdown.getBoundingClientRect();
+          if (rect.bottom > window.innerHeight) {
+            dropdown.classList.add('dropdown-up');
+          }
+        }
+      }
+    });
+  });
+
+  // Duplicate
+  container.querySelectorAll('[data-routine-duplicate]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      duplicateRoutine(el.dataset.routineDuplicate);
+      closeAllDropdowns();
+    });
+  });
+}
+
+/** Close all routine dropdowns */
+function closeAllDropdowns() {
+  document.querySelectorAll('[data-routine-dropdown]').forEach(el => el.classList.add('hidden'));
 }
 
 // ============================================================
@@ -124,6 +171,27 @@ export function showNewRoutineInput() {
     saveData();
     renderRoutines();
   }
+}
+
+export function duplicateRoutine(id) {
+  const s = getState();
+  const original = s.routines.find(x => x.id === id);
+  if (!original) return;
+  const copy = {
+    id: nanoid(),
+    name: original.name + ' (Copia)',
+    exercises: original.exercises.map(ex => ({
+      ...ex,
+      id: nanoid(),
+      completed: false,
+      remainingSec: ex.durationSec,
+      currentRep: 1,
+      statisticLogs: []
+    }))
+  };
+  s.routines.push(copy);
+  saveData();
+  renderRoutines();
 }
 
 export function renameRoutine(id) {
@@ -210,5 +278,14 @@ export function setupRoutines() {
   document.getElementById('routines-import-btn')?.addEventListener('click', triggerImport);
   document.getElementById('routines-import-input')?.addEventListener('change', (e) => {
     importRoutines(e.target);
+  });
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    const menuBtn = e.target.closest('[data-routine-menu]');
+    const dropdown = e.target.closest('[data-routine-dropdown]');
+    if (!menuBtn && !dropdown) {
+      closeAllDropdowns();
+    }
   });
 }

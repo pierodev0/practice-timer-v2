@@ -7,7 +7,7 @@
 
 import { nanoid } from 'nanoid';
 import { formatTime, deepClone, todayStr } from './utils.js';
-import { module1Routine, module2Routine } from './routines-sample.js';
+import { module1Routine, module2Routine, module3Routine, module4Routine, module5Routine, module6Routine, module7Routine, module8Routine, module9Routine, module10Routine, module11Routine, module12Routine } from './routines-sample.js';
 
 const STORAGE_KEY = 'musicRoutineApp_v36_stats';
 
@@ -24,7 +24,17 @@ const _state = {
   pendingDetailCompletion: false,
   routines: [
     deepClone(module1Routine),
-    deepClone(module2Routine)
+    deepClone(module2Routine),
+    deepClone(module3Routine),
+    deepClone(module4Routine),
+    deepClone(module5Routine),
+    deepClone(module6Routine),
+    deepClone(module7Routine),
+    deepClone(module8Routine),
+    deepClone(module9Routine),
+    deepClone(module10Routine),
+    deepClone(module11Routine),
+    deepClone(module12Routine)
   ],
   currentRoutineId: 'module-1',
   newExerciseForm: { bpm: 100, min: 2, sec: 0, reps: 1 },
@@ -126,7 +136,17 @@ export function resetAllData() {
 
   _state.routines = [
     deepClone(module1Routine),
-    deepClone(module2Routine)
+    deepClone(module2Routine),
+    deepClone(module3Routine),
+    deepClone(module4Routine),
+    deepClone(module5Routine),
+    deepClone(module6Routine),
+    deepClone(module7Routine),
+    deepClone(module8Routine),
+    deepClone(module9Routine),
+    deepClone(module10Routine),
+    deepClone(module11Routine),
+    deepClone(module12Routine)
   ];
   _state.currentRoutineId = 'module-1';
   _state.stats = {};
