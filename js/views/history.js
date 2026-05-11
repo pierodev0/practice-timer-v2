@@ -1,5 +1,5 @@
 import { getState } from '../state.js';
-import { formatTime } from '../utils.js';
+import { downloadDayXLSX, downloadMonthXLSX } from '../export.js';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 let currentYear = new Date().getFullYear();
@@ -17,6 +17,8 @@ export function setupHistory() {
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     renderHistory();
   });
+
+  document.getElementById('history-export-month-btn')?.addEventListener('click', exportMonth);
 }
 
 export function renderHistory() {
@@ -54,6 +56,9 @@ export function renderHistory() {
     html += `<div class="mb-4">
         <div class="flex items-center gap-2 mb-3">
           <span class="text-xs text-gray-400 font-bold uppercase">${weekday}, ${dayLabel}</span>
+          <button onclick="window._exportDay('${day}')" class="ml-auto text-xs text-[#E53935] hover:bg-red-50 px-2 py-1 rounded-lg transition-colors" title="Exportar día a Excel">
+            <i class="fas fa-file-excel mr-1"></i>Excel
+          </button>
           <div class="flex-1 h-px bg-gray-100"></div>
         </div>`;
 
@@ -98,6 +103,40 @@ function resolveRoutineName(session) {
   const routine = s.routines.find(r => r.id === session.routineId);
   return routine ? routine.name : session.routineName;
 }
+
+/**
+ * Export the current month's sessions as a multi-sheet .xlsx.
+ * Each day gets its own sheet with all routines stacked.
+ */
+function exportMonth() {
+  const s = getState();
+  const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const monthSessions = s.sessions.filter(ses => ses.date && ses.date.startsWith(prefix));
+  if (monthSessions.length === 0) {
+    alert('No hay sesiones este mes.');
+    return;
+  }
+
+  const dayGroups = {};
+  monthSessions.forEach(session => {
+    if (!dayGroups[session.date]) dayGroups[session.date] = [];
+    dayGroups[session.date].push(session);
+  });
+
+  const monthLabel = `${MONTHS[currentMonth]} ${currentYear}`;
+  downloadMonthXLSX(dayGroups, resolveRoutineName, currentYear, currentMonth, monthLabel);
+}
+
+/**
+ * Export all sessions for a given date (YYYY-MM-DD) to a CSV file,
+ * grouped by routine. Exposed on window so the inline onclick works.
+ */
+window._exportDay = function (dateStr) {
+  const s = getState();
+  const daySessions = s.sessions.filter(ses => ses.date === dateStr);
+  if (daySessions.length === 0) return;
+  downloadDayXLSX(daySessions, resolveRoutineName, dateStr);
+};
 
 function formatDuration(seconds) {
   if (!seconds) return '0m';

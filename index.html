@@ -18,6 +18,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
   <!-- App Entry Point (ES Module) -->
   <script type="module" src="js/app.js"></script>
@@ -414,6 +415,20 @@
         </div>
       </div>
 
+      <!-- Danger Zone -->
+      <div class="card p-4 border border-red-200">
+        <h3 class="text-xs uppercase text-red-500 font-bold tracking-wider mb-3">Zona de Peligro</h3>
+        <button id="settings-delete-all-btn" class="w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-left">
+          <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center text-red-700">
+            <i class="fas fa-trash-alt"></i>
+          </div>
+          <div>
+            <p class="font-medium text-red-800 text-sm">Borrar Todos los Datos</p>
+            <p class="text-xs text-red-500">Elimina rutinas, estadísticas e historial</p>
+          </div>
+        </button>
+      </div>
+
       <!-- Links -->
       <div class="card p-4">
         <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-3">Enlaces</h3>
@@ -450,6 +465,9 @@
           <i class="fas fa-chevron-left"></i>
         </button>
         <span id="history-current-month" class="text-lg font-bold text-gray-800"></span>
+        <button id="history-export-month-btn" class="text-xs text-[#E53935] hover:bg-red-50 px-2 py-1 rounded-lg transition-colors" title="Exportar mes completo a Excel">
+          <i class="fas fa-file-excel mr-1"></i>Mes
+        </button>
         <button id="history-next-month" class="text-[#E53935] text-xl p-2 hover:bg-red-50 rounded-lg transition-colors" aria-label="Mes siguiente">
           <i class="fas fa-chevron-right"></i>
         </button>

@@ -117,6 +117,34 @@ export function loadData() {
   _notify();
 }
 
+/**
+ * Reset all data to factory defaults (clears localStorage and restores
+ * the initial state including sample routines).
+ */
+export function resetAllData() {
+  localStorage.removeItem(STORAGE_KEY);
+
+  _state.routines = [
+    deepClone(module1Routine),
+    deepClone(module2Routine)
+  ];
+  _state.currentRoutineId = 'module-1';
+  _state.stats = {};
+  _state.sessions = [];
+  _state.globalSeconds = 0;
+  _state.activeExerciseId = null;
+  _state.exerciseRemaining = 0;
+  _state.isExercisePlaying = false;
+  _state.isAudioOn = false;
+  _state.bpm = 120;
+  _state.autoplayRoutine = false;
+  _state.pendingDetailCompletion = false;
+  _state.viewingExerciseId = null;
+  _state.newExerciseForm = { bpm: 100, min: 2, sec: 0, reps: 1 };
+
+  saveData();
+}
+
 // --- Getters ---
 
 export function getCurrentRoutine() {

@@ -3,7 +3,7 @@
  * Replaces the sidebar-only settings access.
  */
 
-import { getState, saveData, getCurrentRoutine } from '../state.js';
+import { getState, saveData, getCurrentRoutine, resetAllData } from '../state.js';
 import { downloadJSON } from '../utils.js';
 
 // ============================================================
@@ -95,6 +95,38 @@ export function restoreAllData(input) {
 }
 
 // ============================================================
+// DELETE ALL DATA
+// ============================================================
+
+export function deleteAllData() {
+  const confirmed = confirm(
+    '⚠️ ¿Estás seguro?\n\n' +
+    'Esta acción borrará TODOS tus datos:\n' +
+    '• Rutinas y ejercicios\n' +
+    '• Estadísticas\n' +
+    '• Historial de práctica\n\n' +
+    'No se puede deshacer.'
+  );
+  if (!confirmed) return;
+
+  const doubleCheck = prompt('Escribe "BORRAR" para confirmar:');
+  if (doubleCheck !== 'BORRAR') {
+    alert('Cancelado. No se borró nada.');
+    return;
+  }
+
+  resetAllData();
+
+  import('./dashboard.js').then(m => {
+    m.pauseSequence();
+    m.updateUI();
+  });
+  import('./history.js').then(m => m.renderHistory());
+
+  alert('Todos los datos han sido eliminados.');
+}
+
+// ============================================================
 // SETUP — Attach DOM event listeners
 // ============================================================
 
@@ -115,4 +147,7 @@ export function setupSettings() {
   document.getElementById('settings-stats-btn')?.addEventListener('click', () => {
     import('./stats.js').then(m => m.openStatsView());
   });
+
+  // Delete all data
+  document.getElementById('settings-delete-all-btn')?.addEventListener('click', deleteAllData);
 }

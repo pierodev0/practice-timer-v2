@@ -239,10 +239,12 @@ export function finishRoutine() {
     .map(ex => ({
       exerciseId: ex.id,
       title: ex.title,
+      bpm: ex.bpm,
       durationSec: ex.durationSec,
       statName: ex.statisticName || null,
       statValue: getLastTodayStat(ex.statisticLogs),
-      repsCompleted: ex.reps
+      repsCompleted: ex.reps,
+      comment: ex.comment || ''
     }));
 
   if (completedExercises.length > 0 || s.globalSeconds > 0) {
