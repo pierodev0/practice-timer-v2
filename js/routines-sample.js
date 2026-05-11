@@ -16,17 +16,17 @@ import { nanoid } from 'nanoid';
 
 /**
  * Crea un objeto ejercicio completo con ID único via nanoid.
- * El BPM se deja en null para usar el BPM global del slider.
+ * BPM fijo en 60. El metrónomo no arranca automáticamente.
  */
-function createExercise({ title, durationSec, autoStart = true, comment = '', statisticName = null }) {
+function createExercise({ title, durationSec, comment = '', statisticName = null }) {
   return {
     id: nanoid(),
     title,
-    bpm: null,
+    bpm: 60,
+    autoStart: false,
     durationSec,
     remainingSec: durationSec,
     completed: false,
-    autoStart,
     archived: false,
     reps: 1,
     currentRep: 1,
@@ -43,7 +43,7 @@ function min(m) {
 
 /** Helper: OMC (One Minute Change) con stats de "Changes" */
 function omc(title) {
-  return createExercise({ title, durationSec: 60, autoStart: false, statisticName: 'Changes' });
+  return createExercise({ title, durationSec: 60, statisticName: 'Changes' });
 }
 
 // ============================================================
@@ -201,7 +201,7 @@ const module8Exercises = [
   createExercise({ title: 'L8 Stuck 3 & 4 Chords',       durationSec: min(3) }),
   createExercise({ title: 'L8 E Minor Pentatonic Scale',  durationSec: min(2) }),
   omc('L8 OMC Big G to D'),
-  createExercise({ title: 'L8 PFC Big G to D',           durationSec: min(1), autoStart: false }),
+  createExercise({ title: 'L8 PFC Big G to D',           durationSec: min(1) }),
   createExercise({ title: 'L8 Open Note Study',          durationSec: min(2) }),
   createExercise({ title: 'L8 Strumming & Accent 2 & 4', durationSec: min(3) }),
   createExercise({ title: "L8 Wish You Were Here Riff",  durationSec: min(3) }),
@@ -223,9 +223,9 @@ const module9Exercises = [
   createExercise({ title: 'Repertoire Revision',         durationSec: min(5) }),
   createExercise({ title: 'F Chord Practice',            durationSec: min(2) }),
   createExercise({ title: 'F Chord Cheats',             durationSec: min(2) }),
-  createExercise({ title: 'PFC C to Fmaj7/C',           durationSec: min(1), autoStart: false }),
-  createExercise({ title: 'PFC Fmaj7 to G',             durationSec: min(1), autoStart: false }),
-  createExercise({ title: 'PFC Mini F to D',            durationSec: min(1), autoStart: false }),
+  createExercise({ title: 'PFC C to Fmaj7/C',           durationSec: min(1) }),
+  createExercise({ title: 'PFC Fmaj7 to G',             durationSec: min(1) }),
+  createExercise({ title: 'PFC Mini F to D',            durationSec: min(1) }),
   createExercise({ title: 'C Major Scale',               durationSec: min(2) }),
   createExercise({ title: 'Pinky Workout',               durationSec: min(2) }),
   createExercise({ title: "Californication Riff",        durationSec: min(4) }),
@@ -246,7 +246,7 @@ const module10Exercises = [
   createExercise({ title: 'Repertoire Revision',         durationSec: min(5) }),
   createExercise({ title: 'F And Changes (L11)',         durationSec: min(2) }),
   createExercise({ title: 'New Chord G and A',           durationSec: min(2) }),
-  createExercise({ title: 'PFC wfG to C',                durationSec: min(1), autoStart: false }),
+  createExercise({ title: 'PFC wfG to C',                durationSec: min(1) }),
   createExercise({ title: 'C Major Alternate Picking',   durationSec: min(2) }),
   createExercise({ title: 'C Major Improvisation',       durationSec: min(2) }),
   createExercise({ title: 'Push Strumming Practice',     durationSec: min(1) }),
