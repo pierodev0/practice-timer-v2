@@ -109,19 +109,31 @@ export function renderRoutines() {
   container.querySelectorAll('[data-routine-menu]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      closeAllDropdowns();
       const id = el.dataset.routineMenu;
       const dropdown = document.querySelector(`[data-routine-dropdown="${id}"]`);
-      if (dropdown) {
-        closeAllDropdowns();
-        dropdown.classList.remove('dropdown-up');
-        dropdown.classList.toggle('hidden');
-        // If dropdown overflows viewport, flip it upward
-        if (!dropdown.classList.contains('hidden')) {
-          const rect = dropdown.getBoundingClientRect();
-          if (rect.bottom > window.innerHeight) {
-            dropdown.classList.add('dropdown-up');
-          }
-        }
+      if (!dropdown) return;
+
+      // Reset classes and position it with fixed positioning
+      dropdown.classList.remove('hidden', 'dropdown-up');
+
+      const btnRect = el.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - btnRect.bottom;
+      const dropdownHeight = 200; // approximate max height
+
+      if (spaceBelow >= dropdownHeight) {
+        // Open downward
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = (btnRect.bottom + 4) + 'px';
+        dropdown.style.left = Math.max(8, btnRect.right - 170) + 'px';
+        dropdown.style.bottom = 'auto';
+      } else {
+        // Open upward
+        dropdown.classList.add('dropdown-up');
+        dropdown.style.position = 'fixed';
+        dropdown.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
+        dropdown.style.left = Math.max(8, btnRect.right - 170) + 'px';
+        dropdown.style.top = 'auto';
       }
     });
   });

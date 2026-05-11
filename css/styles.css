@@ -84,10 +84,4 @@ body {
   border-radius: 99px;
 }
 
-/* Routine dropdown — flip upward when near bottom of viewport */
-.routine-menu-container [data-routine-dropdown].dropdown-up {
-  top: auto;
-  bottom: 100%;
-  margin-top: 0;
-  margin-bottom: 0.25rem;
-}
+/* Routine dropdown — positioned via fixed JS, no special CSS needed */
