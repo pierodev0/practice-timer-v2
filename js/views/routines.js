@@ -117,9 +117,9 @@ export function renderRoutines() {
           <i class="fas ${isCurrent ? 'fa-check' : 'fa-list'}"></i>
         </div>
         <div class="min-w-0">
-          <p class="font-medium text-gray-800 truncate ${isCurrent ? 'text-[#E53935]' : ''}">
+          <p class="font-medium text-gray-800 line-clamp-2 ${isCurrent ? 'text-[#E53935]' : ''}">
             ${r.name}
-            ${isCurrent ? '<span class="text-xs font-normal text-[#E53935] ml-1">· Activa</span>' : ''}
+            ${isCurrent ? '<span class="text-xs font-normal text-[#E53935] ml-1 inline">· Activa</span>' : ''}
           </p>
           <p class="text-xs text-gray-400">${activeCount} ejercicio${activeCount !== 1 ? 's' : ''}${exerciseCount !== activeCount ? ` (${exerciseCount - activeCount} archivados)` : ''}</p>
         </div>
