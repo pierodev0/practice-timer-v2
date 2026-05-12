@@ -9,22 +9,23 @@
 ## ⚠️ Fuente de verdad
 
 **El código fuente real y actualizado está en `js/` (módulos ES) y `css/`.**
-Usa SIEMPRE esos archivos como referencia. Recurre a `legacy/` ÚNICAMENTE
-para contrastar comportamiento cuando algo no funcione como esperas.
+Usa SIEMPRE esos archivos como referencia.
 
 ## Archivos de referencia para LLM
 
 | Leer primero | Para qué |
 |---|---|
 | **`DESIGN.md`** | Arquitectura completa: tipos, dependencias, flujos, algoritmos |
-| **`FUNCTION_INDEX.md`** | Mapeo old → new (debug cuando algo no coincida) |
+| **`PLAN.md`** | Arquitectura de sincronización cloud con Firebase |
 
 ## Reglas de arquitectura (sucinto)
 
 - **state.js** es la única fuente de verdad. Las vistas importan `getState()`, `saveData()`, etc.
 - **Las vistas NUNCA se importan entre sí.** La comunicación cruzada va por `state.js` o `app.js`.
 - **export.js** no tiene imports de la app (preparado para SheetJS/xlsx).
-- **sidebar.js** existe pero **no se usa** en la UI actual (reemplazado por `routines.js` + `settings.js`).
+- **`js/firebase/`** es una capa opcional — solo se activa con el login de Google. No rompe el funcionamiento offline.
+- **`saveData()`** ahora también gatilla cloud sync (debounced 2s) si el usuario activó sincronización automática.
+- **`app.js`** orquesta todo: loadData, Firebase init, auth observer, y onSnapshot listener para cambios remotos.
 
 ## Comandos
 

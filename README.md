@@ -4,7 +4,7 @@
 > Crea ejercicios con tiempo, BPM y repeticiones. El metrónomo integrado te marca el ritmo
 > mientras un timer preciso (Web Worker) lleva la cuenta. Al finalizar cada ronda, registra
 > estadísticas opcionales y visualiza tu progreso con gráficas e historial. Exporta a Excel.
-> Todo funciona offline como PWA.
+> Sincroniza tus datos entre dispositivos con Firebase. Todo funciona offline como PWA.
 
 ---
 
@@ -20,6 +20,7 @@
 | **Audio** | [Tone.js](https://tonejs.github.io) (CDN) |
 | **Drag & Drop** | [Sortable.js](https://sortablejs.github.io/Sortable/) (CDN) |
 | **Excel Export** | [ExcelJS](https://github.com/exceljs/exceljs) (CDN) |
+| **Cloud Sync** | [Firebase Auth](https://firebase.google.com/docs/auth) + [Firestore](https://firebase.google.com/docs/firestore) |
 | **PWA** | Service Worker (offline caching) |
 
 ---
@@ -50,13 +51,14 @@ bun run preview
 ├── vite.config.js              # Vite + Tailwind configuration
 ├── package.json                # Bun scripts & dependencies
 ├── DESIGN.md                   # Full architecture docs (for LLM assistance)
+├── PLAN.md                     # Cloud sync implementation plan
 ├── AGENTS.md                   # LLM/agent instructions
 │
 ├── css/
 │   └── styles.css              # Tailwind v4 + custom component layers
 │
 ├── js/
-│   ├── app.js                  # Entry: init, orchestration, Sortable, SW
+│   ├── app.js                  # Entry: init, orchestration, Firebase, Sortable, SW
 │   ├── state.js                # Central store + localStorage persistence
 │   ├── audio.js                # Tone.js metronome & bell sounds
 │   ├── worker.js               # Web Worker (real file, not Blob)
@@ -64,13 +66,21 @@ bun run preview
 │   ├── export.js               # ExcelJS .xlsx export engine
 │   ├── routines-sample.js      # Default routines for first-time users
 │   │
+│   ├── firebase/               # Cloud sync layer (optional, offline-safe)
+│   │   ├── config.js           # Firebase SDK init + Firestore persistence
+│   │   ├── auth.js             # Google login (popup + redirect fallback)
+│   │   ├── sync.js             # Upload, download, merge, debounce, onSnapshot
+│   │   ├── serializer.js       # Export/import sync payload
+│   │   ├── merge.js            # Last-write-wins conflict resolution
+│   │   └── device.js           # Persistent device UUID
+│   │
 │   └── views/
 │       ├── dashboard.js        # Practice tab: exercise list, timer, playback
 │       ├── details.js          # Exercise detail editing (title, BPM, stats)
 │       ├── routines.js         # Routine CRUD, import/export single routine
 │       ├── history.js          # History tab: monthly sessions, Excel export
 │       ├── stats.js            # Charts tab: practice time, exercise stats
-│       ├── settings.js         # Settings tab: backup, restore, delete all
+│       ├── settings.js         # Settings tab: backup, restore, delete, cloud sync
 │       ├── bottom-nav.js       # Tab navigation (practice, routines, history, stats, settings)
 │       └── modals.js           # Modal dialogs (create exercise, stat input, lightbox)
 │
@@ -80,12 +90,7 @@ bun run preview
 │   ├── icon-192.png
 │   └── icon-512.png
 │
-├── legacy/                     # Original monolithic files (pre-refactor, debug only)
-│   ├── index.html              # Original app in one file (1145 lines)
-│   └── sw.js                   # Original Service Worker
-│
-├── test-data-semana.json       # Sample data (1 week of practice) for testing
-└── FUNCTION_INDEX.md           # Old → New function mapping (debug)
+└── test-data-semana.json       # Sample data (1 week of practice) for testing
 ```
 
 ---
@@ -115,8 +120,7 @@ bun run preview
 ### 📜 History
 - Monthly calendar view of completed sessions
 - Each session shows exercises completed with BPM, reps, duration
-- Per-day Excel export (.xlsx) with routines in separate blocks
-- Excel file: one sheet per day, columns: Titulo, Reps, Bpm, duracion, Series, total, notas
+- Per-day and full-month Excel export (.xlsx)
 - Routine names resolve in real-time (reflects renames)
 
 ### ⚙️ Settings
@@ -126,10 +130,19 @@ bun run preview
 - View archived exercises
 - Link to statistics page
 
+### ☁️ Cloud Sync
+- Login with Google (popup on desktop, redirect fallback on mobile)
+- Manual sync button: "Sync Now" uploads + downloads latest changes
+- Auto-sync (toggle): debounced 2s after every save
+- Realtime sync via Firestore `onSnapshot` — changes appear on other devices instantly
+- Sync status indicator (synced/syncing/offline/error)
+- Last-write-wins merge strategy
+- Offline-first: app works fully without login; cloud is optional
+
 ### 📱 PWA
 - Works offline via Service Worker caching
 - Installable on mobile/desktop
-- All data persists in localStorage
+- All data persists in localStorage (cloud is a sync layer, not primary storage)
 
 ---
 
@@ -138,8 +151,8 @@ bun run preview
 See [`DESIGN.md`](DESIGN.md) for full architecture documentation including:
 - Data structures (Routine, Exercise, Session, Stats)
 - Module dependency graph
-- Data flow diagrams (practice, completion, persistence)
-- Key algorithms (timer, metronome, export)
+- Data flow diagrams (practice, completion, persistence, cloud sync)
+- Key algorithms (timer, metronome, export, sync engine, merge)
 - Import/export formats
 - File index with exported functions
 
@@ -167,12 +180,18 @@ This app was originally a single HTML file (~1145 lines) containing inline HTML,
 
 | Before | After |
 |---|---|
-| 1 file (index.html) | 16 source files |
+| 1 file (index.html) | 22 source files |
 | Inline `onclick=""` handlers | `addEventListener` in modules |
 | Web Worker as Blob | Real `worker.js` file |
 | Tailwind CDN | Tailwind v4 via npm |
 | No bundler | Vite 8 dev server + build |
 | `document.write()` in modal | Static HTML with IDs |
+
+---
+
+## Environment Variables (Firebase)
+
+The Firebase config is hardcoded in `js/firebase/config.js`. No `.env` file needed for deployment.
 
 ---
 

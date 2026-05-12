@@ -16,6 +16,7 @@ Vanilla JS single-page app (SPA) for timing and tracking music practice routines
 - **History**: Completed sessions stored and viewable by month, exportable to Excel (`.xlsx`)
 - **Charts**: Chart.js showing practice time, exercise stats over time
 - **PWA**: Offline via Service Worker, installable
+- **Cloud Sync**: Firebase Auth (Google login) + Firestore for multi-device sync and cloud backup
 
 ---
 
@@ -122,7 +123,24 @@ SessionExercise {
 }
 ```
 
-### 2.5 Backup Format (JSON)
+### 2.5 Cloud Sync Document (Firestore)
+
+```
+users/{uid}/app/state {
+  schemaVersion: 1,
+  updatedAt: serverTimestamp(),
+  _localUpdatedAt: number,   // Date.now() from client
+  deviceId: string,           // UUID from device.js
+  data: {
+    routines: Routine[],
+    stats: StatsMap,
+    sessions: Session[],
+    currentRoutineId: string
+  }
+}
+```
+
+### 2.6 Backup Format (JSON)
 
 Used by Settings → Export / Import. Top-level object:
 
@@ -153,6 +171,14 @@ index.html (entry)
         │
         ├── js/export.js (ExcelJS + CSV utilities)
         │
+        ├── js/firebase/          (cloud sync layer — optional)
+        │     ├── config.js       (Firebase init, auth, db)
+        │     ├── auth.js         (Google login/logout/observer)
+        │     ├── sync.js         (upload, download, debounce, onSnapshot)
+        │     ├── serializer.js   (exportSyncState, importSyncState)
+        │     ├── merge.js        (last-write-wins conflict resolution)
+        │     └── device.js       (persistent device UUID)
+        │
         └── js/views/
               ├── dashboard.js   (practice tab — timer, exercise list)
               │     ├── state.js
@@ -166,8 +192,9 @@ index.html (entry)
               ├── routines.js    (routine CRUD, import/export single routine)
               │     └── state.js
               │
-              ├── settings.js    (backup, restore, delete all data)
-              │     └── state.js
+              ├── settings.js    (backup, restore, delete all, cloud sync)
+              │     ├── state.js
+              │     └── firebase/auth.js + firebase/sync.js
               │
               ├── stats.js       (charts, date filters, streak)
               │     └── state.js
@@ -187,6 +214,7 @@ index.html (entry)
 - **`app.js` is the only file that imports all views.** It wires everything together in `window.onload`.
 - **`export.js` has no imports.** It's a pure utility module for future library upgrades (e.g., SheetJS).
 - **`utils.js` has no app imports.** Pure functions only.
+- **`js/firebase/` is an optional layer** — dynamically imported from `state.js` and `settings.js`. The app works fully offline without it.
 
 ---
 
@@ -200,7 +228,7 @@ index.html (entry)
 | Routines | `routines.js` | `#routines-view` | Manage routines (rename, delete, create, import/export) |
 | History | `history.js` | `#history-view` | Monthly session log, per-day Excel export |
 | Stats | `stats.js` | `#stats-view` | Charts, practice time, streak, exercise stats |
-| Settings | `settings.js` | `#settings-view` | Backup, restore, delete all data, links |
+| Settings | `settings.js` | `#settings-view` | Backup, restore, delete all, cloud sync (login/logout/sync-now) |
 
 ### 4.2 Tab Switching (`bottom-nav.js`)
 
@@ -260,25 +288,58 @@ finishRoutine()
   └── saveData()
 ```
 
-### 5.3 State Persistence
+### 5.3 Save Flow (includes cloud sync)
 
 ```
-saveData()
+saveData(skipCloudSync)
   │
   ├── Sync exerciseRemaining → active exercise's remainingSec
   ├── JSON.stringify → localStorage.setItem(STORAGE_KEY, ...)
+  ├── (unless skipCloudSync) import sync.js → scheduleCloudSync()
+  │     └── if auto-sync enabled:
+  │           └── debounce 2000ms → uploadState() → Firestore setDoc
+  │
   └── _notify() → all subscribers called
         │
         └── dashboard.js subscriber → updateUI()
 ```
 
+### 5.4 Startup Flow (includes Firebase)
+
 ```
-loadData()  (called in app.js window.onload)
+window.onload
   │
-  ├── localStorage.getItem(STORAGE_KEY)
-  ├── JSON.parse → restore _state.routines, _state.stats, _state.sessions
-  ├── Normalize/migrate exercise fields
-  └── _notify()
+  ├── loadData() — localStorage → _state
+  ├── setupDateDefaults()
+  ├── setupAllViews()
+  ├── setupSortable()
+  ├── registerServiceWorker()
+  ├── updateUI()
+  │
+  ├── handleRedirectResult() — process mobile auth redirect
+  ├── observeAuth(user => {
+  │     if (user):
+  │       ├── downloadAndMergeState() — get cloud state, merge into local
+  │       ├── startSyncListener(onSnapshot) — realtime remote changes
+  │       └── show "connected" UI
+  │     else:
+  │       └── show "login" UI
+  │   })
+  │
+  └── window.beforeunload → saveData()
+```
+
+### 5.5 Cloud Sync Remote Update Flow
+
+```
+onSnapshot (other device changed data)
+  │
+  ├── deviceId matches ours? → skip (prevent loop)
+  ├── cloudTime > localTime? → merge
+  │     └── update _state.routines, .stats, .sessions, .currentRoutineId
+  │     └── saveData(true) — persist locally, skip upload loop
+  │
+  └── UI auto-refreshes via _notify()
 ```
 
 ---
@@ -357,6 +418,41 @@ When an exercise has `statisticName` set (e.g., "Clean Hits"), completing it ope
 
 On `finishRoutine()`, the last today's stat value is captured into the session.
 
+### 6.6 Cloud Sync Engine (`js/firebase/sync.js`)
+
+```
+scheduleCloudSync() — debounced upload
+  ├── check auto-sync toggle (DOM checkbox)
+  ├── if disabled → return
+  ├── debounce 2000ms
+  └── uploadState(uid) → setDoc to Firestore
+
+downloadAndMergeState(uid) — initial sync on login
+  ├── getDoc from Firestore
+  ├── if cloud empty → upload local
+  ├── if both exist → mergeState(local, cloud) by updatedAt
+  └── if cloud newer → update _state + saveData(true)
+
+startSyncListener(uid, callback) — realtime
+  ├── onSnapshot(docRef)
+  ├── if deviceId matches ours → skip (own write)
+  ├── if cloudTime > localTime → callback(merged data)
+  └── callback calls saveData(true) → localStorage + _notify()
+```
+
+### 6.7 Merge Strategy (`js/firebase/merge.js`)
+
+```
+mergeState(localData, cloudData)
+  ├── cloud empty → no change
+  ├── local empty → use cloud
+  ├── both exist:
+  │     ├── compare updatedAt (millis)
+  │     ├── cloud newer → cloud replaces local
+  │     └── local newer → keep local (will re-upload on next save)
+  └── returns { changed: boolean, data: object|null }
+```
+
 ---
 
 ## 7. Import / Export Formats
@@ -399,7 +495,24 @@ On import, `sanitizeImportedRoutine()` normalizes and generates new nanoids.
 }
 ```
 
-### 7.3 Excel Export (per day)
+### 7.3 Cloud Sync Payload (Firestore)
+
+```json
+{
+  "schemaVersion": 1,
+  "updatedAt": "<Firestore server timestamp>",
+  "_localUpdatedAt": 1747016400000,
+  "deviceId": "uuid-from-device.js",
+  "data": {
+    "routines": [...],
+    "stats": { ... },
+    "sessions": [...],
+    "currentRoutineId": "module-1"
+  }
+}
+```
+
+### 7.4 Excel Export (per day)
 
 Each day exports one `.xlsx` file with all routines stacked in a single sheet named `dd-mm-yyyy`.
 
@@ -466,18 +579,24 @@ export default defineConfig({
 
 | File | Type | Lines (approx) | Exports |
 |---|---|---|---|
-| `js/app.js` | Orchestrator | ~100 | `(none — entry point)` |
-| `js/state.js` | State store | ~240 | `getState, saveData, loadData, resetAllData, subscribe, getCurrentRoutine, getExerciseById, getVisibleExercises, setBpm, adjustBpm, recordProgressSeconds, addSession, getSessions, resetRoutine, migrateOldStateIfNeeded` |
+| `js/app.js` | Orchestrator | ~200 | `(none — entry point)` |
+| `js/state.js` | State store | ~280 | `getState, saveData(skipCloudSync), loadData, resetAllData, subscribe, getCurrentRoutine, getExerciseById, getVisibleExercises, setBpm, adjustBpm, recordProgressSeconds, addSession, getSessions, resetRoutine, migrateOldStateIfNeeded` |
 | `js/audio.js` | Audio engine | ~80 | `initAudio, startMetronome, stopMetronome, setMetronomeBpm, playBellSound, setAudioOn` |
 | `js/worker.js` | Web Worker | ~20 | `(Worker — onmessage)` |
 | `js/utils.js` | Utilities | ~90 | `formatTime, getFirstUrl, getFirstImage, stringToColor, downloadJSON, sanitizeImportedRoutine, todayStr, deepClone` |
-| `js/export.js` | Export engine | ~130 | `secToMin, downloadDayXLSX` |
-| `js/routines-sample.js` | Default data | ~75 | `module1Routine, module2Routine` |
+| `js/export.js` | Export engine | ~185 | `secToMin, downloadDayXLSX, downloadMonthXLSX` |
+| `js/routines-sample.js` | Default data | ~75 | `module1Routine..module12Routine` |
+| `js/firebase/config.js` | Firebase init | ~18 | `app, db, auth` |
+| `js/firebase/auth.js` | Google auth | ~35 | `loginGoogle, handleRedirectResult, logoutGoogle, observeAuth` |
+| `js/firebase/sync.js` | Sync engine | ~155 | `uploadState, downloadState, downloadAndMergeState, scheduleCloudSync, startSyncListener, stopSyncListener` |
+| `js/firebase/serializer.js` | Sync payload | ~17 | `exportSyncState, importSyncState` |
+| `js/firebase/merge.js` | Conflict resolution | ~23 | `mergeState` |
+| `js/firebase/device.js` | Device identification | ~10 | `getDeviceId` |
 | `js/views/dashboard.js` | Practice tab | ~360 | `setupDashboard, updateUI, onWorkerTick, setWorker, finishRoutine, resetRoutine, pauseSequence, exerciseCompleted` |
 | `js/views/details.js` | Exercise editor | ~200 | `setupDetails, hideDetail, showDetail` |
 | `js/views/routines.js` | Routine mgmt | ~215 | `setupRoutines, renderRoutines, switchRoutine, renameRoutine, deleteRoutine, exportSingleRoutine, importRoutines` |
-| `js/views/settings.js` | Settings tab | ~155 | `setupSettings, renderSettings, exportAllData, restoreAllData, deleteAllData` |
+| `js/views/settings.js` | Settings tab | ~200 | `setupSettings, renderSettings, exportAllData, restoreAllData, deleteAllData` |
 | `js/views/stats.js` | Charts tab | ~230 | `setupStats, openStatsView` |
 | `js/views/history.js` | History tab | ~120 | `setupHistory, renderHistory` |
-| `js/views/bottom-nav.js` | Navigation | ~100 | `setupBottomNav, activateTab, getActiveTab` |
+| `js/views/bottom-nav.js` | Navigation | ~117 | `setupBottomNav, activateTab, getActiveTab, setActiveTab` |
 | `js/views/modals.js` | Modal dialogs | ~220 | `setupModals, showStatModal, showCreateExerciseModal` |
