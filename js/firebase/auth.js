@@ -10,16 +10,16 @@ import { auth } from './config.js';
 
 const provider = new GoogleAuthProvider();
 
-function isMobile() {
-  return navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent);
-}
-
 export async function loginGoogle() {
-  if (isMobile()) {
-    await signInWithRedirect(auth, provider);
-    return null;
+  try {
+    return await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked') {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
+    throw err;
   }
-  return signInWithPopup(auth, provider);
 }
 
 export async function handleRedirectResult() {
