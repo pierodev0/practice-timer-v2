@@ -9,6 +9,7 @@ const CLOUD_SYNC_KEY = 'music-cloud-sync';
 
 let syncTimeout = null;
 let unsubscribeSnapshot = null;
+let initialSyncDone = false;
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -62,29 +63,46 @@ export async function downloadAndMergeState(uid) {
 
     const cloudDoc = await downloadState(uid);
     if (!cloudDoc) {
+      initialSyncDone = true;
       // Cloud empty → upload local
       await uploadState(uid);
       dispatchSyncEvent('synced');
       return;
     }
 
-    const localData = { _syncedAt: getLastSyncTime(), data: exportSyncState(getState()) };
-    const result = mergeState(localData, cloudDoc);
+    const neverSynced = getLastSyncTime() === 0;
 
-    if (result.changed && result.data) {
+    if (neverSynced) {
+      // First time syncing: cloud always wins over local (avoids sample data overwrite)
       const s = getState();
-      s.routines = result.data.routines;
-      s.stats = result.data.stats;
-      s.sessions = result.data.sessions;
-      if (result.data.currentRoutineId) {
-        s.currentRoutineId = result.data.currentRoutineId;
+      s.routines = cloudDoc.data.routines;
+      s.stats = cloudDoc.data.stats || {};
+      s.sessions = cloudDoc.data.sessions || [];
+      if (cloudDoc.data.currentRoutineId) {
+        s.currentRoutineId = cloudDoc.data.currentRoutineId;
       }
-      // Persist and notify (skip cloud sync — this is a remote change)
       const { saveData } = await import('../state.js');
       saveData(true);
+    } else {
+      // Subsequent syncs: compare timestamps
+      const localData = { _syncedAt: getLastSyncTime(), data: exportSyncState(getState()) };
+      const result = mergeState(localData, cloudDoc);
+
+      if (result.changed && result.data) {
+        const s = getState();
+        s.routines = result.data.routines;
+        s.stats = result.data.stats;
+        s.sessions = result.data.sessions;
+        if (result.data.currentRoutineId) {
+          s.currentRoutineId = result.data.currentRoutineId;
+        }
+        const { saveData } = await import('../state.js');
+        saveData(true);
+      }
     }
 
     setLastSyncTime(uid, cloudDoc.updatedAt);
+    initialSyncDone = true;
     dispatchSyncEvent('synced');
   } catch (err) {
     console.error('Sync download failed:', err);
@@ -126,6 +144,9 @@ export function startSyncListener(uid, onRemoteChange) {
 
     // Skip snapshots triggered by our own writes
     if (data.deviceId === getDeviceId()) return;
+
+    // Skip initial snapshot — downloadAndMergeState handles first sync
+    if (!initialSyncDone) return;
 
     const cloudTime = data.updatedAt?.toMillis?.() ?? data.updatedAt ?? 0;
     const localTime = getLastSyncTime();

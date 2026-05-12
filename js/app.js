@@ -139,15 +139,16 @@ window.onload = function () {
       if (syncLogoutSection) syncLogoutSection.classList.add('hidden');
       if (syncEmail) syncEmail.textContent = user.email;
 
-      // Initial sync + realtime listener
-      downloadAndMergeState(user.uid);
-      syncUnsub = startSyncListener(user.uid, (merged) => {
-        const s = getState();
-        if (merged.routines) s.routines = merged.routines;
-        if (merged.stats) s.stats = merged.stats;
-        if (merged.sessions) s.sessions = merged.sessions;
-        if (merged.currentRoutineId) s.currentRoutineId = merged.currentRoutineId;
-        saveData(true); // skip cloud sync to prevent loop
+      // First do initial sync, THEN start realtime listener (prevent race)
+      downloadAndMergeState(user.uid).then(() => {
+        syncUnsub = startSyncListener(user.uid, (merged) => {
+          const s = getState();
+          if (merged.routines) s.routines = merged.routines;
+          if (merged.stats) s.stats = merged.stats;
+          if (merged.sessions) s.sessions = merged.sessions;
+          if (merged.currentRoutineId) s.currentRoutineId = merged.currentRoutineId;
+          saveData(true);
+        });
       });
     } else {
       if (syncLoginSection) syncLoginSection.classList.add('hidden');
