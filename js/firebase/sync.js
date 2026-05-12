@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from './config.js';
 import { getDeviceId } from './device.js';
 import { exportSyncState, importSyncState } from './serializer.js';
@@ -166,6 +166,51 @@ export function stopSyncListener() {
     unsubscribeSnapshot();
     unsubscribeSnapshot = null;
   }
+}
+
+// ── Snapshots (manual backups in Firestore) ───────────────
+
+function getBackupCollRef(uid) {
+  return collection(db, 'users', uid, 'backups');
+}
+
+function getBackupDocRef(uid, backupId) {
+  return doc(db, 'users', uid, 'backups', backupId);
+}
+
+export async function saveBackup(uid, label) {
+  const state = getState();
+  const backupId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  await setDoc(getBackupDocRef(uid, backupId), {
+    createdAt: serverTimestamp(),
+    label: label || `Copia ${new Date().toLocaleString()}`,
+    data: exportSyncState(state)
+  });
+  return backupId;
+}
+
+export async function listBackups(uid) {
+  const q = query(getBackupCollRef(uid), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  const backups = [];
+  snap.forEach(d => {
+    backups.push({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toMillis?.() || d.data().createdAt || 0
+    });
+  });
+  return backups;
+}
+
+export async function loadBackup(uid, backupId) {
+  const snap = await getDoc(getBackupDocRef(uid, backupId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function deleteBackup(uid, backupId) {
+  await deleteDoc(getBackupDocRef(uid, backupId));
 }
 
 // ── Sync status events (for UI) ────────────────────────────

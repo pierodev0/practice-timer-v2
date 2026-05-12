@@ -418,6 +418,15 @@
             </div>
           </button>
           <input type="file" id="settings-restore-input" class="hidden" accept=".json">
+          <button id="settings-cloud-backups-btn" class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm">Copias en la Nube</p>
+              <p class="text-xs text-gray-400">Guardar y restaurar desde Firestore</p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -494,6 +503,34 @@
         <div class="bg-gray-900 text-white text-xs px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
           <i id="sync-toast-icon" class="fas fa-check-circle text-green-400"></i>
           <span id="sync-toast-text">Sincronizado</span>
+        </div>
+      </div>
+
+      <!-- Backup Manager Overlay -->
+      <div id="backup-manager" class="fixed inset-0 bg-white z-[80] hidden flex flex-col">
+        <div class="bg-[#E53935] text-white p-4 pt-6 pb-4 shadow-md flex justify-between items-center sticky top-0 z-20">
+          <button id="backup-manager-back" class="text-xl p-2 -ml-2"><i class="fas fa-arrow-left"></i></button>
+          <h2 class="text-lg font-medium">Copias en la Nube</h2>
+          <div class="w-8"></div>
+        </div>
+
+        <div class="p-4 space-y-4 pb-12 flex-1 overflow-y-auto">
+          <button id="backup-manager-save" class="w-full flex items-center gap-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-left border border-green-200">
+            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+              <i class="fas fa-plus"></i>
+            </div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm">Guardar copia ahora</p>
+              <p class="text-xs text-gray-400">Crea un snapshot de todos tus datos en la nube</p>
+            </div>
+          </button>
+
+          <div id="backup-manager-list" class="space-y-2">
+            <p class="text-center text-gray-400 py-8 text-sm">
+              <i class="fas fa-cloud text-2xl block mb-2"></i>
+              Cargando copias...
+            </p>
+          </div>
         </div>
       </div>
 
