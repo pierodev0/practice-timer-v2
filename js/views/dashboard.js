@@ -381,7 +381,7 @@ export function renderExercises() {
             ${ex.completed ? '<i class="fas fa-check"></i>' : isTimerRunning ? 'Stop' : 'Start'}
           </div>
           <div class="flex-1 min-w-0">
-            <h3 class="font-medium text-gray-800 ${ex.completed ? 'text-green-800' : ''} truncate">${ex.title}</h3>
+            <h3 class="font-medium text-gray-800 ${ex.completed ? 'text-green-800' : ''} line-clamp-2">${ex.title}</h3>
             <div class="flex items-center mt-1 flex-wrap gap-y-1">
               <p class="text-xs ${isActive ? 'font-bold' : 'text-gray-400'} flex items-center gap-2">
                 ${timeText} <span class="bg-black/5 px-1.5 rounded font-normal text-gray-500">${ex.bpm} BPM</span> ${!ex.autoStart ? '<i class="fas fa-volume-mute text-xs text-gray-400"></i>' : ''}
