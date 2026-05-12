@@ -3,12 +3,12 @@ import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: 'AIzaSyCvI_IAAcpBFMRpWSJ7wt2RND9fhCgpSRw',
+  authDomain: 'music-routine-app.firebaseapp.com',
+  projectId: 'music-routine-app',
+  storageBucket: 'music-routine-app.firebasestorage.app',
+  messagingSenderId: '908433154492',
+  appId: '1:908433154492:web:36c81821c5b5b7f183cbb9'
 };
 
 export const app = initializeApp(firebaseConfig);
