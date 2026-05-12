@@ -105,8 +105,11 @@ export function loadData() {
       _state.sessions = parsed.sessions || [];
       _state.globalSeconds = parsed.globalSeconds || 0;
 
-      // Migrate / normalize exercises
-      _state.routines.forEach(r =>
+      // Migrate / normalize routines
+      _state.routines.forEach((r, i) => {
+        if (!r.createdAt) r.createdAt = 0;
+
+        // Migrate / normalize exercises
         r.exercises.forEach(ex => {
           if (ex.durationSec === undefined && ex.duration !== undefined) {
             ex.durationSec = ex.duration * 60;
@@ -121,8 +124,8 @@ export function loadData() {
           ex.statisticName = ex.statisticName || null;
           ex.statisticLogs = ex.statisticLogs || [];
         })
-      );
-
+      });
+ 
     } catch (e) {
       console.error('Error loading data', e);
     }

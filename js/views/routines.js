@@ -7,11 +7,85 @@ import { nanoid } from 'nanoid';
 import { getState, saveData, getCurrentRoutine } from '../state.js';
 import { downloadJSON, sanitizeImportedRoutine } from '../utils.js';
 
+// ── Sort state ─────────────────────────────────────────────
+
+const SORT_MODES = [
+  { key: 'created', label: 'Creado', icon: 'fa-clock', defaultAsc: false },
+  { key: 'alpha', label: 'A-Z', icon: 'fa-sort-alpha-down', defaultAsc: true },
+  { key: 'usage', label: 'Usadas', icon: 'fa-chart-simple', defaultAsc: false },
+];
+
+let sortMode = 'created';
+let sortAsc = false;
+
+function getUsageCounts() {
+  const counts = {};
+  getState().sessions.forEach(s => {
+    counts[s.routineId] = (counts[s.routineId] || 0) + 1;
+  });
+  return counts;
+}
+
+function getSortedRoutines() {
+  const s = getState();
+  const usage = getUsageCounts();
+
+  const sorted = [...s.routines].sort((a, b) => {
+    let cmp = 0;
+    if (sortMode === 'created') {
+      cmp = (a.createdAt || 0) - (b.createdAt || 0);
+    } else if (sortMode === 'alpha') {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sortMode === 'usage') {
+      cmp = (usage[a.id] || 0) - (usage[b.id] || 0);
+    }
+    return sortAsc ? cmp : -cmp;
+  });
+
+  return sorted;
+}
+
+function renderSortTags() {
+  const container = document.getElementById('routines-sort-tags');
+  if (!container) return;
+  container.innerHTML = '';
+
+  SORT_MODES.forEach(m => {
+    const isActive = sortMode === m.key;
+    const activeClasses = 'bg-[#E53935] text-white shadow-sm';
+    const inactiveClasses = 'bg-gray-100 text-gray-600 hover:bg-gray-200';
+
+    const btn = document.createElement('button');
+    btn.className = `inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all select-none ${isActive ? activeClasses : inactiveClasses}`;
+    btn.innerHTML = `
+      <i class="fas ${m.icon}"></i>
+      <span>${m.label}</span>
+      ${isActive ? `<i class="fas fa-arrow-${sortAsc ? 'up' : 'down'} text-[10px]"></i>` : ''}
+    `;
+    btn.dataset.mode = m.key;
+    btn.addEventListener('click', () => handleSortClick(m.key));
+    container.appendChild(btn);
+  });
+}
+
+function handleSortClick(key) {
+  if (sortMode === key) {
+    sortAsc = !sortAsc;
+  } else {
+    sortMode = key;
+    sortAsc = SORT_MODES.find(m => m.key === key).defaultAsc;
+  }
+  renderSortTags();
+  renderRoutines();
+}
+
 // ============================================================
 // RENDER ROUTINES LIST
 // ============================================================
 
 export function renderRoutines() {
+  renderSortTags();
+
   const s = getState();
   const container = document.getElementById('routines-list-container');
   if (!container) return;
@@ -26,7 +100,9 @@ export function renderRoutines() {
   }
   empty?.classList.add('hidden');
 
-  s.routines.forEach(r => {
+  const sorted = getSortedRoutines();
+
+  sorted.forEach(r => {
     const isCurrent = r.id === s.currentRoutineId;
     const exerciseCount = r.exercises.length;
     const activeCount = r.exercises.filter(e => !e.archived).length;
@@ -178,7 +254,8 @@ export function showNewRoutineInput() {
     s.routines.push({
       id: nanoid(),
       name: name.trim(),
-      exercises: []
+      exercises: [],
+      createdAt: Date.now()
     });
     saveData();
     renderRoutines();
@@ -192,6 +269,7 @@ export function duplicateRoutine(id) {
   const copy = {
     id: nanoid(),
     name: original.name + ' (Copia)',
+    createdAt: Date.now(),
     exercises: original.exercises.map(ex => ({
       ...ex,
       id: nanoid(),
@@ -265,7 +343,10 @@ export function importRoutines(input) {
     try {
       const json = JSON.parse(e.target.result);
       const s = getState();
-      const toAdd = (Array.isArray(json) ? json : [json]).map(sanitizeImportedRoutine);
+      const toAdd = (Array.isArray(json) ? json : [json]).map(r => ({
+        ...sanitizeImportedRoutine(r),
+        createdAt: r.createdAt || Date.now()
+      }));
       s.routines.push(...toAdd);
       saveData();
       renderRoutines();
@@ -291,6 +372,9 @@ export function setupRoutines() {
   document.getElementById('routines-import-input')?.addEventListener('change', (e) => {
     importRoutines(e.target);
   });
+
+  // Sort tags
+  renderSortTags();
 
   // Close dropdowns when clicking outside
   document.addEventListener('click', (e) => {
