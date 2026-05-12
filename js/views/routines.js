@@ -35,7 +35,7 @@ function getSortedRoutines() {
     if (sortMode === 'created') {
       cmp = (a.createdAt || 0) - (b.createdAt || 0);
     } else if (sortMode === 'alpha') {
-      cmp = a.name.localeCompare(b.name);
+      cmp = a.name.localeCompare(b.name, undefined, { numeric: true });
     } else if (sortMode === 'usage') {
       cmp = (usage[a.id] || 0) - (usage[b.id] || 0);
     }
