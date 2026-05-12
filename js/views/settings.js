@@ -5,6 +5,8 @@
 
 import { getState, saveData, getCurrentRoutine, resetAllData } from '../state.js';
 import { downloadJSON } from '../utils.js';
+import { loginGoogle, logoutGoogle, handleRedirectResult } from '../firebase/auth.js';
+import { downloadAndMergeState, uploadState, scheduleCloudSync } from '../firebase/sync.js';
 
 // ============================================================
 // RENDER SETTINGS
@@ -150,4 +152,52 @@ export function setupSettings() {
 
   // Delete all data
   document.getElementById('settings-delete-all-btn')?.addEventListener('click', deleteAllData);
+
+  // ── Cloud Sync ──────────────────────────────────────────
+
+  // Login
+  document.getElementById('sync-login-btn')?.addEventListener('click', async () => {
+    try {
+      await loginGoogle();
+    } catch (err) {
+      console.error('Login failed:', err);
+      alert('Error al iniciar sesión: ' + err.message);
+    }
+  });
+
+  // Sync Now
+  document.getElementById('sync-now-btn')?.addEventListener('click', async () => {
+    const { getAuth } = await import('firebase/auth');
+    const { auth } = await import('../firebase/config.js');
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      await downloadAndMergeState(user.uid);
+      await uploadState(user.uid);
+      document.getElementById('sync-last-time').textContent = new Date().toLocaleString();
+    } catch (err) {
+      console.error('Sync failed:', err);
+      alert('Error al sincronizar: ' + err.message);
+    }
+  });
+
+  // Auto-sync toggle
+  document.getElementById('sync-auto-toggle')?.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      // Re-enable auto-sync by triggering on next saveData()
+      scheduleCloudSync();
+    }
+  });
+
+  // Logout
+  document.getElementById('sync-logout-btn')?.addEventListener('click', async () => {
+    try {
+      await logoutGoogle();
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  });
+
+  // Update last sync time on render
+  renderSettings();
 }

@@ -16,6 +16,9 @@ import { setupRoutines } from './views/routines.js';
 import { setupSettings } from './views/settings.js';
 import { setupHistory } from './views/history.js';
 
+import { observeAuth, handleRedirectResult } from './firebase/auth.js';
+import { downloadAndMergeState, startSyncListener, stopSyncListener } from './firebase/sync.js';
+
 // ============================================================
 // WEB WORKER (real file, not Blob)
 // Vite handles the URL resolution for production builds
@@ -117,10 +120,80 @@ window.onload = function () {
   // 7. Initial UI render
   updateUI();
 
-  // 8. Save on page unload
+  // 8. Firebase Auth — handle redirect result (mobile fallback)
+  handleRedirectResult().then(result => {
+    if (result?.user) {
+      downloadAndMergeState(result.user.uid);
+    }
+  });
+
+  // 9. Firebase Auth — observe auth state
+  let syncUnsub = null;
+  observeAuth(user => {
+    const syncLoginSection = document.getElementById('sync-logged-in');
+    const syncLogoutSection = document.getElementById('sync-logged-out');
+    const syncEmail = document.getElementById('sync-user-email');
+
+    if (user) {
+      if (syncLoginSection) syncLoginSection.classList.remove('hidden');
+      if (syncLogoutSection) syncLogoutSection.classList.add('hidden');
+      if (syncEmail) syncEmail.textContent = user.email;
+
+      // Initial sync + realtime listener
+      downloadAndMergeState(user.uid);
+      syncUnsub = startSyncListener(user.uid, (merged) => {
+        const s = getState();
+        if (merged.routines) s.routines = merged.routines;
+        if (merged.stats) s.stats = merged.stats;
+        if (merged.sessions) s.sessions = merged.sessions;
+        if (merged.currentRoutineId) s.currentRoutineId = merged.currentRoutineId;
+        saveData(true); // skip cloud sync to prevent loop
+      });
+    } else {
+      if (syncLoginSection) syncLoginSection.classList.add('hidden');
+      if (syncLogoutSection) syncLogoutSection.classList.remove('hidden');
+      if (syncEmail) syncEmail.textContent = '—';
+      if (syncUnsub) { syncUnsub(); syncUnsub = null; }
+      stopSyncListener();
+    }
+  });
+
+  // 10. Sync status events (for toast UI)
+  window.addEventListener('sync-status', (e) => {
+    const toast = document.getElementById('sync-toast');
+    const icon = document.getElementById('sync-toast-icon');
+    const text = document.getElementById('sync-toast-text');
+    const dot = document.getElementById('sync-status-dot');
+    if (!toast || !icon || !text) return;
+
+    switch (e.detail.status) {
+      case 'syncing':
+        icon.className = 'fas fa-spinner fa-spin text-yellow-400';
+        text.textContent = 'Sincronizando...';
+        if (dot) { dot.className = 'w-2 h-2 rounded-full bg-yellow-500'; }
+        toast.classList.remove('hidden');
+        break;
+      case 'synced':
+        icon.className = 'fas fa-check-circle text-green-400';
+        text.textContent = 'Sincronizado';
+        if (dot) { dot.className = 'w-2 h-2 rounded-full bg-green-500'; }
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+        break;
+      case 'error':
+        icon.className = 'fas fa-exclamation-circle text-red-400';
+        text.textContent = 'Error de sincronización';
+        if (dot) { dot.className = 'w-2 h-2 rounded-full bg-red-500'; }
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 5000);
+        break;
+    }
+  });
+
+  // 11. Save on page unload
   window.addEventListener('beforeunload', () => saveData());
 
-  console.log('🎵 Music Routine App initialized (modular)');
+  console.log('🎵 Music Routine App initialized (modular + cloud sync)');
 };
 
 

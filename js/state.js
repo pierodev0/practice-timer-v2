@@ -72,7 +72,7 @@ export function getState() {
 
 // --- Persistence ---
 
-export function saveData() {
+export function saveData(skipCloudSync) {
   // Sync remaining seconds from active exercise before saving
   if (_state.activeExerciseId) {
     const ex = getExerciseById(_state.activeExerciseId);
@@ -86,6 +86,10 @@ export function saveData() {
     globalSeconds: _state.globalSeconds,
     sessions: _state.sessions
   }));
+
+  if (!skipCloudSync) {
+    import('./firebase/sync.js').then(m => m.scheduleCloudSync()).catch(() => {});
+  }
 
   _notify();
 }
