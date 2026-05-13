@@ -12,12 +12,12 @@
   "keywords": ["music", "practice", "routine", "metronome", "pwa"],
   "license": "MIT",
   "devDependencies": {
-    "vite": "^8.0.11"
+    "vite": "8.0.11"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.0",
-    "firebase": "^12.13.0",
-    "nanoid": "^5.1.11",
-    "tailwindcss": "^4.3.0"
+    "@tailwindcss/vite": "4.3.0",
+    "firebase": "12.12.1",
+    "nanoid": "5.1.11",
+    "tailwindcss": "4.3.0"
   }
 }

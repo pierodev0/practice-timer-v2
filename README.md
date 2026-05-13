@@ -12,7 +12,7 @@
 
 | Layer | Technology |
 |---|---|
-| **Runtime** | [Bun](https://bun.sh) (package management, scripts) |
+| **Runtime** | [pnpm](https://pnpm.io) (package management, scripts) |
 | **Bundler** | [Vite 8](https://vite.dev) + `@tailwindcss/vite` |
 | **CSS** | [Tailwind CSS v4](https://tailwindcss.com) (via npm) |
 | **Icons** | [Font Awesome 6](https://fontawesome.com) (CDN) |
@@ -29,16 +29,13 @@
 
 ```bash
 # Install dependencies
-bun install
+pnpm install
 
-# Start dev server (default http://localhost:5173)
-bun run dev
+pnpm run dev
 
-# Production build → dist/
-bun run build
+pnpm run build
 
-# Preview production build
-bun run preview
+pnpm run preview
 ```
 
 ---
@@ -162,9 +159,11 @@ See [`DESIGN.md`](DESIGN.md) for full architecture documentation including:
 
 | Command | Description |
 |---|---|
-| `bun run dev` | Start Vite dev server |
-| `bun run build` | Production build to `dist/` |
-| `bun run preview` | Serve production build locally |
+| `pnpm run dev` | Start Vite dev server |
+
+| `pnpm run build` | Production build to `dist/` |
+
+| `pnpm run preview` | Serve production build locally |
 
 ---
 

@@ -31,6 +31,6 @@ Usa SIEMPRE esos archivos como referencia.
 
 | Comando | Descripción |
 |---|---|
-| `bun run dev` | Dev server (http://localhost:5173) |
-| `bun run build` | Build producción → `dist/` |
-| `bun run preview` | Preview del build |
+| `pnpm run dev` | Dev server (http://localhost:5173) |
+| `pnpm run build` | Build producción → `dist/` |
+| `pnpm run preview` | Preview del build |

@@ -554,9 +554,9 @@ Color palette:
 
 | Command | Purpose |
 |---|---|
-| `bun run dev` | Vite dev server (HMR, port 5173) |
-| `bun run build` | Production build to `dist/` |
-| `bun run preview` | Serve `dist/` locally |
+| `pnpm run dev` | Vite dev server (HMR, port 5173) |
+| `pnpm run build` | Production build to `dist/` |
+| `pnpm run preview` | Serve `dist/` locally |
 
 ### `vite.config.js`
 
