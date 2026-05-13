@@ -48,7 +48,6 @@ function registerServiceWorker() {
 // ============================================================
 function setupSortable() {
   if (typeof Sortable === 'undefined') {
-    // Sortable might not be loaded yet; retry
     setTimeout(setupSortable, 500);
     return;
   }
@@ -56,11 +55,21 @@ function setupSortable() {
   const list = document.getElementById('exercise-list');
   if (!list) return;
 
-  new Sortable(list, {
-    animation: 150,
-    delay: 300,
+  if (list._sortable) list._sortable.destroy();
+
+  list._sortable = new Sortable(list, {
+    animation: 200,
+    delay: 200,
     delayOnTouchOnly: true,
-    handle: '.draggable-item',
+    handle: '.drag-handle',
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    dragClass: 'sortable-drag',
+    scroll: true,
+    scrollSensitivity: 40,
+    scrollSpeed: 10,
+    forceFallback: true,
+    fallbackClass: 'sortable-fallback',
     onEnd: function (evt) {
       const routine = getCurrentRoutine();
       const exercises = routine.exercises;
@@ -113,6 +122,7 @@ window.onload = function () {
 
   // 5. Set up Sortable drag & drop
   setupSortable();
+  window.addEventListener('exercises-rendered', setupSortable);
 
   // 6. Register service worker
   registerServiceWorker();

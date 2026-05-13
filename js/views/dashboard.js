@@ -227,49 +227,58 @@ function finalizeCompletion(playSound = true) {
 }
 
 export function finishRoutine() {
-  if (!confirm('Finish routine? This resets exercises.')) return;
   const s = getState();
   pauseSequence();
 
-  // Capture session data before reset
   const routine = getCurrentRoutine();
-  const today = todayStr();
-  const completedExercises = routine.exercises
-    .filter(ex => ex.completed)
-    .map(ex => ({
-      exerciseId: ex.id,
-      title: ex.title,
-      bpm: ex.bpm,
-      durationSec: ex.durationSec,
-      statName: ex.statisticName || null,
-      statValue: getLastTodayStat(ex.statisticLogs),
-      repsCompleted: ex.reps,
-      comment: ex.comment || ''
-    }));
+  const completedCount = routine.exercises.filter(e => e.completed).length;
 
-  if (completedExercises.length > 0 || s.globalSeconds > 0) {
-    addSession({
-      date: today,
-      routineId: routine.id,
-      routineName: routine.name,
-      totalSec: s.globalSeconds,
-      completedAt: new Date().toISOString(),
-      exercises: completedExercises
-    });
-  }
+  import('./modals.js').then(m => m.showFinishModal(
+    { exercises: completedCount, totalTime: formatTime(s.globalSeconds) },
+    () => {
+      const today = todayStr();
+      const completedExercises = routine.exercises
+        .filter(ex => ex.completed)
+        .map(ex => ({
+          exerciseId: ex.id,
+          title: ex.title,
+          bpm: ex.bpm,
+          durationSec: ex.durationSec,
+          statName: ex.statisticName || null,
+          statValue: getLastTodayStat(ex.statisticLogs),
+          repsCompleted: ex.reps,
+          comment: ex.comment || ''
+        }));
 
-  recordProgressSeconds(s.globalSeconds);
-  s.activeExerciseId = null;
-  s.exerciseRemaining = 0;
-  s.globalSeconds = 0;
-  routine.exercises.forEach(e => {
-    e.completed = false;
-    e.remainingSec = e.durationSec;
-    e.currentRep = 1;
-  });
-  saveData();
-  updateUI();
-  alert('Routine Completed!');
+      if (completedExercises.length > 0 || s.globalSeconds > 0) {
+        addSession({
+          date: today,
+          routineId: routine.id,
+          routineName: routine.name,
+          totalSec: s.globalSeconds,
+          completedAt: new Date().toISOString(),
+          exercises: completedExercises
+        });
+      }
+
+      recordProgressSeconds(s.globalSeconds);
+
+      s.activeExerciseId = null;
+      s.exerciseRemaining = 0;
+      s.globalSeconds = 0;
+      routine.exercises.forEach(e => {
+        e.completed = false;
+        e.remainingSec = e.durationSec;
+        e.currentRep = 1;
+      });
+      saveData();
+      updateUI();
+
+      import('../firebase/sync.js').then(sync => {
+        if (sync.syncNow) sync.syncNow();
+      }).catch(() => {});
+    }
+  ));
 }
 
 function getLastTodayStat(logs) {
@@ -282,18 +291,20 @@ function getLastTodayStat(logs) {
 }
 
 export function resetRoutine() {
-  const s = getState();
-  pauseSequence();
-  s.activeExerciseId = null;
-  s.exerciseRemaining = 0;
-  s.globalSeconds = 0;
-  getCurrentRoutine().exercises.forEach(e => {
-    e.completed = false;
-    e.remainingSec = e.durationSec;
-    e.currentRep = 1;
-  });
-  saveData();
-  updateUI();
+  import('./modals.js').then(m => m.showResetModal(() => {
+    const s = getState();
+    pauseSequence();
+    s.activeExerciseId = null;
+    s.exerciseRemaining = 0;
+    s.globalSeconds = 0;
+    getCurrentRoutine().exercises.forEach(e => {
+      e.completed = false;
+      e.remainingSec = e.durationSec;
+      e.currentRep = 1;
+    });
+    saveData();
+    updateUI();
+  }));
 }
 
 // ============================================================
@@ -371,30 +382,35 @@ export function renderExercises() {
     }
 
     const card = document.createElement('div');
-    card.className = `draggable-item rounded-xl relative overflow-hidden transition-all shadow-sm border border-gray-100 mb-4 ${ex.completed ? 'bg-[#D1FAE5] border-green-200' : isActive ? 'bg-[#E0F2F1] border-green-100 scale-[1.02]' : 'bg-white'}`;
+    card.className = `rounded-xl relative overflow-hidden transition-all shadow-sm border border-gray-100 mb-4 ${ex.completed ? 'bg-[#D1FAE5] border-green-200' : isActive ? 'bg-[#E0F2F1] border-green-100 scale-[1.02]' : 'bg-white'}`;
 
     card.innerHTML = `
       <div class="absolute inset-0 bg-[rgba(0,200,83,0.2)] z-0 progress-bar-fill" style="width: ${progressPercent}%"></div>
-      <div class="flex items-center justify-between relative z-10 pr-2">
-        <div class="flex items-center gap-4 flex-1 p-4" data-toggle-exercise="${ex.id}">
-          <div class="w-16 h-14 rounded-lg flex items-center justify-center font-bold text-lg transition-colors z-20 flex-shrink-0 ${ex.completed ? 'bg-[#10B981] text-white' : startBtnClass}">
-            ${ex.completed ? '<i class="fas fa-check"></i>' : isTimerRunning ? 'Stop' : 'Start'}
-          </div>
-          <div class="flex-1 min-w-0">
-            <h3 class="font-medium text-gray-800 ${ex.completed ? 'text-green-800' : ''} line-clamp-2">${ex.title}</h3>
-            <div class="flex items-center mt-1 flex-wrap gap-y-1">
-              <p class="text-xs ${isActive ? 'font-bold' : 'text-gray-400'} flex items-center gap-2">
-                ${timeText} <span class="bg-black/5 px-1.5 rounded font-normal text-gray-500">${ex.bpm} BPM</span> ${!ex.autoStart ? '<i class="fas fa-volume-mute text-xs text-gray-400"></i>' : ''}
-              </p>
-              ${repsBadge}
-              ${statBadge}
+      <div class="flex items-center relative z-10">
+        <div class="drag-handle flex items-center justify-center w-10 self-stretch text-gray-300 hover:text-[#E53935] transition-colors active:text-[#E53935] cursor-grab active:cursor-grabbing touch-none flex-shrink-0">
+          <i class="fas fa-grip-vertical text-base"></i>
+        </div>
+        <div class="flex items-center justify-between flex-1 pr-2">
+          <div class="flex items-center gap-4 flex-1 p-4">
+            <div class="w-16 h-14 rounded-lg flex items-center justify-center font-bold text-lg transition-colors z-20 flex-shrink-0 ${ex.completed ? 'bg-[#10B981] text-white' : startBtnClass}" data-toggle-exercise="${ex.id}">
+              ${ex.completed ? '<i class="fas fa-check"></i>' : isTimerRunning ? 'Stop' : 'Start'}
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="font-medium text-gray-800 ${ex.completed ? 'text-green-800' : ''} line-clamp-2">${ex.title}</h3>
+              <div class="flex items-center mt-1 flex-wrap gap-y-1">
+                <p class="text-xs ${isActive ? 'font-bold' : 'text-gray-400'} flex items-center gap-2">
+                  ${timeText} <span class="bg-black/5 px-1.5 rounded font-normal text-gray-500">${ex.bpm} BPM</span> ${!ex.autoStart ? '<i class="fas fa-volume-mute text-xs text-gray-400"></i>' : ''}
+                </p>
+                ${repsBadge}
+                ${statBadge}
+              </div>
             </div>
           </div>
-        </div>
-        <div class="flex items-center">
-          ${rightContent}
-          <div class="py-4 pl-3 pr-4 text-gray-300 hover:text-[#E53935] cursor-pointer" data-detail-view="${ex.id}">
-            <i class="fas fa-chevron-right"></i>
+          <div class="flex items-center">
+            ${rightContent}
+            <div class="py-4 pl-3 pr-4 text-gray-300 hover:text-[#E53935] cursor-pointer" data-detail-view="${ex.id}">
+              <i class="fas fa-chevron-right"></i>
+            </div>
           </div>
         </div>
       </div>
@@ -432,6 +448,8 @@ export function renderExercises() {
       window.open(el.dataset.openUrl, '_blank');
     });
   });
+
+  window.dispatchEvent(new CustomEvent('exercises-rendered'));
 }
 
 // ============================================================

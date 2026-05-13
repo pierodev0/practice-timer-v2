@@ -143,6 +143,65 @@ export function skipStatInput() {
 }
 
 // ============================================================
+// FINISH ROUTINE MODAL
+// ============================================================
+
+let _finishOnAccept = null;
+let _finishOnCancel = null;
+
+export function showFinishModal(summary, onAccept, onCancel) {
+  document.getElementById('finish-exercises-count').textContent = summary.exercises;
+  document.getElementById('finish-total-time').textContent = summary.totalTime;
+  document.getElementById('finish-modal').classList.remove('hidden');
+  _finishOnAccept = onAccept;
+  _finishOnCancel = onCancel;
+}
+
+function hideFinishModal() {
+  document.getElementById('finish-modal').classList.add('hidden');
+  _finishOnAccept = null;
+  _finishOnCancel = null;
+}
+
+export function acceptFinish() {
+  const cb = _finishOnAccept;
+  hideFinishModal();
+  if (cb) cb();
+}
+
+export function cancelFinish() {
+  const cb = _finishOnCancel;
+  hideFinishModal();
+  if (cb) cb();
+}
+
+// ============================================================
+// RESET ROUTINE MODAL
+// ============================================================
+
+let _resetOnConfirm = null;
+
+export function showResetModal(onConfirm) {
+  document.getElementById('reset-modal').classList.remove('hidden');
+  _resetOnConfirm = onConfirm;
+}
+
+function hideResetModal() {
+  document.getElementById('reset-modal').classList.add('hidden');
+  _resetOnConfirm = null;
+}
+
+export function confirmReset() {
+  const cb = _resetOnConfirm;
+  hideResetModal();
+  if (cb) cb();
+}
+
+export function cancelReset() {
+  hideResetModal();
+}
+
+// ============================================================
 // IMAGE LIGHTBOX
 // ============================================================
 
@@ -311,4 +370,12 @@ export function setupModals() {
 
   // Floating add button
   document.getElementById('add-exercise-fab')?.addEventListener('click', () => toggleCreateModal(true));
+
+  // Finish routine modal
+  document.getElementById('finish-accept-btn')?.addEventListener('click', acceptFinish);
+  document.getElementById('finish-cancel-btn')?.addEventListener('click', cancelFinish);
+
+  // Reset routine modal
+  document.getElementById('reset-confirm-btn')?.addEventListener('click', confirmReset);
+  document.getElementById('reset-cancel-btn')?.addEventListener('click', cancelReset);
 }

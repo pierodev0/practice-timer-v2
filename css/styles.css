@@ -58,8 +58,38 @@ body {
 }
 
 /* --- Drag & drop --- */
-.draggable-item {
-  cursor: grab;
+.drag-handle {
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: #e5e7eb !important;
+  border: 2px dashed #9ca3af !important;
+  border-radius: 0.75rem !important;
+  pointer-events: none;
+}
+
+.sortable-chosen {
+  background: white !important;
+  z-index: 50;
+}
+
+.sortable-drag {
+  opacity: 1 !important;
+  transform: scale(1.03) rotate(-0.5deg);
+  background: white !important;
+  border-radius: 0.75rem !important;
+  z-index: 100 !important;
+  pointer-events: none;
+}
+
+.sortable-fallback {
+  opacity: 1 !important;
 }
 
 /* --- Progress bar animation --- */

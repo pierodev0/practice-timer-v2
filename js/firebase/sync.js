@@ -110,6 +110,22 @@ export async function downloadAndMergeState(uid) {
   }
 }
 
+// ── Immediate sync (no debounce, no toggle check) ──────────
+
+export async function syncNow() {
+  const { getAuth } = await import('firebase/auth');
+  const { auth } = await import('./config.js');
+  const user = auth.currentUser;
+  if (!user) return;
+  dispatchSyncEvent('syncing');
+  try {
+    await uploadState(user.uid);
+    dispatchSyncEvent('synced');
+  } catch {
+    dispatchSyncEvent('error');
+  }
+}
+
 // ── Debounced sync ─────────────────────────────────────────
 
 export function scheduleCloudSync() {
