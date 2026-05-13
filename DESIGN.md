@@ -106,8 +106,11 @@ Session {
   date: string,           // YYYY-MM-DD
   routineId: string,      // routine ID (for resolving current name)
   routineName: string,    // captured at completion time (fallback)
-  totalSec: number,       // total seconds in this session
-  completedAt: string,    // ISO datetime
+  startedAt: string,      // ISO datetime — when first exercise was played
+  completedAt: string,    // ISO datetime — finish button clicked
+  scheduledSec: number,   // sum of durationSec * reps (what the routine says)
+  totalSec: number,       // active practice seconds (timer running)
+  elapsedSec: number,     // wall-clock seconds from startedAt to completedAt
   exercises: SessionExercise[]
 }
 
