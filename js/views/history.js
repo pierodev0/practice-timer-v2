@@ -1,4 +1,5 @@
 import { getState } from '../state.js';
+import { formatISOTime } from '../utils.js';
 import { downloadDayXLSX, downloadMonthXLSX } from '../export.js';
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -63,14 +64,20 @@ export function renderHistory() {
         </div>`;
 
     dayGroups[day].forEach(session => {
-      const timeStr = formatDuration(session.totalSec);
+      const scheduledStr = formatDuration(session.scheduledSec);
+      const elapsedStr = formatDuration(session.elapsedSec || session.totalSec);
+      const startTime = formatISOTime(session.startedAt);
+      const endTime = formatISOTime(session.completedAt);
       html += `<div class="card p-4 mb-2">
-          <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center justify-between mb-1">
             <div class="flex items-center gap-2">
               <i class="fas fa-dumbbell text-[#E53935] text-sm"></i>
               <span class="font-bold text-gray-800 text-sm">${escapeHtml(resolveRoutineName(session))}</span>
+              <span class="text-xs text-gray-400 font-normal">(${scheduledStr})</span>
             </div>
-            <span class="text-xs font-medium text-gray-500">${timeStr}</span>
+          </div>
+          <div class="text-xs text-gray-500 mb-2">
+            ${startTime} <i class="fas fa-arrow-right text-[10px] text-gray-300 mx-1"></i> ${endTime} <span class="text-gray-400 font-medium ml-1">(${elapsedStr})</span>
           </div>
           <div class="space-y-1">`;
 

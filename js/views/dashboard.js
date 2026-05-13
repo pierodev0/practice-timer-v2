@@ -104,6 +104,10 @@ export function playExercise(id) {
   setBpm(ex.bpm);
   s.isExercisePlaying = true;
 
+  if (s.sessionStartedAt === null) {
+    s.sessionStartedAt = Date.now();
+  }
+
   // Start the Web Worker
   if (_worker) _worker.postMessage('start');
 
@@ -232,9 +236,16 @@ export function finishRoutine() {
 
   const routine = getCurrentRoutine();
   const completedCount = routine.exercises.filter(e => e.completed).length;
+  const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
 
   import('./modals.js').then(m => m.showFinishModal(
-    { exercises: completedCount, totalTime: formatTime(s.globalSeconds) },
+    {
+      exercises: completedCount,
+      scheduledSec,
+      elapsedSec: s.sessionStartedAt ? Math.round((Date.now() - s.sessionStartedAt) / 1000) : 0,
+      startedAt: s.sessionStartedAt ? new Date(s.sessionStartedAt).toISOString() : null,
+      completedAt: new Date().toISOString()
+    },
     () => {
       const today = todayStr();
       const completedExercises = routine.exercises
@@ -250,18 +261,25 @@ export function finishRoutine() {
           comment: ex.comment || ''
         }));
 
+      const now = new Date().toISOString();
+      const elapsedSec = s.sessionStartedAt ? Math.round((Date.now() - s.sessionStartedAt) / 1000) : s.globalSeconds;
+
       if (completedExercises.length > 0 || s.globalSeconds > 0) {
         addSession({
           date: today,
           routineId: routine.id,
           routineName: routine.name,
+          startedAt: s.sessionStartedAt ? new Date(s.sessionStartedAt).toISOString() : now,
+          completedAt: now,
+          scheduledSec,
           totalSec: s.globalSeconds,
-          completedAt: new Date().toISOString(),
+          elapsedSec,
           exercises: completedExercises
         });
       }
 
       recordProgressSeconds(s.globalSeconds);
+      s.sessionStartedAt = null;
 
       s.activeExerciseId = null;
       s.exerciseRemaining = 0;
@@ -294,6 +312,7 @@ export function resetRoutine() {
   import('./modals.js').then(m => m.showResetModal(() => {
     const s = getState();
     pauseSequence();
+    s.sessionStartedAt = null;
     s.activeExerciseId = null;
     s.exerciseRemaining = 0;
     s.globalSeconds = 0;

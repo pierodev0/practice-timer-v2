@@ -5,7 +5,8 @@
 
 import { nanoid } from 'nanoid';
 import { getState, getExerciseById, saveData, getCurrentRoutine } from '../state.js';
-import { deepClone } from '../utils.js';
+import { deepClone, formatTime } from '../utils.js';
+import { formatISOTime } from '../utils.js';
 
 // ============================================================
 // CREATE EXERCISE MODAL
@@ -151,7 +152,10 @@ let _finishOnCancel = null;
 
 export function showFinishModal(summary, onAccept, onCancel) {
   document.getElementById('finish-exercises-count').textContent = summary.exercises;
-  document.getElementById('finish-total-time').textContent = summary.totalTime;
+  document.getElementById('finish-scheduled-time').textContent = formatTime(summary.scheduledSec);
+  document.getElementById('finish-elapsed-time').textContent = formatTime(summary.elapsedSec);
+  document.getElementById('finish-start-time').textContent = formatISOTime(summary.startedAt);
+  document.getElementById('finish-end-time').textContent = formatISOTime(summary.completedAt);
   document.getElementById('finish-modal').classList.remove('hidden');
   _finishOnAccept = onAccept;
   _finishOnCancel = onCancel;

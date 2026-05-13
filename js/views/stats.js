@@ -9,6 +9,7 @@ import { formatTime, stringToColor } from '../utils.js';
 let weeklyChartInstance = null;
 let routineChartInstance = null;
 let progressChartInstance = null;
+let scheduleChartInstance = null;
 
 // ============================================================
 // VIEW SWITCHING
@@ -87,6 +88,9 @@ export function renderStats() {
 
   // --- Progress History (line chart) ---
   renderProgressChart(s);
+
+  // --- Scheduled vs Real (bar chart) ---
+  renderScheduleChart(s);
 }
 
 // ============================================================
@@ -250,6 +254,71 @@ function renderProgressChart(s) {
       scales: {
         x: { title: { display: true, text: 'Date' } },
         y: { title: { display: true, text: 'Value' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ============================================================
+// SCHEDULED VS REAL CHART (bar)
+// ============================================================
+
+function renderScheduleChart(s) {
+  const days = {};
+  s.sessions.forEach(ses => {
+    if (!ses.scheduledSec || !ses.elapsedSec) return;
+    if (!days[ses.date]) days[ses.date] = { scheduled: 0, elapsed: 0 };
+    days[ses.date].scheduled += ses.scheduledSec;
+    days[ses.date].elapsed += ses.elapsedSec;
+  });
+
+  const sortedDates = Object.keys(days).sort().slice(-14);
+  const scheduledData = sortedDates.map(d => Math.round((days[d].scheduled || 0) / 60));
+  const elapsedData = sortedDates.map(d => Math.round((days[d].elapsed || 0) / 60));
+  const labels = sortedDates.map(d => {
+    const [y, m, day] = d.split('-');
+    return `${Number(day)}/${m}`;
+  });
+
+  const canvas = document.getElementById('scheduleChart');
+  if (!canvas) return;
+
+  if (scheduleChartInstance) scheduleChartInstance.destroy();
+  scheduleChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Programado',
+          data: scheduledData,
+          backgroundColor: 'rgba(156, 163, 175, 0.6)',
+          borderColor: 'rgba(156, 163, 175, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Real',
+          data: elapsedData,
+          backgroundColor: 'rgba(229, 57, 53, 0.6)',
+          borderColor: 'rgba(229, 57, 53, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}min`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Día' } },
+        y: { title: { display: true, text: 'Minutos' }, beginAtZero: true }
       }
     }
   });

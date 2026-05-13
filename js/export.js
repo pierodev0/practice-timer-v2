@@ -5,6 +5,8 @@
  * When SheetJS / xlsx is needed in the future, add it here.
  */
 
+import { formatISOTime } from './utils.js';
+
 /**
  * Convert seconds to whole minutes (rounded).
  */
@@ -71,9 +73,14 @@ function writeSessionSheet(ws, daySessions, resolveRoutineName) {
 
     const routineName = resolveRoutineName(session);
     const totalMin = secToMin(session.totalSec);
+    const scheduledMin = secToMin(session.scheduledSec);
+    const elapsedMin = secToMin(session.elapsedSec);
 
-    // --- Routine title row ---
-    const titleRow = ws.addRow([`Rutina ${idx + 1}: ${routineName} (${totalMin} min)`]);
+    // Format: Rutina 1: Modulo 1 (20 min) - 12:03 a.m / 12:25 a.m (22 min)
+    const startStr = formatISOTime(session.startedAt);
+    const endStr = formatISOTime(session.completedAt);
+    const titleStr = `Rutina ${idx + 1}: ${routineName} (${scheduledMin} min) - ${startStr} / ${endStr} (${elapsedMin} min)`;
+    const titleRow = ws.addRow([titleStr]);
     titleRow.font = { bold: true, size: 13, color: { argb: 'FFE53935' } };
     ws.mergeCells(`A${titleRow.number}:G${titleRow.number}`);
 

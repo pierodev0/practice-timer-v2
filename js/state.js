@@ -17,6 +17,7 @@ const _state = {
   isAudioOn: false,
   bpm: 120,
   globalSeconds: 0,
+  sessionStartedAt: null,
   activeExerciseId: null,
   exerciseRemaining: 0,
   viewingExerciseId: null,
@@ -84,6 +85,7 @@ export function saveData(skipCloudSync) {
     currentRoutineId: _state.currentRoutineId,
     stats: _state.stats,
     globalSeconds: _state.globalSeconds,
+    sessionStartedAt: _state.sessionStartedAt,
     sessions: _state.sessions
   }));
 
@@ -104,6 +106,7 @@ export function loadData() {
       _state.stats = parsed.stats || {};
       _state.sessions = parsed.sessions || [];
       _state.globalSeconds = parsed.globalSeconds || 0;
+      _state.sessionStartedAt = parsed.sessionStartedAt || null;
 
       // Migrate / normalize routines
       _state.routines.forEach((r, i) => {

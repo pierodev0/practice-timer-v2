@@ -85,3 +85,17 @@ export function todayStr() {
 export function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
+
+/**
+ * Format an ISO datetime string to "h:mm a.m/p.m" (e.g. "12:03 a.m").
+ */
+export function formatISOTime(isoStr) {
+  if (!isoStr) return '--:--';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--:--';
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const ampm = h < 12 ? 'a.m' : 'p.m';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
