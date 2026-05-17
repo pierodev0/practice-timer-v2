@@ -247,10 +247,23 @@ export function recordProgressSeconds(seconds) {
  * @param {Object} sessionData - { date, routineId, routineName, totalSec, completedAt, exercises[] }
  */
 export function addSession(sessionData) {
+  const id = nanoid();
   _state.sessions.push({
-    id: nanoid(),
+    id,
     ...sessionData
   });
+
+  const routine = _state.routines.find(r => r.id === sessionData.routineId);
+  if (routine) {
+    sessionData.exercises.forEach(sesEx => {
+      if (sesEx.statValue == null) return;
+      const ex = routine.exercises.find(e => e.id === sesEx.exerciseId);
+      if (!ex || !ex.statisticLogs) return;
+      const log = ex.statisticLogs.findLast(l => l.date === sessionData.date && l.value === sesEx.statValue && !l.sessionId);
+      if (log) log.sessionId = id;
+    });
+  }
+
   saveData();
 }
 
@@ -285,6 +298,17 @@ export function updateSession(id, data) {
   if (data.date && data.date !== oldDate) {
     _adjustStatsForSession(oldDate, session, 'subtract');
     _adjustStatsForSession(data.date, session, 'add');
+
+    _state.routines.forEach(r => {
+      r.exercises.forEach(ex => {
+        if (!ex.statisticLogs) return;
+        ex.statisticLogs.forEach(log => {
+          if (log.sessionId === id) {
+            log.date = data.date;
+          }
+        });
+      });
+    });
   }
 
   saveData();
@@ -304,6 +328,16 @@ export function deleteSession(id) {
   _adjustStatsForSession(session.date, session, 'subtract');
 
   _state.sessions.splice(idx, 1);
+
+  _state.routines.forEach(r => {
+    r.exercises.forEach(ex => {
+      if (!ex.statisticLogs) return;
+      ex.statisticLogs.forEach(log => {
+        if (log.sessionId === id) log.sessionId = null;
+      });
+    });
+  });
+
   saveData();
   return true;
 }
