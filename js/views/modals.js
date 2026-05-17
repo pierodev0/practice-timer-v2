@@ -4,7 +4,7 @@
  */
 
 import { nanoid } from 'nanoid';
-import { getState, getExerciseById, saveData, getCurrentRoutine } from '../state.js';
+import { getState, getExerciseById, saveData, getCurrentRoutine, updateSession, deleteSession } from '../state.js';
 import { deepClone, formatTime, formatISOTime, todayStr } from '../utils.js';
 
 // ============================================================
@@ -339,6 +339,77 @@ export function closeEditStatsModal() {
 }
 
 // ============================================================
+// EDIT SESSION MODAL
+// ============================================================
+
+let _editingSessionId = null;
+
+export function openEditSessionModal(sessionId) {
+  const s = getState();
+  const session = s.sessions.find(ses => ses.id === sessionId);
+  if (!session) return;
+
+  _editingSessionId = sessionId;
+
+  document.getElementById('edit-session-date').value = session.date;
+  document.getElementById('edit-session-routine').textContent = session.routineName;
+
+  const fmt = sec => {
+    if (!sec) return '0m';
+    const h = Math.floor(sec / 3600);
+    const m = Math.round((sec % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+  document.getElementById('edit-session-scheduled').textContent = fmt(session.scheduledSec);
+  document.getElementById('edit-session-elapsed').textContent = fmt(session.elapsedSec || session.totalSec);
+
+  const container = document.getElementById('edit-session-exercises');
+  container.innerHTML = '';
+  session.exercises.forEach(ex => {
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 text-xs text-gray-600';
+    div.innerHTML = '<i class="fas fa-check-circle text-green-500 text-[10px]"></i>';
+    const span = document.createElement('span');
+    span.textContent = ex.title;
+    div.appendChild(span);
+    if (ex.statValue != null) {
+      const statSpan = document.createElement('span');
+      statSpan.className = 'text-[#E53935] font-medium ml-auto';
+      statSpan.textContent = `${ex.statName || ''}: ${ex.statValue}`;
+      div.appendChild(statSpan);
+    }
+    container.appendChild(div);
+  });
+
+  document.getElementById('edit-session-modal').classList.remove('hidden');
+}
+
+export function saveEditSession() {
+  const newDate = document.getElementById('edit-session-date').value;
+  if (!newDate) {
+    alert('Selecciona una fecha válida.');
+    return;
+  }
+
+  updateSession(_editingSessionId, { date: newDate });
+  closeEditSessionModal();
+  import('./history.js').then(m => m.renderHistory());
+}
+
+export function deleteEditSession() {
+  if (!confirm('¿Eliminar esta sesión? No se puede deshacer.')) return;
+
+  deleteSession(_editingSessionId);
+  closeEditSessionModal();
+  import('./history.js').then(m => m.renderHistory());
+}
+
+function closeEditSessionModal() {
+  document.getElementById('edit-session-modal').classList.add('hidden');
+  _editingSessionId = null;
+}
+
+// ============================================================
 // SETUP — Attach DOM event listeners
 // ============================================================
 
@@ -381,4 +452,10 @@ export function setupModals() {
   // Reset routine modal
   document.getElementById('reset-confirm-btn')?.addEventListener('click', confirmReset);
   document.getElementById('reset-cancel-btn')?.addEventListener('click', cancelReset);
+
+  // Edit session modal
+  document.getElementById('edit-session-close')?.addEventListener('click', closeEditSessionModal);
+  document.getElementById('edit-session-cancel-btn')?.addEventListener('click', closeEditSessionModal);
+  document.getElementById('edit-session-save-btn')?.addEventListener('click', saveEditSession);
+  document.getElementById('edit-session-delete-btn')?.addEventListener('click', deleteEditSession);
 }

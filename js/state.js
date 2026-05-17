@@ -268,6 +268,77 @@ export function getSessions({ startDate, endDate, routineId } = {}) {
 }
 
 /**
+ * Update a session's fields and keep stats in sync.
+ * @param {string} id - Session ID
+ * @param {Object} data - Fields to update (e.g. { date: '2026-05-16' })
+ * @returns {boolean} true if session was found and updated
+ */
+export function updateSession(id, data) {
+  const idx = _state.sessions.findIndex(s => s.id === id);
+  if (idx === -1) return false;
+
+  const session = _state.sessions[idx];
+  const oldDate = session.date;
+
+  Object.assign(session, data);
+
+  if (data.date && data.date !== oldDate) {
+    _adjustStatsForSession(oldDate, session, 'subtract');
+    _adjustStatsForSession(data.date, session, 'add');
+  }
+
+  saveData();
+  return true;
+}
+
+/**
+ * Delete a session and remove its contribution from stats.
+ * @param {string} id - Session ID
+ * @returns {boolean} true if session was found and deleted
+ */
+export function deleteSession(id) {
+  const idx = _state.sessions.findIndex(s => s.id === id);
+  if (idx === -1) return false;
+
+  const session = _state.sessions[idx];
+  _adjustStatsForSession(session.date, session, 'subtract');
+
+  _state.sessions.splice(idx, 1);
+  saveData();
+  return true;
+}
+
+/**
+ * Add or subtract a session's duration from a stats date entry.
+ */
+function _adjustStatsForSession(dateStr, session, operation) {
+  const stats = _state.stats;
+  if (!stats[dateStr]) return;
+
+  const seconds = session.totalSec || 0;
+  const routineName = session.routineName;
+
+  if (operation === 'subtract') {
+    stats[dateStr].totalSec = Math.max(0, (stats[dateStr].totalSec || 0) - seconds);
+    if (routineName && stats[dateStr].routines) {
+      stats[dateStr].routines[routineName] = Math.max(0, (stats[dateStr].routines[routineName] || 0) - seconds);
+    }
+    if (stats[dateStr].totalSec === 0) {
+      delete stats[dateStr];
+    }
+  } else if (operation === 'add') {
+    if (!stats[dateStr]) {
+      stats[dateStr] = { totalSec: 0, routines: {} };
+    }
+    stats[dateStr].totalSec = (stats[dateStr].totalSec || 0) + seconds;
+    if (routineName) {
+      if (!stats[dateStr].routines) stats[dateStr].routines = {};
+      stats[dateStr].routines[routineName] = (stats[dateStr].routines[routineName] || 0) + seconds;
+    }
+  }
+}
+
+/**
  * Reset the entire routine (completion, timers, reps).
  */
 export function resetRoutine() {

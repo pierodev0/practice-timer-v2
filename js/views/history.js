@@ -75,6 +75,9 @@ export function renderHistory() {
               <span class="font-bold text-gray-800 text-sm">${escapeHtml(resolveRoutineName(session))}</span>
               <span class="text-xs text-gray-400 font-normal">(${scheduledStr})</span>
             </div>
+            <button onclick="window._editSession('${session.id}')" class="text-xs text-gray-400 hover:text-[#E53935] p-1 rounded transition-colors" title="Editar sesión">
+              <i class="fas fa-pencil-alt"></i>
+            </button>
           </div>
           <div class="text-xs text-gray-500 mb-2">
             ${startTime} <i class="fas fa-arrow-right text-[10px] text-gray-300 mx-1"></i> ${endTime} <span class="text-gray-400 font-medium ml-1">(${elapsedStr})</span>
@@ -143,6 +146,10 @@ window._exportDay = function (dateStr) {
   const daySessions = s.sessions.filter(ses => ses.date === dateStr);
   if (daySessions.length === 0) return;
   downloadDayXLSX(daySessions, resolveRoutineName, dateStr);
+};
+
+window._editSession = function (sessionId) {
+  import('./modals.js').then(m => m.openEditSessionModal(sessionId));
 };
 
 function formatDuration(seconds) {
