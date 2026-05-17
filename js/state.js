@@ -313,12 +313,11 @@ export function deleteSession(id) {
  */
 function _adjustStatsForSession(dateStr, session, operation) {
   const stats = _state.stats;
-  if (!stats[dateStr]) return;
-
   const seconds = session.totalSec || 0;
   const routineName = session.routineName;
 
   if (operation === 'subtract') {
+    if (!stats[dateStr]) return;
     stats[dateStr].totalSec = Math.max(0, (stats[dateStr].totalSec || 0) - seconds);
     if (routineName && stats[dateStr].routines) {
       stats[dateStr].routines[routineName] = Math.max(0, (stats[dateStr].routines[routineName] || 0) - seconds);

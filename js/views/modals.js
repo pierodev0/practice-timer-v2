@@ -394,6 +394,7 @@ export function saveEditSession() {
   updateSession(_editingSessionId, { date: newDate });
   closeEditSessionModal();
   import('./history.js').then(m => m.renderHistory());
+  import('./stats.js').then(m => m.renderStats());
 }
 
 export function deleteEditSession() {
@@ -402,6 +403,7 @@ export function deleteEditSession() {
   deleteSession(_editingSessionId);
   closeEditSessionModal();
   import('./history.js').then(m => m.renderHistory());
+  import('./stats.js').then(m => m.renderStats());
 }
 
 function closeEditSessionModal() {
