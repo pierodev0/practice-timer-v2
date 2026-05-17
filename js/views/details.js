@@ -5,7 +5,7 @@
 
 import { nanoid } from 'nanoid';
 import { getState, getExerciseById, saveData, getCurrentRoutine, setBpm } from '../state.js';
-import { formatTime } from '../utils.js';
+import { formatTime, todayStr } from '../utils.js';
 import { startMetronome, stopMetronome, playBellSound, setAudioOn } from '../audio.js';
 import { showStatModal, openImageModal } from './modals.js';
 
@@ -129,7 +129,7 @@ export function completeDetailExercise() {
     showStatModal(
       ex.statisticName,
       (val) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayStr();
         if (!ex.statisticLogs) ex.statisticLogs = [];
         ex.statisticLogs.push({ date: today, value: val });
         saveData();

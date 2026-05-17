@@ -15,6 +15,7 @@ import { setupBottomNav } from './views/bottom-nav.js';
 import { setupRoutines } from './views/routines.js';
 import { setupSettings } from './views/settings.js';
 import { setupHistory } from './views/history.js';
+import { subDays, format } from 'date-fns';
 
 import { observeAuth, handleRedirectResult } from './firebase/auth.js';
 import { downloadAndMergeState, startSyncListener, stopSyncListener } from './firebase/sync.js';
@@ -86,13 +87,12 @@ function setupSortable() {
 // ============================================================
 function setupDateDefaults() {
   const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 30);
+  const start = subDays(end, 30);
 
   const startInput = document.getElementById('stat-filter-start');
   const endInput = document.getElementById('stat-filter-end');
-  if (startInput) startInput.value = start.toISOString().split('T')[0];
-  if (endInput) endInput.value = end.toISOString().split('T')[0];
+  if (startInput) startInput.value = format(start, 'yyyy-MM-dd');
+  if (endInput) endInput.value = format(end, 'yyyy-MM-dd');
 }
 
 // ============================================================

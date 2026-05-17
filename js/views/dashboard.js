@@ -164,7 +164,7 @@ function handleExerciseCompletion() {
       ex.statisticName,
       // On save
       (val) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayStr();
         if (!ex.statisticLogs) ex.statisticLogs = [];
         ex.statisticLogs.push({ date: today, value: val });
         saveData();

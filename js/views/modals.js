@@ -5,8 +5,7 @@
 
 import { nanoid } from 'nanoid';
 import { getState, getExerciseById, saveData, getCurrentRoutine } from '../state.js';
-import { deepClone, formatTime } from '../utils.js';
-import { formatISOTime } from '../utils.js';
+import { deepClone, formatTime, formatISOTime, todayStr } from '../utils.js';
 
 // ============================================================
 // CREATE EXERCISE MODAL
@@ -124,7 +123,7 @@ export function submitStatInput() {
       const s = getState();
       const ex = getExerciseById(s.activeExerciseId);
       if (ex) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayStr();
         if (!ex.statisticLogs) ex.statisticLogs = [];
         ex.statisticLogs.push({ date: today, value: val });
         saveData();

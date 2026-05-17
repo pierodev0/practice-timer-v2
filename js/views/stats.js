@@ -4,7 +4,8 @@
  */
 
 import { getState } from '../state.js';
-import { formatTime, stringToColor } from '../utils.js';
+import { formatTime, stringToColor, todayStr, formatDate } from '../utils.js';
+import { subDays, differenceInCalendarDays } from 'date-fns';
 
 let weeklyChartInstance = null;
 let routineChartInstance = null;
@@ -65,14 +66,14 @@ export function renderStats() {
   // --- Streak calculation ---
   let streak = 0;
   if (dates.length > 0) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const lastDateStr = new Date(dates[dates.length - 1]).toISOString().split('T')[0];
+    const today = todayStr();
+    const yesterdayStr = formatDate(subDays(new Date(), 1));
+    const lastDateStr = dates[dates.length - 1];
 
-    if (lastDateStr === todayStr || lastDateStr === yesterdayStr) {
+    if (lastDateStr === today || lastDateStr === yesterdayStr) {
       streak = 1;
       for (let i = dates.length - 2; i >= 0; i--) {
-        const diff = Math.ceil(Math.abs(new Date(dates[i + 1]) - new Date(dates[i])) / 864e5);
+        const diff = differenceInCalendarDays(new Date(dates[i + 1]), new Date(dates[i]));
         if (diff === 1) streak++;
         else break;
       }
@@ -101,9 +102,8 @@ function renderWeeklyChart(s) {
   const last7DaysLabels = [];
   const last7DaysKeys = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    last7DaysKeys.push(d.toISOString().split('T')[0]);
+    const d = subDays(new Date(), i);
+    last7DaysKeys.push(formatDate(d));
     last7DaysLabels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
   }
 

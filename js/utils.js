@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { format } from 'date-fns';
 
 /**
  * Pure utility functions — no DOM, no state, no side effects.
@@ -75,8 +76,12 @@ export function sanitizeImportedRoutine(r) {
 /**
  * Create today's date string in YYYY-MM-DD format.
  */
+export function formatDate(date) {
+  return format(date, 'yyyy-MM-dd');
+}
+
 export function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  return formatDate(new Date());
 }
 
 /**
