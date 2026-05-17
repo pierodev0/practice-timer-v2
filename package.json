@@ -9,13 +9,20 @@
     "preview": "vite preview",
     "start": "vite"
   },
-  "keywords": ["music", "practice", "routine", "metronome", "pwa"],
+  "keywords": [
+    "music",
+    "practice",
+    "routine",
+    "metronome",
+    "pwa"
+  ],
   "license": "MIT",
   "devDependencies": {
     "vite": "8.0.11"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.3.0",
+    "date-fns": "4.1.0",
     "firebase": "12.12.1",
     "nanoid": "5.1.11",
     "tailwindcss": "4.3.0"
