@@ -39,6 +39,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   // No interceptar requests de chrome-extension ni de cache API
   if (!e.request.url.startsWith('http')) return;
+  if (e.request.method !== 'GET') return;
 
   e.respondWith(
     fetch(e.request)

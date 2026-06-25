@@ -101,7 +101,7 @@ export function loadData() {
   if (data) {
     try {
       const parsed = JSON.parse(data);
-      _state.routines = parsed.routines;
+      _state.routines = Array.isArray(parsed.routines) ? parsed.routines : [];
       _state.currentRoutineId = parsed.currentRoutineId || 'module-1';
       _state.stats = parsed.stats || {};
       _state.sessions = parsed.sessions || [];
@@ -111,6 +111,7 @@ export function loadData() {
       // Migrate / normalize routines
       _state.routines.forEach((r, i) => {
         if (!r.createdAt) r.createdAt = 0;
+        if (!Array.isArray(r.exercises)) r.exercises = [];
 
         // Migrate / normalize exercises
         r.exercises.forEach(ex => {
@@ -178,6 +179,7 @@ export function resetAllData() {
 // --- Getters ---
 
 export function getCurrentRoutine() {
+  if (!Array.isArray(_state.routines)) _state.routines = [];
   let routine = _state.routines.find(r => r.id === _state.currentRoutineId);
   if (!routine) {
     console.warn('Current routine not found, resetting to first available.');
