@@ -1,5 +1,13 @@
+/**
+ * useRoutineStore tests — now backed by Dexie instead of localStorage.
+ *
+ * The store keeps reactive refs for Vue views but persists through Dexie.
+ * Importing the store auto-seeds sample routines if the DB is empty.
+ */
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { resetDb } from '../src/db/db.js';
 
 vi.mock('../js/routines-sample.js', () => ({
   module1Routine: {
@@ -22,30 +30,37 @@ vi.mock('../js/routines-sample.js', () => ({
   module12Routine: { id: 'module-12', name: 'Rutina 12', createdAt: 0, exercises: [] },
 }));
 
-const ROUTINE_KEY = 'musicRoutineApp_v37_routines';
 let useRoutineStore;
 
 beforeEach(async () => {
   setActivePinia(createPinia());
-  localStorage.clear();
+  // Reset Dexie between tests
+  const { getDb } = await import('../src/db/db.js');
+  const db = await getDb();
+  await resetDb(db);
+  // Clear module cache so store re-creates the db connection
   const mod = await import('../src/stores/useRoutineStore.js');
   useRoutineStore = mod.useRoutineStore;
 });
 
 describe('useRoutineStore', () => {
-  it('loads default routines on init', () => {
+  it('loads default routines on init', async () => {
     const store = useRoutineStore();
+    // Wait for async init to populate routines
+    await store._ready;
     expect(store.routines.length).toBeGreaterThan(0);
     expect(store.currentRoutineId).toBe('module-1');
   });
 
-  it('returns currentRoutine by currentRoutineId', () => {
+  it('returns currentRoutine by currentRoutineId', async () => {
     const store = useRoutineStore();
+    await store._ready;
     expect(store.currentRoutine.name).toBe('Rutina 1');
   });
 
-  it('creates fallback routine if routines is empty', () => {
+  it('creates fallback routine if routines is empty', async () => {
     const store = useRoutineStore();
+    await store._ready;
     store.routines = [];
     store.currentRoutineId = null;
     const r = store.currentRoutine;
@@ -53,59 +68,60 @@ describe('useRoutineStore', () => {
     expect(r.name).toBe('Rutina Recuperada');
   });
 
-  it('getExerciseById finds exercise in current routine', () => {
+  it('getExerciseById finds exercise in current routine', async () => {
     const store = useRoutineStore();
+    await store._ready;
     expect(store.getExerciseById('ex-1').title).toBe('Exercise 1');
   });
 
-  it('getExerciseById returns undefined for unknown id', () => {
+  it('getExerciseById returns undefined for unknown id', async () => {
     const store = useRoutineStore();
+    await store._ready;
     expect(store.getExerciseById('nonexistent')).toBeUndefined();
   });
 
-  it('visibleExercises filters archived', () => {
+  it('visibleExercises filters archived', async () => {
     const store = useRoutineStore();
+    await store._ready;
     store.currentRoutine.exercises.push({ id: 'archived', title: 'Archived', archived: true });
     expect(store.visibleExercises).toHaveLength(2);
   });
 
-  it('persists routines to localStorage', () => {
+  it('persists routines to Dexie', async () => {
     const store = useRoutineStore();
+    await store._ready;
     store.routines = [{ id: 'r1', name: 'Custom', exercises: [] }];
     store.currentRoutineId = 'r1';
-    store.saveToStorage();
+    await store.saveToDb();
 
-    const stored = JSON.parse(localStorage.getItem(ROUTINE_KEY));
-    expect(stored.routines[0].name).toBe('Custom');
-    expect(stored.currentRoutineId).toBe('r1');
+    // Verify data is in Dexie
+    const { getDb } = await import('../src/db/db.js');
+    const db = await getDb();
+    const routines = await db.routines.toArray();
+    expect(routines).toHaveLength(1);
+    expect(routines[0].name).toBe('Custom');
   });
 
-  it('loads persisted routines', () => {
-    localStorage.setItem(ROUTINE_KEY, JSON.stringify({
-      routines: [{ id: 'r1', name: 'Saved', exercises: [] }],
-      currentRoutineId: 'r1',
-    }));
+  it('loads persisted routines from Dexie', async () => {
     const store = useRoutineStore();
-    store.loadFromStorage();
-    expect(store.routines[0].name).toBe('Saved');
+    await store._ready;
+
+    // Manually insert data into Dexie and reload
+    const { getDb } = await import('../src/db/db.js');
+    const db = await getDb();
+    await db.routines.add({ id: 'r1', name: 'Saved', createdAt: Date.now(), updatedAt: Date.now() });
+    await db.exercises.add({ id: 1, title: 'E1', bpm: 100, durationSec: 60, createdAt: Date.now(), updatedAt: Date.now() });
+    await db.routineExercises.add({ routineId: 'r1', exerciseId: 1, order: 0 });
+
+    await store.loadFromDb();
+    const saved = store.routines.find(r => r.id === 'r1');
+    expect(saved).toBeDefined();
+    expect(saved.name).toBe('Saved');
   });
 
-  it('normalizes exercise fields on load', () => {
-    localStorage.setItem(ROUTINE_KEY, JSON.stringify({
-      routines: [{ id: 'r1', name: 'Legacy', exercises: [{ id: 'e1', title: 'Old', duration: 5 }] }],
-      currentRoutineId: 'r1',
-    }));
+  it('resetCurrentRoutine clears exercise state', async () => {
     const store = useRoutineStore();
-    store.loadFromStorage();
-    const ex = store.getExerciseById('e1');
-    expect(ex.durationSec).toBe(300);
-    expect(ex.remainingSec).toBe(300);
-    expect(ex.autoStart).toBe(true);
-    expect(ex.reps).toBe(1);
-  });
-
-  it('resetCurrentRoutine clears exercise state', () => {
-    const store = useRoutineStore();
+    await store._ready;
     const ex = store.getExerciseById('ex-1');
     ex.completed = true;
     ex.remainingSec = 0;
@@ -118,14 +134,16 @@ describe('useRoutineStore', () => {
     expect(resetEx.currentRep).toBe(1);
   });
 
-  it('setCurrentRoutine switches routine', () => {
+  it('setCurrentRoutine switches routine', async () => {
     const store = useRoutineStore();
+    await store._ready;
     store.setCurrentRoutine('module-2');
     expect(store.currentRoutineId).toBe('module-2');
   });
 
-  it('resetToDefaults restores sample routines', () => {
+  it('resetToDefaults restores sample routines', async () => {
     const store = useRoutineStore();
+    await store._ready;
     store.routines = [];
     store.resetToDefaults();
     expect(store.routines.length).toBeGreaterThanOrEqual(1);

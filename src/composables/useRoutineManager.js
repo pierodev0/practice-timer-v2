@@ -6,6 +6,7 @@
 
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { nanoid } from 'nanoid';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
 import { downloadJSON, sanitizeImportedRoutine } from '../../js/utils.js';
@@ -71,7 +72,7 @@ export function useRoutineManager() {
     const name = prompt('Nueva rutina:');
     if (name && name.trim()) {
       routineStore.routines.push({
-        id: crypto.randomUUID(),
+        id: nanoid(),
         name: name.trim(),
         exercises: [],
         createdAt: Date.now(),
@@ -94,12 +95,12 @@ export function useRoutineManager() {
     const original = routineStore.routines.find(x => x.id === id);
     if (!original) return;
     const copy = {
-      id: crypto.randomUUID(),
+      id: nanoid(),
       name: original.name + ' (Copia)',
       createdAt: Date.now(),
       exercises: original.exercises.map(ex => ({
         ...JSON.parse(JSON.stringify(ex)),
-        id: crypto.randomUUID(),
+        id: nanoid(),
         completed: false,
         remainingSec: ex.durationSec,
         currentRep: 1,

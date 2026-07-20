@@ -4,6 +4,7 @@
  * Views: DashboardView
  */
 
+import { nanoid } from 'nanoid';
 import { ref } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 
@@ -37,7 +38,7 @@ export function useExerciseForm() {
     }
     const total = (min.value * 60) + sec.value;
     routineStore.currentRoutine.exercises.push({
-      id: crypto.randomUUID(),
+      id: nanoid(),
       title: t,
       bpm: bpm.value,
       durationSec: total,

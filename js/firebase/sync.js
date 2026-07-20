@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid';
 import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from './config.js';
 import { getDeviceId } from './device.js';
@@ -196,7 +197,7 @@ function getBackupDocRef(uid, backupId) {
 
 export async function saveBackup(uid, label) {
   const state = getState();
-  const backupId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const backupId = `${Date.now()}-${nanoid(8)}`;
   await setDoc(getBackupDocRef(uid, backupId), {
     createdAt: serverTimestamp(),
     label: label || `Copia ${new Date().toLocaleString()}`,

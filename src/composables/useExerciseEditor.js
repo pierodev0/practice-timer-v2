@@ -5,6 +5,7 @@
  * Views: DetailsView
  */
 
+import { nanoid } from 'nanoid';
 import { ref, computed, watch } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useBpmStore } from '../stores/useBpmStore.js';
@@ -13,9 +14,11 @@ export function useExerciseEditor(exerciseIdRef) {
   const routineStore = useRoutineStore();
   const bpmStore = useBpmStore();
 
-  const exerciseId = computed(() =>
-    typeof exerciseIdRef === 'function' ? exerciseIdRef() : exerciseIdRef.value
-  );
+  const exerciseId = computed(() => {
+    if (typeof exerciseIdRef === 'function') return exerciseIdRef();
+    if (typeof exerciseIdRef === 'string') return exerciseIdRef;
+    return exerciseIdRef.value;
+  });
 
   const exercise = computed(() => routineStore.getExerciseById(exerciseId.value));
 
@@ -88,7 +91,7 @@ export function useExerciseEditor(exerciseIdRef) {
     const ex = exercise.value;
     if (!ex) return;
     const copy = JSON.parse(JSON.stringify(ex));
-    copy.id = crypto.randomUUID();
+    copy.id = nanoid();
     copy.title += ' (Copy)';
     copy.statisticLogs = [];
     copy.completed = false;

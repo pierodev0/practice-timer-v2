@@ -1,8 +1,14 @@
 /**
  * Test setup — runs before each test file.
- * Provides localStorage mock when jsdom doesn't include it.
+ * Provides localStorage mock and fake IndexedDB for Dexie tests.
  */
 import { vi } from 'vitest';
+
+// ── Fake IndexedDB (for Dexie tests) ───────────────────
+
+import 'fake-indexeddb/auto';
+
+// ── localStorage mock ──────────────────────────────────
 
 const storage = new Map();
 

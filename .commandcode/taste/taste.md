@@ -17,3 +17,6 @@ See [vue/taste.md](vue/taste.md)
 # git
 - Use conventional commit format in English for commit messages. Confidence: 0.71
 
+# database
+- Design Dexie schema with fully normalized tables (exercises as independent entities, not embedded in routines). Confidence: 0.70
+

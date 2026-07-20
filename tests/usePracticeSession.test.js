@@ -52,12 +52,21 @@ beforeEach(async () => {
   setActivePinia(createPinia());
   localStorage.clear();
 
+  // Reset Dexie between tests
+  const { getDb, resetDb } = await import('../src/db/db.js');
+  const db = await getDb();
+  await resetDb(db);
+
   const routineMod = await import('../src/stores/useRoutineStore.js');
   const sessionMod = await import('../src/stores/useSessionStore.js');
   const bpmMod = await import('../src/stores/useBpmStore.js');
   routineStore = routineMod.useRoutineStore();
   sessionStore = sessionMod.useSessionStore();
   bpmStore = bpmMod.useBpmStore();
+
+  // Wait for DB init to complete before setting up test data
+  await sessionStore._ready;
+  await routineStore._ready;
 
   // Reset to known state
   routineStore.routines = [{

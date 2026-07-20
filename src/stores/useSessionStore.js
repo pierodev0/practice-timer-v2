@@ -1,141 +1,130 @@
 /**
  * useSessionStore — manages practice sessions and daily stats.
- * Persisted to localStorage under musicRoutineApp_v37_sessions.
+ * Persisted to Dexie (IndexedDB). Stats are computed from session data
+ * on load and recomputed on mutations — no denormalized _adjustStats.
  */
 
+import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { nanoid } from 'nanoid';
+import { getDb } from '../db/db.js';
 
-const STORAGE_KEY = 'musicRoutineApp_v37_sessions';
-
-function migrateFromOldKey() {
-  const oldKey = 'musicRoutineApp_v36_stats';
-  const oldData = localStorage.getItem(oldKey);
-  if (!oldData) return null;
-  try {
-    const parsed = JSON.parse(oldData);
-    if (parsed.sessions || parsed.stats) {
-      return { sessions: parsed.sessions || [], stats: parsed.stats || {} };
+/**
+ * Build the stats object from an array of sessions.
+ * Replaces the old _adjustStats + recordProgressSeconds pattern.
+ */
+function buildStats(sessions) {
+  const stats = {};
+  for (const s of sessions) {
+    if (!s.date) continue;
+    if (!stats[s.date]) stats[s.date] = { totalSec: 0, routines: {} };
+    stats[s.date].totalSec += s.totalSec || 0;
+    if (s.routineName) {
+      stats[s.date].routines[s.routineName] = (stats[s.date].routines[s.routineName] || 0) + (s.totalSec || 0);
     }
-  } catch { /* ignore */ }
-  return null;
+  }
+  return stats;
 }
 
 export const useSessionStore = defineStore('sessions', () => {
   const sessions = ref([]);
   const stats = ref({});
 
-  // ── Helpers ────────────────────────────────────────────
+  let _resolveReady;
+  const _ready = new Promise(resolve => { _resolveReady = resolve; });
 
-  function todayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // ── Database loading ───────────────────────────────────
+
+  async function loadFromDb() {
+    const db = await getDb();
+    const all = await db.sessions.toArray();
+    sessions.value = all;
+    stats.value = buildStats(all);
   }
 
-  function _adjustStats(dateStr, seconds, routineName, operation) {
-    if (operation === 'subtract') {
-      if (!stats.value[dateStr]) return;
-      stats.value[dateStr].totalSec = Math.max(0, (stats.value[dateStr].totalSec || 0) - seconds);
-      if (routineName && stats.value[dateStr].routines) {
-        stats.value[dateStr].routines[routineName] = Math.max(0, (stats.value[dateStr].routines[routineName] || 0) - seconds);
-      }
-      if (stats.value[dateStr].totalSec === 0) {
-        delete stats.value[dateStr];
-      }
-    } else if (operation === 'add') {
-      if (!stats.value[dateStr]) stats.value[dateStr] = { totalSec: 0, routines: {} };
-      stats.value[dateStr].totalSec = (stats.value[dateStr].totalSec || 0) + seconds;
-      if (routineName) {
-        if (!stats.value[dateStr].routines) stats.value[dateStr].routines = {};
-        stats.value[dateStr].routines[routineName] = (stats.value[dateStr].routines[routineName] || 0) + seconds;
-      }
+  // ── Database saving ────────────────────────────────────
+
+  async function saveToDb() {
+    const db = await getDb();
+    // Full sync: rewrite all sessions
+    await db.sessions.clear();
+    for (const s of sessions.value) {
+      await db.sessions.add(JSON.parse(JSON.stringify(s)));
     }
   }
 
-  // ── Actions ────────────────────────────────────────────
+  // ── Mutations ──────────────────────────────────────────
 
-  function addSession(sessionData) {
-    const id = nanoid();
-    sessions.value.push({ id, ...sessionData });
-    saveToStorage();
+  async function addSession(sessionData) {
+    const record = { id: nanoid(), ...sessionData };
+
+    // Update ref synchronously first (callers may not await)
+    sessions.value.push(record);
+    stats.value = buildStats(sessions.value);
+
+    // Then persist to Dexie asynchronously
+    const db = await getDb();
+    await db.sessions.add(JSON.parse(JSON.stringify(record)));
   }
 
   function getSessions({ startDate, endDate, routineId } = {}) {
-    let filtered = sessions.value.filter(() => true);
+    let filtered = sessions.value;
     if (startDate) filtered = filtered.filter(s => s.date >= startDate);
     if (endDate) filtered = filtered.filter(s => s.date <= endDate);
     if (routineId) filtered = filtered.filter(s => s.routineId === routineId);
-    return filtered.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+    return filtered.sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
   }
 
-  function updateSession(id, data) {
+  async function updateSession(id, data) {
+    const db = await getDb();
     const idx = sessions.value.findIndex(s => s.id === id);
     if (idx === -1) return false;
-    const session = sessions.value[idx];
-    const oldDate = session.date;
-    Object.assign(session, data);
-    if (data.date && data.date !== oldDate) {
-      _adjustStats(oldDate, session.totalSec || 0, session.routineName, 'subtract');
-      _adjustStats(data.date, session.totalSec || 0, session.routineName, 'add');
-    }
-    saveToStorage();
+
+    const oldSession = sessions.value[idx];
+    Object.assign(oldSession, data);
+
+    // Deep-clone before writing to Dexie
+    await db.sessions.put(JSON.parse(JSON.stringify(oldSession)));
+
+    // Recompute stats from scratch (correct after date change)
+    const all = await db.sessions.toArray();
+    sessions.value = all;
+    stats.value = buildStats(all);
+
     return true;
   }
 
-  function deleteSession(id) {
+  async function deleteSession(id) {
+    const db = await getDb();
     const idx = sessions.value.findIndex(s => s.id === id);
     if (idx === -1) return false;
-    const session = sessions.value[idx];
-    _adjustStats(session.date, session.totalSec || 0, session.routineName, 'subtract');
+
+    await db.sessions.delete(id);
     sessions.value.splice(idx, 1);
-    saveToStorage();
+
+    // Recompute stats from all sessions
+    const all = await db.sessions.toArray();
+    stats.value = buildStats(all);
+
     return true;
   }
 
-  function recordProgressSeconds(seconds, routineName) {
-    const today = todayStr();
-    if (!stats.value[today]) stats.value[today] = { totalSec: 0, routines: {} };
-    stats.value[today].totalSec = Math.max(0, (stats.value[today].totalSec || 0) + seconds);
-    if (routineName) {
-      if (!stats.value[today].routines[routineName]) stats.value[today].routines[routineName] = 0;
-      stats.value[today].routines[routineName] = Math.max(0, (stats.value[today].routines[routineName] || 0) + seconds);
-    }
-    saveToStorage();
-  }
+  // No-op: stats are session-derived, no separate tracking needed
+  function recordProgressSeconds() {}
 
-  function saveToStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      sessions: sessions.value,
-      stats: stats.value,
-    }));
-  }
-
-  function loadFromStorage() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        sessions.value = parsed.sessions || [];
-        stats.value = parsed.stats || {};
-        return;
-      } catch { /* ignore */ }
-    }
-
-    const old = migrateFromOldKey();
-    if (old) {
-      sessions.value = old.sessions;
-      stats.value = old.stats;
-      saveToStorage();
-    }
-  }
-
-  function resetAll() {
+  async function resetAll() {
+    const db = await getDb();
+    await db.sessions.clear();
     sessions.value = [];
     stats.value = {};
   }
 
-  loadFromStorage();
+  // ── Init ───────────────────────────────────────────────
+
+  (async () => {
+    await loadFromDb();
+    _resolveReady();
+  })();
 
   return {
     sessions,
@@ -145,8 +134,14 @@ export const useSessionStore = defineStore('sessions', () => {
     updateSession,
     deleteSession,
     recordProgressSeconds,
-    saveToStorage,
-    loadFromStorage,
+    saveToDb,
+    loadFromDb,
+
+    // Alias for backward compat with composables
+    saveToStorage: saveToDb,
+    loadFromStorage: loadFromDb,
+
     resetAll,
+    _ready,
   };
 });
