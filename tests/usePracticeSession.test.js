@@ -116,13 +116,13 @@ describe('usePracticeSession', () => {
     expect(session.statModalTitle.value).toBe('BPM');
   });
 
-  it('submitStatValue saves log and completes exercise', () => {
+  it('submitStatValue saves log and completes exercise', async () => {
     const session = usePracticeSession({ timer: mockTimer });
     session.player.playExercise('ex-2');
     session.handleExerciseCompletion();
     expect(session.showStatModal.value).toBe(true);
 
-    session.submitStatValue(85);
+    await session.submitStatValue(85);
 
     expect(session.showStatModal.value).toBe(false);
     const ex = routineStore.getExerciseById('ex-2');

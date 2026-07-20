@@ -150,6 +150,14 @@ export const useRoutineStore = defineStore('routines', () => {
     const exMap = {};
     for (const ex of dbExercises) exMap[ex.id] = ex;
 
+    // Load exercise logs for stat tracking across sessions
+    const exerciseLogs = await db.exerciseLogs.toArray();
+    const logsByExercise = {};
+    for (const log of exerciseLogs) {
+      if (!logsByExercise[log.exerciseId]) logsByExercise[log.exerciseId] = [];
+      logsByExercise[log.exerciseId].push(log);
+    }
+
     // Build routines with embedded exercises.
     // Merge transient defaults that are not persisted to Dexie.
     const withDefaults = (ex) => ({
@@ -158,7 +166,7 @@ export const useRoutineStore = defineStore('routines', () => {
       completed: ex.completed ?? false,
       currentRep: ex.currentRep ?? 1,
       archived: ex.archived ?? false,
-      statisticLogs: ex.statisticLogs ?? [],
+      statisticLogs: logsByExercise[ex.id] || [],
     });
     const result = dbRoutines.map(r => ({
       id: r.id,

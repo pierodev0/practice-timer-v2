@@ -17,6 +17,7 @@
 
 import { ref } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
+import * as exerciseLogsService from '../db/entities/exerciseLogs.js';
 
 export function useStatModal() {
   const routineStore = useRoutineStore();
@@ -44,13 +45,14 @@ export function useStatModal() {
     showStatModal.value = true;
   }
 
-  function submitStatValue(val) {
+  async function submitStatValue(val) {
     showStatModal.value = false;
     const ex = routineStore.getExerciseById(pendingExerciseId);
     if (ex) {
       if (!ex.statisticLogs) ex.statisticLogs = [];
       const today = new Date().toISOString().slice(0, 10);
       ex.statisticLogs.push({ date: today, value: val });
+      await exerciseLogsService.addLog(pendingExerciseId, { date: today, value: val }).catch(() => {});
     }
     cleanup();
   }
