@@ -126,8 +126,19 @@ export const useRoutineStore = defineStore('routines', () => {
     const links = await db.routineExercises.toArray();
 
     // Build index: routineId → ordered exercise IDs
-    const linkMap = {};
+    // Deduplicate: keep only the first link per (routineId, exerciseId)
+    // to repair any corruption from concurrent saveToDb races.
+    const seen = new Set();
+    const deduped = [];
     for (const l of links) {
+      const key = `${l.routineId}|${l.exerciseId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(l);
+      }
+    }
+    const linkMap = {};
+    for (const l of deduped) {
       if (!linkMap[l.routineId]) linkMap[l.routineId] = [];
       linkMap[l.routineId].push(l);
     }
@@ -167,8 +178,23 @@ export const useRoutineStore = defineStore('routines', () => {
   /**
    * Save all routines to Dexie by splitting routines and exercises.
    * This rewrites the junction table.
+   *
+   * Serialized via promise chain: concurrent calls queue up instead of racing.
+   * Prevents duplicate routineExercise links when saveToDb is called
+   * multiple times in quick succession (e.g. rep advance + completion).
    */
+  let _saveQueue = Promise.resolve();
+
   async function saveToDb() {
+    const prev = _saveQueue;
+    _saveQueue = (async () => {
+      await prev.catch(() => {});
+      await _doSave();
+    })();
+    return _saveQueue;
+  }
+
+  async function _doSave() {
     const db = await getDb();
     const routineIds = routines.value.map(r => r.id);
 

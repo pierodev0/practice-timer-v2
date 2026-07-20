@@ -114,7 +114,6 @@ describe('usePracticeSession', () => {
 
     expect(session.showStatModal.value).toBe(true);
     expect(session.statModalTitle.value).toBe('BPM');
-    expect(session.statModalExId.value).toBe('ex-2');
   });
 
   it('submitStatValue saves log and completes exercise', () => {

@@ -25,7 +25,7 @@ const timer = useTimer({
 });
 const session = usePracticeSession({ timer });
 const form = useExerciseForm();
-const { globalSeconds, remaining, isRunning } = timer;
+const { remaining, isRunning } = timer;
 const { reorderExercises, saveToStorage } = session;
 const sortable = useSortable({
   containerId: 'exercise-list-vue',
@@ -57,6 +57,12 @@ const totalTime = computed(() => {
 });
 
 const completedCount = computed(() => visibleExercises.value.filter(e => e.completed).length);
+
+const completedPracticeSec = computed(() => {
+  return visibleExercises.value
+    .filter(e => e.completed)
+    .reduce((sum, e) => sum + e.durationSec * e.reps, 0);
+});
 
 // ── Lifecycle ──────────────────────────────────────────
 
@@ -93,7 +99,7 @@ function openImage(imgUrl) { lightboxRef.value?.open(imgUrl); }
         </div>
       </div>
       <div class="mt-6 text-center relative px-2">
-        <p class="text-sm opacity-90 italic">Practice Time {{ formatTime(globalSeconds) }} / {{ formatTime(totalTime) }}</p>
+        <p class="text-sm opacity-90 italic">Practice Time {{ formatTime(completedPracticeSec) }} / {{ formatTime(totalTime) }}</p>
         <div class="flex items-center justify-between w-full mt-2">
           <label class="flex items-center gap-1 text-xs bg-black/10 px-2 py-1 rounded cursor-pointer hover:bg-black/20 transition-colors">
             <input type="checkbox" v-model="currentRoutineAutoplay" class="accent-white w-3 h-3">

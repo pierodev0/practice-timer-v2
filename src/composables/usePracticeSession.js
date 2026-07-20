@@ -13,18 +13,14 @@ import { ref, computed } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
+import { useStatModal } from './useStatModal.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
   const sessionStore = useSessionStore();
 
   const player = useExercisePlayer({ timer: externalTimer });
-
-  // ── Stat modal state ────────────────────────────────
-
-  const showStatModal = ref(false);
-  const statModalTitle = ref('');
-  const statModalExId = ref(null);
+  const statModal = useStatModal();
 
   // ── Finish / Reset modal state ──────────────────────
 
@@ -51,29 +47,8 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
 
     if (ex.statisticName && !ex.completed) {
       player.pauseSequence();
-      showStatModal.value = true;
-      statModalTitle.value = ex.statisticName;
-      statModalExId.value = ex.id;
-      return;
     }
-    finalizeCompletion();
-  }
-
-  function submitStatValue(val) {
-    showStatModal.value = false;
-    const ex = routineStore.getExerciseById(statModalExId.value);
-    if (ex) {
-      if (!ex.statisticLogs) ex.statisticLogs = [];
-      const today = new Date().toISOString().slice(0, 10);
-      ex.statisticLogs.push({ date: today, value: val });
-      routineStore.saveToStorage();
-    }
-    finalizeCompletion();
-  }
-
-  function skipStat() {
-    showStatModal.value = false;
-    finalizeCompletion();
+    statModal.requestStatInput(ex, () => finalizeCompletion());
   }
 
   function finalizeCompletion() {
@@ -126,8 +101,9 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
   function acceptFinish() {
     const routine = routineStore.currentRoutine;
     const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const timer = externalTimer;
-    const totalSec = timer ? timer.globalSeconds.value : 0;
+    const totalSec = routine.exercises
+      .filter(ex => ex.completed)
+      .reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const elapsedSec = player.sessionStartedAt.value
       ? Math.round((Date.now() - player.sessionStartedAt.value) / 1000)
       : totalSec;
@@ -170,9 +146,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
 
   return {
     player,
-    showStatModal,
-    statModalTitle,
-    statModalExId,
+    ...statModal,
     showFinishModal,
     showResetModal,
     finishSummary,
@@ -191,8 +165,6 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       routineStore.saveToStorage();
     },
     handleExerciseCompletion,
-    submitStatValue,
-    skipStat,
     handleFinishRoutine,
     acceptFinish,
     acceptReset,
