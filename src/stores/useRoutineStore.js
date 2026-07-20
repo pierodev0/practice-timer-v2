@@ -12,7 +12,7 @@ import { ref, computed } from 'vue';
 import { getDb } from '../db/db.js';
 import * as routinesService from '../db/entities/routines.js';
 import * as exercisesService from '../db/entities/exercises.js';
-import * as routinesSample from '../../js/routines-sample.js';
+import * as routinesSample from '../data/defaultRoutines.js';
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));

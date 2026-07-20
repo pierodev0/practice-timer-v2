@@ -6,7 +6,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { formatTime, getFirstImage, getFirstUrl } from '../../js/utils.js';
+import { formatTime, getFirstImage, getFirstUrl } from '../lib/utils.js';
 import { useTimer } from '../composables/useTimer.js';
 import { useSortable } from '../composables/useSortable.js';
 import { usePracticeSession } from '../composables/usePracticeSession.js';

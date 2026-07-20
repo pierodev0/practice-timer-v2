@@ -7,8 +7,8 @@
 import { ref, computed } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
-import { formatISOTime, downloadJSON } from '../../js/utils.js';
-import { downloadDayXLSX, downloadMonthXLSX } from '../../js/export.js';
+import { formatISOTime, downloadJSON } from '../lib/utils.js';
+import { downloadDayXLSX, downloadMonthXLSX } from '../services/export.js';
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

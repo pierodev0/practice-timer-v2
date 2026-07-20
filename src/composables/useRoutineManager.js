@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router';
 import { nanoid } from 'nanoid';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
-import { downloadJSON, sanitizeImportedRoutine } from '../../js/utils.js';
+import { downloadJSON, sanitizeImportedRoutine } from '../lib/utils.js';
 
 export const SORT_MODES = [
   { key: 'created', label: 'Creado', icon: 'fa-clock' },

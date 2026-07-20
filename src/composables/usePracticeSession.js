@@ -47,7 +47,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     const ex = routineStore.getExerciseById(player.activeExerciseId.value);
     if (!ex) return;
 
-    import('../../js/audio.js').then(m => m.playBellSound());
+    import('../services/audio.js').then(m => m.playBellSound());
 
     if (ex.statisticName && !ex.completed) {
       player.pauseSequence();

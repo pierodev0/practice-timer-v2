@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { secToMin } from '../js/export.js';
+import { secToMin } from '../src/services/export.js';
 
 // ── Mocks ────────────────────────────────────────────────────
 
 // Mock formatISOTime used internally by export.js
-vi.mock('../js/utils.js', () => ({
+vi.mock('../src/lib/utils.js', () => ({
   formatISOTime: vi.fn((iso) => {
     if (!iso) return '--:--';
     const d = new Date(iso);
@@ -99,7 +99,7 @@ describe('downloadDayXLSX', () => {
 
   it('shows alert if ExcelJS is not loaded', async () => {
     delete globalThis.window.ExcelJS;
-    const { downloadDayXLSX } = await import('../js/export.js');
+    const { downloadDayXLSX } = await import('../src/services/export.js');
     await downloadDayXLSX([], () => 'Routine', '2026-07-19');
     expect(globalThis.alert).toHaveBeenCalledWith(
       'ExcelJS library not loaded. Please check your internet connection.'
@@ -110,7 +110,7 @@ describe('downloadDayXLSX', () => {
     const mock = createExcelJSMock();
     globalThis.window.ExcelJS = { Workbook: function() { return mock.workbook; } };
 
-    const { downloadDayXLSX } = await import('../js/export.js');
+    const { downloadDayXLSX } = await import('../src/services/export.js');
     const sessions = [
       {
         startedAt: new Date(2026, 6, 19, 9, 0).toISOString(),
@@ -148,7 +148,7 @@ describe('downloadMonthXLSX', () => {
     const mock = createExcelJSMock();
     globalThis.window.ExcelJS = { Workbook: function() { return mock.workbook; } };
 
-    const { downloadMonthXLSX } = await import('../js/export.js');
+    const { downloadMonthXLSX } = await import('../src/services/export.js');
     const groups = {
       '2026-07-04': [
         {
@@ -183,7 +183,7 @@ describe('downloadMonthXLSX', () => {
 
   it('shows alert if ExcelJS is not loaded', async () => {
     delete globalThis.window.ExcelJS;
-    const { downloadMonthXLSX } = await import('../js/export.js');
+    const { downloadMonthXLSX } = await import('../src/services/export.js');
     await downloadMonthXLSX({}, () => 'Routine', 2026, 6, 'Julio 2026');
     expect(globalThis.alert).toHaveBeenCalledWith(
       'ExcelJS library not loaded. Please check your internet connection.'

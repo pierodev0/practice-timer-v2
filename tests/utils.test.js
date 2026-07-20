@@ -9,7 +9,7 @@ import {
   todayStr,
   deepClone,
   formatISOTime,
-} from '../js/utils.js';
+} from '../src/lib/utils.js';
 
 // ── formatTime ─────────────────────────────────────────────
 

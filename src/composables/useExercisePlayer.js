@@ -37,7 +37,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   // ── Audio helpers ─────────────────────────────────────
 
   async function ensureAudio() {
-    const m = await import('../../js/audio.js');
+    const m = await import('../services/audio.js');
     return m;
   }
 

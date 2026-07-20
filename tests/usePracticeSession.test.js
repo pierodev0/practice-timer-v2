@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 // Mocks
-vi.mock('../js/audio.js', () => ({
+vi.mock('../src/services/audio.js', () => ({
   playBellSound: vi.fn(),
   initAudio: vi.fn(() => Promise.resolve()),
   startMetronome: vi.fn(),
@@ -19,7 +19,7 @@ globalThis.Tone = {
   PolySynth: vi.fn(function() { return { toDestination: vi.fn(function() { return this; }), set: vi.fn(), triggerAttackRelease: vi.fn() }; }),
 };
 
-vi.mock('../js/routines-sample.js', () => ({
+vi.mock('../src/data/defaultRoutines.js', () => ({
   module1Routine: {
     id: 'module-1', name: 'Rutina 1', createdAt: 0,
     exercises: [

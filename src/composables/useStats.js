@@ -8,7 +8,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
-import { formatTime, stringToColor, formatDate } from '../../js/utils.js';
+import { formatTime, stringToColor, formatDate } from '../lib/utils.js';
 import { subDays, differenceInCalendarDays } from 'date-fns';
 
 export function useStats() {

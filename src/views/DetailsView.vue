@@ -7,7 +7,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { formatTime } from '../../js/utils.js';
+import { formatTime } from '../lib/utils.js';
 import { useTimer } from '../composables/useTimer.js';
 import { useExercisePlayer } from '../composables/useExercisePlayer.js';
 import { useExerciseEditor } from '../composables/useExerciseEditor.js';

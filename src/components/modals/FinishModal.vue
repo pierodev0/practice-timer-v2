@@ -3,7 +3,7 @@
  */
 
 <script setup>
-import { formatTime, formatISOTime } from '../../../js/utils.js';
+import { formatTime, formatISOTime } from '../../lib/utils.js';
 
 const props = defineProps({
   exercises: Number,

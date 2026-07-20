@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { resetDb } from '../src/db/db.js';
 
-vi.mock('../js/routines-sample.js', () => ({
+vi.mock('../src/data/defaultRoutines.js', () => ({
   module1Routine: {
     id: 'module-1', name: 'Rutina 1', createdAt: 0,
     exercises: [

@@ -1,5 +1,5 @@
 /**
- * routines-sample.js — JustinGuitar Beginner Course (Modules 1–12).
+ * defaultRoutines.js — JustinGuitar Beginner Course (Modules 1–12).
  * Se cargan en la primera ejecución y se mantienen en localStorage.
  * Usa nanoid para generar IDs únicos en cada ejercicio.
  *

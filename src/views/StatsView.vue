@@ -5,7 +5,7 @@
 
 <script setup>
 import { onMounted, watch, onUnmounted } from 'vue';
-import { formatDate } from '../../js/utils.js';
+import { formatDate } from '../lib/utils.js';
 import { useStats } from '../composables/useStats.js';
 import EditStatsModal from '../components/modals/EditStatsModal.vue';
 

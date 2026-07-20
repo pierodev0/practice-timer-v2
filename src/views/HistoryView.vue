@@ -4,7 +4,7 @@
  */
 
 <script setup>
-import { formatISOTime } from '../../js/utils.js';
+import { formatISOTime } from '../lib/utils.js';
 import { useSessionHistory } from '../composables/useSessionHistory.js';
 import EditSessionModal from '../components/modals/EditSessionModal.vue';
 

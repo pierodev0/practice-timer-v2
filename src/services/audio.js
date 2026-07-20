@@ -3,7 +3,6 @@
  *
  * Usage:
  *   import { initAudio, startMetronome, stopMetronome, playBellSound } from './audio.js';
- *   import { getState } from './state.js';
  */
 
 let metroSynth = null;
@@ -44,10 +43,6 @@ export async function initAudio() {
 
 // Inline require to avoid circular deps with state
 function requireState() {
-  // Dynamic import would be async; instead we use a simple approach:
-  // audio.js does NOT import state directly to avoid circular dependency issues.
-  // Instead, the caller passes isAudioOn explicitly, OR we use a global reference.
-  // We'll use a module-level reference set by app.js.
   return { isAudioOn: _isAudioOn };
 }
 
