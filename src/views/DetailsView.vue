@@ -1,36 +1,42 @@
 /**
  * DetailsView — exercise detail editor.
- * Migrated from js/views/details.js
+ * Pure presentation: CRUD delegated to useExerciseEditor,
+ * playback delegated to useTimer + useExercisePlayer.
  */
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAppStore } from '../stores/useAppStore.js';
 import { formatTime } from '../../js/utils.js';
+import { useTimer } from '../composables/useTimer.js';
+import { useExercisePlayer } from '../composables/useExercisePlayer.js';
+import { useExerciseEditor } from '../composables/useExerciseEditor.js';
 
 const route = useRoute();
 const router = useRouter();
-const store = useAppStore();
 
-const exercise = computed(() => store.getExerciseById(route.params.exerciseId));
+// ── Composables ──────────────────────────────────────────
 
-const title = ref('');
-const statName = ref('');
-const comment = ref('');
-const autoStart = ref(true);
-const showMenu = ref(false);
-const currentRemaining = ref(0);
+const timer = useTimer();
+const player = useExercisePlayer({ timer });
+const editor = useExerciseEditor(route.params.exerciseId);
 
-watch(exercise, (ex) => {
-  if (ex) {
-    title.value = ex.title || '';
-    statName.value = ex.statisticName || '';
-    comment.value = ex.comment || '';
-    autoStart.value = ex.autoStart ?? true;
-    currentRemaining.value = (store.activeExerciseId === ex.id) ? store.exerciseRemaining : ex.remainingSec;
-  }
-}, { immediate: true });
+const { exercise, title, statName, comment, autoStart, showMenu,
+  updateTitle, updateStatName, adjustBPM, adjustReps, adjustTime,
+  updateAutoStart, updateComment, duplicate, archive, remove } = editor;
+
+const { toggleExercise, pauseSequence, activeExerciseId, isExercisePlaying } = player;
+const { remaining, globalSeconds } = timer;
+
+// ── Computed ────────────────────────────────────────────────
+
+const currentRemaining = computed(() =>
+  (activeExerciseId.value === exercise.value?.id)
+    ? remaining.value
+    : exercise.value?.remainingSec ?? 0
+);
+
+// ── Glue functions (compose timer + player + editor) ─────
 
 function goBack() {
   if (route.name === 'details') {
@@ -38,157 +44,40 @@ function goBack() {
   }
 }
 
-// ── Editors ────────────────────────────────────────────────
-
-function updateTitle(val) {
-  const ex = exercise.value;
-  if (ex) {
-    ex.title = val;
-    store.saveData(true);
-  }
-}
-
-function updateStatName(val) {
-  const ex = exercise.value;
-  if (ex) {
-    ex.statisticName = val.trim() === '' ? null : val;
-    store.saveData(true);
-  }
-}
-
-function adjustBPM(delta) {
-  const ex = exercise.value;
-  if (!ex) return;
-  ex.bpm = Math.max(1, (ex.bpm || 120) + delta);
-  store.saveData(true);
-  if (store.activeExerciseId === ex.id) {
-    store.setBpm(ex.bpm);
-  }
-}
-
-function adjustReps(delta) {
-  const ex = exercise.value;
-  if (!ex) return;
-  ex.reps = Math.max(1, (ex.reps || 1) + delta);
-  if (ex.currentRep > ex.reps) ex.currentRep = 1;
-  store.saveData(true);
-}
-
-function adjustTime(type, val) {
-  const ex = exercise.value;
-  if (!ex) return;
-  let total = ex.durationSec || 0;
-  if (type === 'min') total = Math.max(0, total + val * 60);
-  else total = Math.max(0, total + val);
-  ex.durationSec = total;
-  ex.remainingSec = total;
-  store.saveData(true);
-}
-
-function updateAutoStart(val) {
-  const ex = exercise.value;
-  if (ex) {
-    ex.autoStart = val;
-    store.saveData(true);
-  }
-}
-
-function updateComment(val) {
-  const ex = exercise.value;
-  if (ex) {
-    ex.comment = val;
-    store.saveData(true);
-  }
-}
-
-// ── Actions ────────────────────────────────────────────────
-
 function togglePlay() {
-  const ex = exercise.value;
-  if (!ex) return;
-  if (store.activeExerciseId === ex.id && store.isExercisePlaying) {
-    // pause
-    store.isExercisePlaying = false;
-    store.isAudioOn = false;
-    if (_worker) _worker.postMessage('stop');
-    import('../../js/audio.js').then(m => m.stopMetronome());
-    store.saveData(true);
-  } else {
-    store.activeExerciseId = ex.id;
-    store.exerciseRemaining = (ex.remainingSec <= 0) ? ex.durationSec : ex.remainingSec;
-    store.setBpm(ex.bpm);
-    store.isExercisePlaying = true;
-    if (_worker) _worker.postMessage('start');
-    store.saveData(true);
-  }
+  toggleExercise(exercise.value?.id);
 }
 
 function resetExercise() {
   const ex = exercise.value;
   if (!ex) return;
+
+  if (activeExerciseId.value === ex.id) {
+    pauseSequence();
+  }
   if (ex.completed) {
-    store.globalSeconds = Math.max(0, store.globalSeconds - ex.durationSec);
+    globalSeconds.value = Math.max(0, globalSeconds.value - ex.durationSec);
   }
   ex.remainingSec = ex.durationSec;
   ex.completed = false;
   ex.currentRep = 1;
-  if (store.activeExerciseId === ex.id) {
-    store.isExercisePlaying = false;
-    store.exerciseRemaining = ex.durationSec;
-  }
-  store.saveData(true);
+  timer.setExercise(ex.durationSec);
 }
 
 function forceComplete() {
   const ex = exercise.value;
   if (!ex) return;
   let timeToAdd = 0;
-  if (store.activeExerciseId === ex.id) {
-    timeToAdd = store.exerciseRemaining;
-    store.isExercisePlaying = false;
+  if (activeExerciseId.value === ex.id) {
+    timeToAdd = remaining.value;
+    pauseSequence();
   } else {
     timeToAdd = ex.remainingSec;
   }
-  store.globalSeconds += timeToAdd;
+  globalSeconds.value += timeToAdd;
   ex.completed = true;
   ex.remainingSec = 0;
-  store.saveData(true);
   goBack();
-}
-
-function duplicate() {
-  const ex = exercise.value;
-  if (!ex) return;
-  const copy = JSON.parse(JSON.stringify(ex));
-  copy.id = crypto.randomUUID();
-  copy.title += ' (Copy)';
-  copy.statisticLogs = [];
-  copy.completed = false;
-  copy.remainingSec = copy.durationSec;
-  copy.currentRep = 1;
-  store.currentRoutine.exercises.splice(store.currentRoutine.exercises.indexOf(ex) + 1, 0, copy);
-  store.saveData(true);
-  goBack();
-}
-
-function archive() {
-  const ex = exercise.value;
-  if (ex && confirm('Archive this exercise?')) {
-    ex.archived = true;
-    store.saveData(true);
-    goBack();
-  }
-}
-
-function remove() {
-  if (!confirm('Are you sure you want to delete this exercise?')) return;
-  const ex = exercise.value;
-  const idx = store.currentRoutine.exercises.indexOf(ex);
-  if (idx !== -1) {
-    store.currentRoutine.exercises.splice(idx, 1);
-    store.saveData(true);
-    goBack();
-  }
 }
 </script>
 
@@ -220,8 +109,8 @@ function remove() {
         <div class="flex gap-3">
           <button @click="resetExercise" class="flex-1 py-3 text-[#E53935] border border-red-100 bg-red-50 rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Reset</button>
           <button @click="togglePlay" class="flex-1 py-3 rounded-lg font-medium shadow-sm active:scale-95 transition-transform"
-            :class="store.activeExerciseId === exercise.id && store.isExercisePlaying ? 'bg-[#E53935] text-white' : 'border border-gray-100 bg-white text-[#E53935]'">
-            {{ store.activeExerciseId === exercise.id && store.isExercisePlaying ? 'Pause' : 'Start' }}
+            :class="activeExerciseId === exercise.id && isExercisePlaying ? 'bg-[#E53935] text-white' : 'border border-gray-100 bg-white text-[#E53935]'">
+            {{ activeExerciseId === exercise.id && isExercisePlaying ? 'Pause' : 'Start' }}
           </button>
           <button @click="forceComplete" class="flex-1 py-3 text-[#E53935] border border-gray-100 bg-white rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Complete</button>
         </div>
@@ -271,9 +160,9 @@ function remove() {
             <i class="fas fa-cog"></i> Advanced Actions
           </button>
           <div v-if="showMenu" class="absolute left-0 top-12 bg-white rounded-lg shadow-xl w-48 py-2 z-50 text-gray-700 border border-gray-100">
-            <button @click="duplicate" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="far fa-copy text-gray-400"></i> Duplicate</button>
-            <button @click="archive" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-box-archive text-gray-400"></i> Archive</button>
-            <button @click="remove" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-red-500"><i class="far fa-trash-alt"></i> Delete</button>
+            <button @click="duplicate(); goBack()" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="far fa-copy text-gray-400"></i> Duplicate</button>
+            <button @click="archive(); goBack()" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3"><i class="fas fa-box-archive text-gray-400"></i> Archive</button>
+            <button @click="remove(); goBack()" class="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 text-red-500"><i class="far fa-trash-alt"></i> Delete</button>
           </div>
         </div>
       </div>

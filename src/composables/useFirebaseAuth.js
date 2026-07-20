@@ -4,7 +4,7 @@
  */
 
 import { ref, onMounted, onUnmounted, readonly } from 'vue';
-import { loginGoogle, logoutGoogle, observeAuth, handleRedirectResult } from '../../js/firebase/auth.js';
+import { loginGoogle, logoutGoogle, observeAuth, handleRedirectResult } from '../services/firebaseAuth.js';
 
 const user = ref(null);
 let unsub = null;

@@ -1,80 +1,21 @@
 /**
  * SettingsView — app settings, backup, cloud sync.
- * Migrated from js/views/settings.js + html from index.html
+ * Pure presentation: all logic delegated to composables.
  */
 
 <script setup>
-import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../stores/useAppStore.js';
-import { downloadJSON } from '../../js/utils.js';
 import { useFirebaseAuth } from '../composables/useFirebaseAuth.js';
 import { useCloudSync } from '../composables/useCloudSync.js';
+import { useSessionHistory } from '../composables/useSessionHistory.js';
 
-const store = useAppStore();
 const router = useRouter();
 const auth = useFirebaseAuth();
 const cloudSync = useCloudSync();
-
-const showBackupManager = ref(false);
+const { exportAllData, restoreAllData, deleteAllData } = useSessionHistory();
 
 function goToStats() {
   router.push({ name: 'stats' });
-}
-
-function exportAllData() {
-  downloadJSON(
-    JSON.stringify({ routines: store.routines, stats: store.stats, sessions: store.sessions }, null, 2),
-    `backup_${new Date().toISOString().slice(0, 10)}.json`
-  );
-}
-
-function triggerRestore() {
-  document.getElementById('settings-restore-input').click();
-}
-
-function restoreAllData(e) {
-  const file = e.target.files?.[0];
-  if (!file || !confirm('Esto sobreescribirá todos los datos actuales. ¿Continuar?')) return;
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    try {
-      const json = JSON.parse(evt.target.result);
-      store.routines = json.routines || [];
-      store.stats = json.stats || store.stats;
-      store.sessions = json.sessions || [];
-      store.currentRoutineId = store.routines[0]?.id || 'module-1';
-      store.saveData(true);
-      // Reset routine
-      if (store.isExercisePlaying) {
-        // pause sequence - skip for now
-      }
-      store.activeExerciseId = null;
-      store.exerciseRemaining = 0;
-      store.globalSeconds = 0;
-      store.currentRoutine.exercises.forEach(e => {
-        e.completed = false;
-        e.remainingSec = e.durationSec;
-        e.currentRep = 1;
-      });
-      store.saveData(true);
-      alert('Restauración completa.');
-    } catch (err) {
-      alert('Error al restaurar: ' + err.message);
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-}
-
-function deleteAllData() {
-  if (!confirm('⚠️ ¿Estás seguro?\n\nEsta acción borrará TODOS tus datos...')) return;
-  if (prompt('Escribe "BORRAR" para confirmar:') !== 'BORRAR') {
-    alert('Cancelado.');
-    return;
-  }
-  store.resetAllData();
-  alert('Todos los datos han sido eliminados.');
 }
 
 async function login() {
@@ -135,14 +76,14 @@ async function syncNowAction() {
               <p class="text-xs text-gray-400">Exportar todas las rutinas + estadísticas</p>
             </div>
           </button>
-          <button @click="triggerRestore" class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+          <button @click="$refs.restoreInput.click()" class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
             <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600"><i class="fas fa-exclamation-triangle"></i></div>
             <div>
               <p class="font-medium text-gray-800 text-sm">Restaurar Backup</p>
               <p class="text-xs text-gray-400">Sobreescribe todos los datos actuales</p>
             </div>
           </button>
-          <input type="file" id="settings-restore-input" class="hidden" accept=".json" @change="restoreAllData">
+          <input type="file" ref="restoreInput" class="hidden" accept=".json" @change="restoreAllData">
         </div>
       </div>
 

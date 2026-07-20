@@ -4,9 +4,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useAppStore } from '../../stores/useAppStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
 
-const store = useAppStore();
+const sessionStore = useSessionStore();
+const routineStore = useRoutineStore();
 const emit = defineEmits(['close', 'saved']);
 
 const props = defineProps({
@@ -17,7 +19,7 @@ const session = ref(null);
 const editDate = ref('');
 
 onMounted(() => {
-  const s = store.sessions.find(x => x.id === props.sessionId);
+  const s = sessionStore.sessions.find(x => x.id === props.sessionId);
   if (s) {
     session.value = s;
     editDate.value = s.date || '';
@@ -36,14 +38,14 @@ function save() {
     alert('Selecciona una fecha válida.');
     return;
   }
-  store.updateSession(props.sessionId, { date: editDate.value });
+  sessionStore.updateSession(props.sessionId, { date: editDate.value });
   emit('saved');
   emit('close');
 }
 
 function remove() {
   if (!confirm('¿Eliminar esta sesión? No se puede deshacer.')) return;
-  store.deleteSession(props.sessionId);
+  sessionStore.deleteSession(props.sessionId);
   emit('saved');
   emit('close');
 }

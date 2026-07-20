@@ -4,14 +4,14 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useAppStore } from '../../stores/useAppStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
 
-const store = useAppStore();
+const routineStore = useRoutineStore();
 const emit = defineEmits(['close']);
 
 const allLogs = computed(() => {
   const logs = [];
-  store.routines.forEach(r => {
+  routineStore.routines.forEach(r => {
     r.exercises.forEach(e => {
       if (e.statisticLogs && e.statisticLogs.length > 0) {
         e.statisticLogs.forEach((log, idx) => {
@@ -36,11 +36,11 @@ function editValue(item) {
   if (newVal !== null && newVal.trim() !== '') {
     const num = parseFloat(newVal);
     if (!isNaN(num)) {
-      const r = store.routines.find(x => x.id === item.routineId);
+      const r = routineStore.routines.find(x => x.id === item.routineId);
       const e = r?.exercises.find(x => x.id === item.exerciseId);
       if (e?.statisticLogs[item.index]) {
         e.statisticLogs[item.index].value = num;
-        store.saveData(true);
+        routineStore.saveToStorage();
       }
     }
   }
@@ -48,11 +48,11 @@ function editValue(item) {
 
 function deleteLog(item) {
   if (!confirm('Delete this record?')) return;
-  const r = store.routines.find(x => x.id === item.routineId);
+  const r = routineStore.routines.find(x => x.id === item.routineId);
   const e = r?.exercises.find(x => x.id === item.exerciseId);
   if (e) {
     e.statisticLogs.splice(item.index, 1);
-    store.saveData(true);
+    routineStore.saveToStorage();
   }
 }
 </script>
