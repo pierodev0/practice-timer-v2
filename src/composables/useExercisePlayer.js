@@ -134,6 +134,24 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     }
   }
 
+  function repeatExercise(id) {
+    const ex = routineStore.getExerciseById(id);
+    if (!ex) return;
+
+    ex.remainingSec = ex.durationSec;
+    ex.currentRep = 1;
+    ex.completed = false;
+    exerciseRemaining.value = ex.durationSec;
+    isExercisePlaying.value = true;
+
+    if (timer) {
+      timer.setExercise(ex.durationSec);
+      timer.start();
+    }
+
+    routineStore.saveToStorage();
+  }
+
   function finishRoutine() {
     pauseSequence();
 
@@ -180,6 +198,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     playExercise,
     pauseSequence,
     toggleExercise,
+    repeatExercise,
     finishRoutine,
     resetRoutineState,
   };

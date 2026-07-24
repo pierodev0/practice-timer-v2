@@ -8,10 +8,12 @@ import { useRouter } from 'vue-router';
 import { useFirebaseAuth } from '../composables/useFirebaseAuth.js';
 import { useCloudSync } from '../composables/useCloudSync.js';
 import { useSessionHistory } from '../composables/useSessionHistory.js';
+import { useSettingsStore } from '../stores/useSettingsStore.js';
 
 const router = useRouter();
 const auth = useFirebaseAuth();
 const cloudSync = useCloudSync();
+const settingsStore = useSettingsStore();
 const { exportAllData, restoreAllData, deleteAllData } = useSessionHistory();
 
 function goToStats() {
@@ -62,6 +64,28 @@ async function syncNowAction() {
             <p class="font-medium text-gray-800 text-sm">Estadísticas y Progreso</p>
             <p class="text-xs text-gray-400">Ver gráficos y datos de práctica</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Exercise Display Mode -->
+      <div class="card p-4">
+        <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-3">Modo de Visualización de Ejercicios</h3>
+        <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <i class="fas fa-expand"></i>
+            </div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm">Pantalla Completa</p>
+              <p class="text-xs text-gray-400">Abrir ejercicios en vista inmersiva fullscreen al presionar Start</p>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer"
+              :checked="settingsStore.fullscreenPlay"
+              @change="settingsStore.toggleFullscreenPlay()">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E53935]"></div>
+          </label>
         </div>
       </div>
 

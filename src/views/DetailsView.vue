@@ -51,8 +51,8 @@ function goBack() {
   }
 }
 
-function togglePlay() {
-  toggleExercise(exercise.value?.id);
+function startExercise() {
+  router.push({ name: 'play', params: { exerciseId: exercise.value?.id } });
 }
 
 function resetExercise() {
@@ -125,9 +125,9 @@ function forceComplete() {
         </p>
         <div class="flex gap-3">
           <button @click="resetExercise" class="flex-1 py-3 text-[#E53935] border border-red-100 bg-red-50 rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Reset</button>
-          <button @click="togglePlay" class="flex-1 py-3 rounded-lg font-medium shadow-sm active:scale-95 transition-transform"
-            :class="activeExerciseId === exercise.id && isExercisePlaying ? 'bg-[#E53935] text-white' : 'border border-gray-100 bg-white text-[#E53935]'">
-            {{ activeExerciseId === exercise.id && isExercisePlaying ? 'Pause' : 'Start' }}
+          <button @click="startExercise"
+            class="flex-1 py-3 rounded-lg font-medium shadow-sm active:scale-95 transition-transform bg-[#E53935] text-white">
+            Start
           </button>
           <button @click="forceComplete" class="flex-1 py-3 text-[#E53935] border border-gray-100 bg-white rounded-lg font-medium shadow-sm active:scale-95 transition-transform">Complete</button>
         </div>

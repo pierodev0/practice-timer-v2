@@ -23,6 +23,7 @@ describe('Dexie schema', () => {
       'routines',
       'sessionExercises',
       'sessions',
+      'settings',
     ]);
   });
 

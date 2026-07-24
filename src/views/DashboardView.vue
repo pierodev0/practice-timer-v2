@@ -130,7 +130,7 @@ function openImage(imgUrl) { lightboxRef.value?.open(imgUrl); }
           </div>
           <div class="flex items-center justify-between flex-1 pr-2">
             <div class="flex items-center gap-4 flex-1 p-4">
-              <div @click="ex.completed ? null : toggleExercise(ex.id)"
+              <div @click="ex.completed ? null : session.startExercise(ex.id)"
                 class="w-16 h-14 rounded-lg flex items-center justify-center font-bold text-lg transition-colors z-20 flex-shrink-0 cursor-pointer select-none"
                 :class="ex.completed ? 'bg-[#10B981] text-white' : activeExerciseId === ex.id && isRunning ? 'bg-[#E53935] text-white border-none' : 'bg-white text-[#E53935] border border-red-100'">
                 <template v-if="ex.completed"><i class="fas fa-check"></i></template>

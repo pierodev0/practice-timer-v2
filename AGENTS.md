@@ -29,3 +29,12 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 | `pnpm run dev` | Dev server (http://localhost:5173) |
 | `pnpm run build` | Build producción → `dist/` |
 | `pnpm run preview` | Preview del build |
+
+## Arquitectura
+
+### Separación de responsabilidades
+
+- **Views** — presentación pura. Cero imports a stores, cero lógica de negocio. Solo reciben datos y llaman acciones desde composables.
+- **Composables** — orquestan stores, manejan navegación (`useRouter`), contienen toda la lógica de negocio y flujo de la app. Cada vista tiene su propio composable específico cuando la lógica es particular (ej: `useExercisePlay` para ExercisePlayView).
+- **Stores** — estado puro con persistencia (Pinia + Dexie). Sin lógica de navegación ni orquestación.
+- **db/** — schema Dexie y acceso a datos. Las stores consumen db/entities. Las versiones de schema se incrementan al agregar tablas.

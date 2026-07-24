@@ -28,6 +28,10 @@ export function createDb(name = DB_NAME) {
     sessionExercises: '++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, statValue, comment',
   });
 
+  db.version(2).stores({
+    settings: '&key, value',
+  });
+
   return db;
 }
 

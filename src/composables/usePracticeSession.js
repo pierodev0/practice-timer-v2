@@ -10,17 +10,21 @@
  */
 
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
+import { useSettingsStore } from '../stores/useSettingsStore.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from './useStatModal.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
   const sessionStore = useSessionStore();
+  const router = useRouter();
 
   const player = useExercisePlayer({ timer: externalTimer });
   const statModal = useStatModal();
+  const settingsStore = useSettingsStore();
 
   // ── Finish / Reset modal state ──────────────────────
 
@@ -36,6 +40,16 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     get: () => routineStore.currentRoutine.autoplayRoutine ?? false,
     set: (val) => { routineStore.currentRoutine.autoplayRoutine = val; routineStore.saveToStorage(); },
   });
+
+  // ── Exercise start (fullscreen vs inline) ──────────
+
+  function startExercise(id) {
+    if (settingsStore.fullscreenPlay) {
+      router.push({ name: 'play', params: { exerciseId: id } });
+    } else {
+      player.toggleExercise(id);
+    }
+  }
 
   // ── Exercise completion flow ─────────────────────────
 
@@ -81,7 +95,9 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
         const visible = routineStore.visibleExercises;
         const idx = visible.findIndex(e => e.id === player.activeExerciseId.value);
         if (idx < visible.length - 1) {
-          setTimeout(() => player.playExercise(visible[idx + 1].id), 1500);
+          const nextId = visible[idx + 1].id;
+          router.push({ name: 'play', params: { exerciseId: nextId } });
+          setTimeout(() => player.playExercise(nextId), 100);
         } else {
           player.finishRoutine();
           showFinishModal.value = true;
@@ -164,6 +180,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       allEx.splice(allEx.indexOf(targetEx), 0, movedEx);
       routineStore.saveToStorage();
     },
+    startExercise,
     handleExerciseCompletion,
     handleFinishRoutine,
     acceptFinish,
