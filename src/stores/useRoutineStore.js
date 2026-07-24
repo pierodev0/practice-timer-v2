@@ -192,7 +192,7 @@ export const useRoutineStore = defineStore('routines', () => {
       exercises: exercises || [],
       createdAt: createdAt || Date.now(),
     });
-    saveToStorage();
+    saveToDb();
   }
 
   function removeRoutine(id) {
@@ -202,7 +202,7 @@ export const useRoutineStore = defineStore('routines', () => {
     if (currentRoutineId.value === id) {
       currentRoutineId.value = routines.value[0]?.id;
     }
-    saveToStorage();
+    saveToDb();
     return true;
   }
 
@@ -225,7 +225,7 @@ export const useRoutineStore = defineStore('routines', () => {
     };
 
     routines.value.push(copy);
-    saveToStorage();
+    saveToDb();
     return copy;
   }
 
