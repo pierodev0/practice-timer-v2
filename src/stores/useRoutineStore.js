@@ -1,6 +1,7 @@
 /**
  * useRoutineStore — manages routines and exercises.
- * Persisted to Dexie (IndexedDB) with normalized schema.
+ *
+ * State management only — persistence delegated to repositories.
  * Exercises are stored independently and linked via routineExercises.
  *
  * The store presents routines with embedded exercises (read-optimized view)
@@ -9,9 +10,9 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { getDb } from '../db/db.js';
-import * as routinesService from '../db/entities/routines.js';
-import * as exercisesService from '../db/entities/exercises.js';
+import * as routineRepository from '../db/repositories/routineRepository.js';
+import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
+import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 import * as routinesSample from '../data/defaultRoutines.js';
 
 function deepClone(obj) {
@@ -33,51 +34,6 @@ function defaultRoutines() {
     routinesSample.module11Routine,
     routinesSample.module12Routine,
   ];
-}
-
-/**
- * Seed the database with sample routines if it's empty.
- * Each routine gets created in the routines table, and each of its exercises
- * gets created in the exercises table (if not already there), then linked
- * via routineExercises.
- */
-async function seedIfEmpty() {
-  const db = await getDb();
-  const count = await db.routines.count();
-  if (count > 0) return false;
-
-  const samples = defaultRoutines();
-  for (const r of samples) {
-    const routineId = r.id;
-    await db.routines.put({
-      id: routineId,
-      name: r.name,
-      createdAt: r.createdAt || Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    for (let i = 0; i < r.exercises.length; i++) {
-      const ex = r.exercises[i];
-      await db.exercises.put({
-        id: ex.id,
-        title: ex.title,
-        bpm: ex.bpm || 60,
-        durationSec: ex.durationSec || 60,
-        autoStart: ex.autoStart ?? true,
-        reps: ex.reps ?? 1,
-        comment: ex.comment || '',
-        statisticName: ex.statisticName || null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      await db.routineExercises.add({
-        routineId,
-        exerciseId: ex.id,
-        order: i,
-      });
-    }
-  }
-  return true;
 }
 
 export const useRoutineStore = defineStore('routines', () => {
@@ -117,63 +73,31 @@ export const useRoutineStore = defineStore('routines', () => {
   // ── Database loading ───────────────────────────────────
 
   /**
-   * Load all routines from Dexie, attaching their exercises.
+   * Load all routines from Dexie via repositories, attaching their exercises.
    */
   async function loadFromDb() {
-    const db = await getDb();
-    const dbRoutines = await db.routines.toArray();
-    const dbExercises = await db.exercises.toArray();
-    const links = await db.routineExercises.toArray();
+    const dbRoutines = await routineRepository.all();
 
-    // Build index: routineId → ordered exercise IDs
-    // Deduplicate: keep only the first link per (routineId, exerciseId)
-    // to repair any corruption from concurrent saveToDb races.
-    const seen = new Set();
-    const deduped = [];
-    for (const l of links) {
-      const key = `${l.routineId}|${l.exerciseId}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(l);
+    // Build routines with embedded exercises + logs
+    const result = [];
+    for (const r of dbRoutines) {
+      const exercises = await routineRepository.getExercises(r.id);
+      // Attach exercise logs for stat tracking
+      for (const ex of exercises) {
+        const logs = await exerciseLogRepository.getLogs(ex.id);
+        ex.remainingSec = ex.remainingSec ?? ex.durationSec ?? 60;
+        ex.completed = ex.completed ?? false;
+        ex.currentRep = ex.currentRep ?? 1;
+        ex.archived = ex.archived ?? false;
+        ex.statisticLogs = logs || [];
       }
+      result.push({
+        id: r.id,
+        name: r.name,
+        createdAt: r.createdAt,
+        exercises,
+      });
     }
-    const linkMap = {};
-    for (const l of deduped) {
-      if (!linkMap[l.routineId]) linkMap[l.routineId] = [];
-      linkMap[l.routineId].push(l);
-    }
-    for (const id of Object.keys(linkMap)) {
-      linkMap[id].sort((a, b) => a.order - b.order);
-    }
-
-    // Build index: exerciseId → exercise
-    const exMap = {};
-    for (const ex of dbExercises) exMap[ex.id] = ex;
-
-    // Load exercise logs for stat tracking across sessions
-    const exerciseLogs = await db.exerciseLogs.toArray();
-    const logsByExercise = {};
-    for (const log of exerciseLogs) {
-      if (!logsByExercise[log.exerciseId]) logsByExercise[log.exerciseId] = [];
-      logsByExercise[log.exerciseId].push(log);
-    }
-
-    // Build routines with embedded exercises.
-    // Merge transient defaults that are not persisted to Dexie.
-    const withDefaults = (ex) => ({
-      ...ex,
-      remainingSec: ex.remainingSec ?? ex.durationSec ?? 60,
-      completed: ex.completed ?? false,
-      currentRep: ex.currentRep ?? 1,
-      archived: ex.archived ?? false,
-      statisticLogs: logsByExercise[ex.id] || [],
-    });
-    const result = dbRoutines.map(r => ({
-      id: r.id,
-      name: r.name,
-      createdAt: r.createdAt,
-      exercises: (linkMap[r.id] || []).map(l => withDefaults(exMap[l.exerciseId])).filter(Boolean),
-    }));
 
     routines.value = result;
     if (result.length > 0 && !currentRoutineId.value) {
@@ -184,12 +108,9 @@ export const useRoutineStore = defineStore('routines', () => {
   // ── Database saving ────────────────────────────────────
 
   /**
-   * Save all routines to Dexie by splitting routines and exercises.
-   * This rewrites the junction table.
+   * Save all routines to Dexie via repositories.
    *
    * Serialized via promise chain: concurrent calls queue up instead of racing.
-   * Prevents duplicate routineExercise links when saveToDb is called
-   * multiple times in quick succession (e.g. rep advance + completion).
    */
   let _saveQueue = Promise.resolve();
 
@@ -203,51 +124,43 @@ export const useRoutineStore = defineStore('routines', () => {
   }
 
   async function _doSave() {
-    const db = await getDb();
     const routineIds = routines.value.map(r => r.id);
 
-    // Remove deleted routines from Dexie
-    const existingRoutines = await db.routines.toArray();
+    // Get existing routine IDs to detect deletions
+    const existingRoutines = await routineRepository.all();
     for (const er of existingRoutines) {
       if (!routineIds.includes(er.id)) {
-        await routinesService.remove(er.id);
+        await routineRepository.remove(er.id);
       }
     }
-    // Also remove orphan exercises (not linked to any remaining routine)
-    // We'll be conservative and keep them, but delete orphan links
 
     for (const r of routines.value) {
-      // Upsert routine (use put for race-safe persistence)
-      await db.routines.put({
-        id: r.id,
-        name: r.name,
-        createdAt: r.createdAt || Date.now(),
-        updatedAt: Date.now(),
-      });
+      // Upsert routine
+      const existing = await routineRepository.getById(r.id);
+      if (existing) {
+        await routineRepository.update(r.id, { name: r.name });
+      } else {
+        await routineRepository.create({ id: r.id, name: r.name, createdAt: r.createdAt || Date.now() });
+      }
 
-      // Remove old links for this routine
-      await db.routineExercises.where('routineId').equals(r.id).delete();
-
-      // Upsert exercises and create links (use put for race-safe persistence)
+      // Upsert exercises and links
       for (let i = 0; i < (r.exercises || []).length; i++) {
         const ex = r.exercises[i];
-        await db.exercises.put({
+        await exerciseRepository.upsert({
           id: ex.id,
           title: ex.title,
-          bpm: ex.bpm || 60,
-          durationSec: ex.durationSec || 60,
-          autoStart: ex.autoStart ?? true,
-          reps: ex.reps ?? 1,
+          bpm: ex.bpm,
+          durationSec: ex.durationSec,
+          autoStart: ex.autoStart,
+          reps: ex.reps,
+          remainingSec: ex.remainingSec ?? ex.durationSec ?? 60,
+          completed: ex.completed ?? false,
+          currentRep: ex.currentRep ?? 1,
           comment: ex.comment || '',
           statisticName: ex.statisticName || null,
           createdAt: ex.createdAt || Date.now(),
-          updatedAt: Date.now(),
         });
-        await db.routineExercises.add({
-          routineId: r.id,
-          exerciseId: ex.id,
-          order: i,
-        });
+        await routineRepository.addExercise(r.id, ex.id, i);
       }
     }
   }
@@ -274,7 +187,32 @@ export const useRoutineStore = defineStore('routines', () => {
   // ── Init ───────────────────────────────────────────────
 
   (async () => {
-    await seedIfEmpty();
+    // Seed if empty (reuse domain logic inlined for clarity)
+    const all = await routineRepository.all();
+    if (all.length === 0) {
+      const samples = defaultRoutines();
+      for (const r of samples) {
+        await routineRepository.create({ id: r.id, name: r.name, createdAt: r.createdAt || Date.now() });
+        for (let i = 0; i < r.exercises.length; i++) {
+          const ex = r.exercises[i];
+          await exerciseRepository.upsert({
+            id: ex.id,
+            title: ex.title,
+            bpm: ex.bpm || 60,
+            durationSec: ex.durationSec || 60,
+            autoStart: ex.autoStart ?? true,
+            reps: ex.reps ?? 1,
+            remainingSec: ex.remainingSec ?? ex.durationSec ?? 60,
+            completed: ex.completed ?? false,
+            currentRep: ex.currentRep ?? 1,
+            comment: ex.comment || '',
+            statisticName: ex.statisticName || null,
+            createdAt: Date.now(),
+          });
+          await routineRepository.addExercise(r.id, ex.id, i);
+        }
+      }
+    }
     await loadFromDb();
     if (!currentRoutineId.value && routines.value.length > 0) {
       currentRoutineId.value = routines.value[0].id;

@@ -51,14 +51,14 @@ describe('Dexie schema', () => {
 
   it('routineExercises table has correct indexes', () => {
     const t = db.routineExercises;
-    expect(t.schema.primKey.name).toBe('id');
-    expect(t.schema.primKey.auto).toBe(true);
+    // v3: primary key is now compound &[routineId+exerciseId]
+    expect(t.schema.primKey.name).toBe('[routineId+exerciseId]');
+    expect(t.schema.primKey.auto).toBe(false);
+    expect(t.schema.primKey.unique).toBe(true);
     const idxNames = t.schema.indexes.map(i => i.name);
-    expect(idxNames).toContain('routineId');
-    expect(idxNames).toContain('exerciseId');
     expect(idxNames).toContain('order');
-    expect(idxNames).toContain('[routineId+exerciseId]');
   });
+
 
   it('exerciseLogs table has correct indexes', () => {
     const t = db.exerciseLogs;

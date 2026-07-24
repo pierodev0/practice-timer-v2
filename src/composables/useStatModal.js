@@ -3,12 +3,13 @@
  *
  * Provides a unified stat-prompt flow for any exercise completion context:
  * - If the exercise has a `statisticName` and isn't completed → opens modal
- * - On save: persists `{ date, value }` to `ex.statisticLogs`
+ * - On save: persists `{ date, value }` to `ex.statisticLogs` and `exerciseLogs`
  * - On skip or no stat: calls `onComplete` callback directly
  *
  * Usage:
  *   const statModal = useStatModal();
  *   statModal.requestStatInput(exercise, () => doComplete());
+ *   statModal.submitStatValue(42, sessionId); // sessionId is optional
  *
  * Template:
  *   <StatInputModal v-if="statModal.showStatModal" :title="statModal.statModalTitle"
@@ -17,7 +18,7 @@
 
 import { ref } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
-import * as exerciseLogsService from '../db/entities/exerciseLogs.js';
+import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 
 export function useStatModal() {
   const routineStore = useRoutineStore();
@@ -45,14 +46,21 @@ export function useStatModal() {
     showStatModal.value = true;
   }
 
-  async function submitStatValue(val) {
+  /**
+   * Submit a stat value for the pending exercise.
+   * @param {number} val - The stat value
+   * @param {string} [sessionId] - Optional session ID to link this log to
+   */
+  async function submitStatValue(val, sessionId) {
     showStatModal.value = false;
     const ex = routineStore.getExerciseById(pendingExerciseId);
     if (ex) {
       if (!ex.statisticLogs) ex.statisticLogs = [];
       const today = new Date().toISOString().slice(0, 10);
-      ex.statisticLogs.push({ date: today, value: val });
-      await exerciseLogsService.addLog(pendingExerciseId, { date: today, value: val }).catch(() => {});
+      const logData = { date: today, value: val };
+      if (sessionId) logData.sessionId = sessionId;
+      ex.statisticLogs.push(logData);
+      await exerciseLogRepository.addLog(pendingExerciseId, logData);
     }
     cleanup();
   }

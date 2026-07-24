@@ -119,6 +119,31 @@ describe('useRoutineStore', () => {
     expect(saved.name).toBe('Saved');
   });
 
+  it('persists remainingSec, completed, currentRep through save+reload', async () => {
+    const store = useRoutineStore();
+    await store._ready;
+
+    // Modify transient state
+    const ex = store.getExerciseById('ex-1');
+    ex.remainingSec = 42;
+    ex.completed = true;
+    ex.currentRep = 3;
+
+    // Save to DB
+    await store.saveToDb();
+
+    // Reload from DB (simulating page refresh)
+    store.routines = [];
+    store.currentRoutineId = null;
+    await store.loadFromDb();
+
+    // Verify transient state was preserved
+    const reloadedEx = store.getExerciseById('ex-1');
+    expect(reloadedEx.remainingSec).toBe(42);
+    expect(reloadedEx.completed).toBe(true);
+    expect(reloadedEx.currentRep).toBe(3);
+  });
+
   it('resetCurrentRoutine clears exercise state', async () => {
     const store = useRoutineStore();
     await store._ready;

@@ -1,17 +1,17 @@
 /**
  * useSessionStore — manages practice sessions and daily stats.
- * Persisted to Dexie (IndexedDB). Stats are computed from session data
- * on load and recomputed on mutations — no denormalized _adjustStats.
+ *
+ * State management only — persistence delegated to sessionRepository.
+ * Stats are computed from session data on load and recomputed on mutations.
  */
 
 import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getDb } from '../db/db.js';
+import * as sessionRepository from '../db/repositories/sessionRepository.js';
 
 /**
  * Build the stats object from an array of sessions.
- * Replaces the old _adjustStats + recordProgressSeconds pattern.
  */
 function buildStats(sessions) {
   const stats = {};
@@ -36,8 +36,7 @@ export const useSessionStore = defineStore('sessions', () => {
   // ── Database loading ───────────────────────────────────
 
   async function loadFromDb() {
-    const db = await getDb();
-    const all = await db.sessions.toArray();
+    const all = await sessionRepository.all();
     sessions.value = all;
     stats.value = buildStats(all);
   }
@@ -45,26 +44,38 @@ export const useSessionStore = defineStore('sessions', () => {
   // ── Database saving ────────────────────────────────────
 
   async function saveToDb() {
-    const db = await getDb();
-    // Full sync: rewrite all sessions
-    await db.sessions.clear();
+    // Re-write all sessions to Dexie
     for (const s of sessions.value) {
-      await db.sessions.add(JSON.parse(JSON.stringify(s)));
+      const clone = JSON.parse(JSON.stringify(s));
+      const existing = await sessionRepository.getById(clone.id);
+      if (existing) {
+        await sessionRepository.update(clone.id, clone);
+      } else {
+        await sessionRepository.create(clone);
+      }
     }
   }
 
   // ── Mutations ──────────────────────────────────────────
 
   async function addSession(sessionData) {
-    const record = { id: nanoid(), ...sessionData };
+    const clone = JSON.parse(JSON.stringify(sessionData));
+    const id = clone.id || nanoid();
 
-    // Update ref synchronously first (callers may not await)
+    // Update ref synchronously first (optimistic update for callers)
+    const record = { id, ...clone };
     sessions.value.push(record);
     stats.value = buildStats(sessions.value);
 
     // Then persist to Dexie asynchronously
-    const db = await getDb();
-    await db.sessions.add(JSON.parse(JSON.stringify(record)));
+    await sessionRepository.create({ id, ...clone });
+
+    // Also persist exercise snapshots
+    if (clone.exercises) {
+      for (const ex of clone.exercises) {
+        await sessionRepository.addExercise(id, ex.exerciseId, ex);
+      }
+    }
   }
 
   function getSessions({ startDate, endDate, routineId } = {}) {
@@ -76,18 +87,16 @@ export const useSessionStore = defineStore('sessions', () => {
   }
 
   async function updateSession(id, data) {
-    const db = await getDb();
     const idx = sessions.value.findIndex(s => s.id === id);
     if (idx === -1) return false;
 
     const oldSession = sessions.value[idx];
     Object.assign(oldSession, data);
 
-    // Deep-clone before writing to Dexie
-    await db.sessions.put(JSON.parse(JSON.stringify(oldSession)));
+    await sessionRepository.update(id, data);
 
-    // Recompute stats from scratch (correct after date change)
-    const all = await db.sessions.toArray();
+    // Recompute stats from scratch
+    const all = await sessionRepository.all();
     sessions.value = all;
     stats.value = buildStats(all);
 
@@ -95,15 +104,14 @@ export const useSessionStore = defineStore('sessions', () => {
   }
 
   async function deleteSession(id) {
-    const db = await getDb();
     const idx = sessions.value.findIndex(s => s.id === id);
     if (idx === -1) return false;
 
-    await db.sessions.delete(id);
+    await sessionRepository.remove(id);
     sessions.value.splice(idx, 1);
 
     // Recompute stats from all sessions
-    const all = await db.sessions.toArray();
+    const all = await sessionRepository.all();
     stats.value = buildStats(all);
 
     return true;
@@ -113,8 +121,9 @@ export const useSessionStore = defineStore('sessions', () => {
   function recordProgressSeconds() {}
 
   async function resetAll() {
-    const db = await getDb();
-    await db.sessions.clear();
+    for (const s of sessions.value) {
+      await sessionRepository.remove(s.id);
+    }
     sessions.value = [];
     stats.value = {};
   }

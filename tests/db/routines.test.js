@@ -37,8 +37,10 @@ describe('routines service', () => {
   it('addExercise links an exercise to a routine with order', async () => {
     const routineId = await routines.create({ name: 'Test' });
     const exId = await exercises.create({ title: 'E1', bpm: 100, durationSec: 60 });
-    const linkId = await routines.addExercise(routineId, exId, 0);
-    expect(linkId).toBeGreaterThanOrEqual(1);
+    await routines.addExercise(routineId, exId, 0);
+    const items = await routines.getExercises(routineId);
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe('E1');
   });
 
   it('getExercises returns all exercises for a routine in order', async () => {

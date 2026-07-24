@@ -32,6 +32,18 @@ export function createDb(name = DB_NAME) {
     settings: '&key, value',
   });
 
+  // v3: routineExercises uses compound key instead of auto-increment
+  // for safe upsert with db.routineExercises.put().
+  db.version(3).stores({
+    routines: '&id, name, createdAt, updatedAt',
+    exercises: '&id, title, bpm, durationSec, autoStart, reps, comment, statisticName, createdAt, updatedAt',
+    routineExercises: '&[routineId+exerciseId], order',
+    exerciseLogs: '++id, exerciseId, date, value, sessionId, [exerciseId+date]',
+    sessions: '&id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt',
+    sessionExercises: '++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, statValue, comment',
+    settings: '&key, value',
+  });
+
   return db;
 }
 
