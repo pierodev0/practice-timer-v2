@@ -42,6 +42,16 @@ vi.mock('../src/data/defaultRoutines.js', () => ({
 
 vi.mock('nanoid', () => ({ nanoid: vi.fn(() => 'mock-session-id') }));
 
+// Quick mocks: addLog for submitStatValue in stat modal, others for session linking
+const mockGetLogsInRange = vi.fn();
+const mockLinkToSession = vi.fn();
+vi.mock('../src/db/repositories/exerciseLogRepository.js', () => ({
+  getLogsInRange: (...args) => mockGetLogsInRange(...args),
+  linkToSession: (...args) => mockLinkToSession(...args),
+  addLog: vi.fn(),
+  getLogs: vi.fn(() => Promise.resolve([])),
+}));
+
 let usePracticeSession;
 let routineStore;
 let sessionStore;
@@ -49,6 +59,10 @@ let bpmStore;
 let mockTimer;
 
 beforeEach(async () => {
+  vi.clearAllMocks();
+  // Default: no logs to link (prevents TypeError in non-linking tests)
+  mockGetLogsInRange.mockResolvedValue([]);
+  mockLinkToSession.mockResolvedValue(undefined);
   setActivePinia(createPinia());
   localStorage.clear();
 
@@ -162,7 +176,7 @@ describe('usePracticeSession', () => {
     expect(mockTimer.setExercise).toHaveBeenCalled();
   });
 
-  it('acceptFinish saves session and resets state', () => {
+  it('acceptFinish saves session and resets state', async () => {
     const session = usePracticeSession({ timer: mockTimer });
 
     // Complete one exercise
@@ -170,7 +184,7 @@ describe('usePracticeSession', () => {
     ex.completed = true;
     session.player.sessionStartedAt.value = Date.now() - 60000; // 1 min ago
 
-    session.acceptFinish();
+    await session.acceptFinish();
 
     // Session should be saved
     expect(sessionStore.sessions).toHaveLength(1);
@@ -184,6 +198,55 @@ describe('usePracticeSession', () => {
     // State should be reset
     expect(session.player.activeExerciseId.value).toBeNull();
     expect(session.player.isExercisePlaying.value).toBe(false);
+  });
+
+  it('acceptFinish links exerciseLogs to the created session', async () => {
+    const session = usePracticeSession({ timer: mockTimer });
+
+    // Complete an exercise WITH a statistic log
+    const ex = routineStore.getExerciseById('ex-2');
+    ex.completed = true;
+    ex.statisticLogs = [{ date: new Date().toISOString().slice(0, 10), value: 85 }];
+
+    // Override default to return logs for ex-2
+    mockGetLogsInRange.mockResolvedValue([
+      { id: 'log-1', exerciseId: 'ex-2', value: 85, date: new Date().toISOString().slice(0, 10) },
+    ]);
+
+    session.player.sessionStartedAt.value = Date.now() - 120000; // 2 min ago
+
+    await session.acceptFinish();
+
+    // Should have queried logs for the completed exercise
+    expect(mockGetLogsInRange).toHaveBeenCalledWith(
+      'ex-2',
+      expect.any(String),
+      expect.any(String),
+      true
+    );
+
+    // Should have linked them to the session
+    expect(mockLinkToSession).toHaveBeenCalledWith(
+      'mock-session-id',
+      expect.arrayContaining([expect.objectContaining({ id: 'log-1' })])
+    );
+
+    // Session should still be saved
+    expect(sessionStore.sessions).toHaveLength(1);
+  });
+
+  it('acceptFinish does not link logs when no exercises completed', async () => {
+    const session = usePracticeSession({ timer: mockTimer });
+
+    // No exercises completed
+    await session.acceptFinish();
+
+    // Should NOT have queried or linked any logs
+    expect(mockGetLogsInRange).not.toHaveBeenCalled();
+    expect(mockLinkToSession).not.toHaveBeenCalled();
+
+    // No session should be saved
+    expect(sessionStore.sessions).toHaveLength(0);
   });
 
   it('acceptReset resets routine state', () => {

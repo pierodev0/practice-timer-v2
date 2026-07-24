@@ -12,7 +12,6 @@ import { useTimer } from '../composables/useTimer.js';
 import { useExercisePlayer } from '../composables/useExercisePlayer.js';
 import { useExerciseEditor } from '../composables/useExerciseEditor.js';
 import { useStatModal } from '../composables/useStatModal.js';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
 import StatInputModal from '../components/modals/StatInputModal.vue';
 
 const route = useRoute();
@@ -24,16 +23,16 @@ const timer = useTimer();
 const player = useExercisePlayer({ timer });
 const editor = useExerciseEditor(route.params.exerciseId);
 
-const routineStore = useRoutineStore();
 const statModal = useStatModal();
 const { showStatModal, statModalTitle, requestStatInput, submitStatValue, skipStat } = statModal;
 
 const { exercise, title, statName, comment, autoStart, showMenu,
   updateTitle, updateStatName, adjustBPM, adjustReps, adjustTime,
-  updateAutoStart, updateComment, duplicate, archive, remove } = editor;
+  updateAutoStart, updateComment, duplicate, archive, remove,
+  resetExercise: editorReset, doComplete: editorComplete, forceComplete: editorForceComplete } = editor;
 
-const { toggleExercise, pauseSequence, activeExerciseId, isExercisePlaying } = player;
-const { remaining, globalSeconds } = timer;
+const { activeExerciseId } = player;
+const { remaining } = timer;
 
 // ── Computed ────────────────────────────────────────────────
 
@@ -43,7 +42,7 @@ const currentRemaining = computed(() =>
     : exercise.value?.remainingSec ?? 0
 );
 
-// ── Glue functions (compose timer + player + editor) ─────
+// ── Glue functions (pure navigation + editor delegation) ──
 
 function goBack() {
   if (route.name === 'details') {
@@ -56,45 +55,16 @@ function startExercise() {
 }
 
 function resetExercise() {
-  const ex = exercise.value;
-  if (!ex) return;
-
-  if (activeExerciseId.value === ex.id) {
-    pauseSequence();
-  }
-  if (ex.completed) {
-    globalSeconds.value = Math.max(0, globalSeconds.value - ex.durationSec);
-  }
-  ex.remainingSec = ex.durationSec;
-  ex.completed = false;
-  ex.currentRep = 1;
-  timer.setExercise(ex.durationSec);
+  editorReset(timer, player);
 }
 
-function doComplete() {
-  const ex = exercise.value;
-  if (!ex) return;
-  let timeToAdd = 0;
-  if (activeExerciseId.value === ex.id) {
-    timeToAdd = remaining.value;
-    pauseSequence();
-  } else {
-    timeToAdd = ex.remainingSec;
-  }
-  globalSeconds.value += timeToAdd;
-  ex.completed = true;
-  ex.remainingSec = 0;
-  routineStore.saveToStorage();
+function doAndGoBack() {
+  editorComplete(timer, player);
   goBack();
 }
 
 function forceComplete() {
-  const ex = exercise.value;
-  if (!ex) return;
-  if (activeExerciseId.value === ex.id) {
-    pauseSequence();
-  }
-  requestStatInput(ex, () => doComplete());
+  editorForceComplete(player, statModal, () => doAndGoBack());
 }
 </script>
 

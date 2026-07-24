@@ -76,6 +76,8 @@ export const useSessionStore = defineStore('sessions', () => {
         await sessionRepository.addExercise(id, ex.exerciseId, ex);
       }
     }
+
+    return id;
   }
 
   function getSessions({ startDate, endDate, routineId } = {}) {

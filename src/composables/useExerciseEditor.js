@@ -1,7 +1,7 @@
 /**
- * useExerciseEditor — exercise detail CRUD operations.
+ * useExerciseEditor — exercise detail CRUD and completion operations.
  * Encapsulates all exercise editing: title, stats, BPM, reps, time, comment,
- * duplicate, archive, delete.
+ * duplicate, archive, delete, reset, complete.
  * Views: DetailsView
  */
 
@@ -36,6 +36,8 @@ export function useExerciseEditor(exerciseIdRef) {
       autoStart.value = ex.autoStart ?? true;
     }
   }, { immediate: true });
+
+  // ── CRUD ───────────────────────────────────────────────
 
   function updateTitle(val) {
     const ex = exercise.value;
@@ -87,6 +89,8 @@ export function useExerciseEditor(exerciseIdRef) {
     if (ex) { ex.comment = val; routineStore.saveToStorage(); }
   }
 
+  // ── Copy / Archive / Delete ───────────────────────────
+
   function duplicate() {
     const ex = exercise.value;
     if (!ex) return;
@@ -121,6 +125,68 @@ export function useExerciseEditor(exerciseIdRef) {
     }
   }
 
+  // ── Completion operations (require timer + player + optional statModal) ──
+
+  /**
+   * Reset exercise progress: clear completed flag, restore remainingSec, reset reps.
+   * @param {Object} timer   - useTimer instance (for globalSeconds, setExercise)
+   * @param {Object} player  - useExercisePlayer instance (for pauseSequence, activeExerciseId)
+   */
+  function resetExercise(timer, player) {
+    const ex = exercise.value;
+    if (!ex) return;
+
+    if (player.activeExerciseId.value === ex.id) {
+      player.pauseSequence();
+    }
+    if (ex.completed) {
+      timer.globalSeconds.value = Math.max(0, timer.globalSeconds.value - ex.durationSec);
+    }
+    ex.remainingSec = ex.durationSec;
+    ex.completed = false;
+    ex.currentRep = 1;
+    timer.setExercise(ex.durationSec);
+    routineStore.saveToStorage();
+  }
+
+  /**
+   * Mark exercise as complete: add remaining time to global, update flags.
+   * Does NOT navigate — caller handles navigation after completion.
+   * @param {Object} timer   - useTimer instance (for remaining, globalSeconds)
+   * @param {Object} player  - useExercisePlayer instance (for pauseSequence, activeExerciseId)
+   */
+  function doComplete(timer, player) {
+    const ex = exercise.value;
+    if (!ex) return;
+    let timeToAdd = 0;
+    if (player.activeExerciseId.value === ex.id) {
+      timeToAdd = timer.remaining.value;
+      player.pauseSequence();
+    } else {
+      timeToAdd = ex.remainingSec;
+    }
+    timer.globalSeconds.value += timeToAdd;
+    ex.completed = true;
+    ex.remainingSec = 0;
+    routineStore.saveToStorage();
+  }
+
+  /**
+   * Show stat modal (if applicable), then call onSuccess callback.
+   * @param {Object}   player     - useExercisePlayer instance (for pauseSequence, activeExerciseId)
+   * @param {Object}   statModal  - useStatModal instance (for requestStatInput)
+   * @param {Function} onSuccess  - Callback invoked after stat input (or immediately if no stat)
+   */
+  function forceComplete(player, statModal, onSuccess) {
+    const ex = exercise.value;
+    if (!ex) return;
+
+    if (player.activeExerciseId.value === ex.id) {
+      player.pauseSequence();
+    }
+    statModal.requestStatInput(ex, () => onSuccess());
+  }
+
   return {
     exercise,
     title,
@@ -138,5 +204,9 @@ export function useExerciseEditor(exerciseIdRef) {
     duplicate,
     archive,
     remove,
+    // Completion operations
+    resetExercise,
+    doComplete,
+    forceComplete,
   };
 }

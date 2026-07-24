@@ -8,12 +8,12 @@ import { useRouter } from 'vue-router';
 import { useFirebaseAuth } from '../composables/useFirebaseAuth.js';
 import { useCloudSync } from '../composables/useCloudSync.js';
 import { useSessionHistory } from '../composables/useSessionHistory.js';
-import { useSettingsStore } from '../stores/useSettingsStore.js';
+import { useSettings } from '../composables/useSettings.js';
 
 const router = useRouter();
 const auth = useFirebaseAuth();
 const cloudSync = useCloudSync();
-const settingsStore = useSettingsStore();
+const settingsStore = useSettings();
 const { exportAllData, restoreAllData, deleteAllData } = useSessionHistory();
 
 function goToStats() {

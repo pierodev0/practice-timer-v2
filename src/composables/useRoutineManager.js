@@ -71,13 +71,7 @@ export function useRoutineManager() {
   function showNewRoutineInput() {
     const name = prompt('Nueva rutina:');
     if (name && name.trim()) {
-      routineStore.routines.push({
-        id: nanoid(),
-        name: name.trim(),
-        exercises: [],
-        createdAt: Date.now(),
-      });
-      routineStore.saveToStorage();
+      routineStore.addRoutine({ id: nanoid(), name: name.trim(), exercises: [] });
     }
   }
 
@@ -92,23 +86,7 @@ export function useRoutineManager() {
   }
 
   function duplicateRoutine(id) {
-    const original = routineStore.routines.find(x => x.id === id);
-    if (!original) return;
-    const copy = {
-      id: nanoid(),
-      name: original.name + ' (Copia)',
-      createdAt: Date.now(),
-      exercises: original.exercises.map(ex => ({
-        ...JSON.parse(JSON.stringify(ex)),
-        id: nanoid(),
-        completed: false,
-        remainingSec: ex.durationSec,
-        currentRep: 1,
-        statisticLogs: [],
-      })),
-    };
-    routineStore.routines.push(copy);
-    routineStore.saveToStorage();
+    routineStore.duplicateRoutine(id);
   }
 
   function deleteRoutine(id) {
@@ -117,13 +95,7 @@ export function useRoutineManager() {
       return;
     }
     if (!confirm('¿Eliminar esta rutina para siempre?')) return;
-    const idx = routineStore.routines.findIndex(r => r.id === id);
-    if (idx === -1) return;
-    routineStore.routines.splice(idx, 1);
-    if (routineStore.currentRoutineId === id) {
-      routineStore.currentRoutineId = routineStore.routines[0]?.id;
-    }
-    routineStore.saveToStorage();
+    routineStore.removeRoutine(id);
   }
 
   function exportRoutine(id) {
@@ -147,8 +119,9 @@ export function useRoutineManager() {
           ...sanitizeImportedRoutine(r),
           createdAt: r.createdAt || Date.now(),
         }));
-        routineStore.routines.push(...toAdd);
-        routineStore.saveToStorage();
+        for (const r of toAdd) {
+          routineStore.addRoutine(r);
+        }
         alert(`Importadas ${toAdd.length} rutina(s).`);
       } catch (err) {
         alert('Error al importar: ' + err.message);

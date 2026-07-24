@@ -1,26 +1,32 @@
 /**
  * useBpmStore — manages the global BPM setting.
- * Persisted to localStorage under musicRoutineApp_v37_bpm.
+ * Persisted to Dexie via settingsRepository.
  */
 
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-
-const STORAGE_KEY = 'musicRoutineApp_v37_bpm';
-
-function migrateFromOldKey() {
-  const oldKey = 'musicRoutineApp_v36_stats';
-  const oldData = localStorage.getItem(oldKey);
-  if (!oldData) return null;
-  try {
-    const parsed = JSON.parse(oldData);
-    if (typeof parsed.bpm === 'number') return parsed.bpm;
-  } catch { /* ignore */ }
-  return null;
-}
+import * as settingsRepository from '../db/repositories/settingsRepository.js';
 
 export const useBpmStore = defineStore('bpm', () => {
   const bpm = ref(120);
+
+  let _loaded = false;
+  let _resolveReady;
+  const _ready = new Promise(resolve => { _resolveReady = resolve; });
+
+  async function load() {
+    if (_loaded) return;
+    try {
+      const saved = await settingsRepository.get('bpm');
+      if (typeof saved === 'number') {
+        bpm.value = Math.max(1, Math.min(300, saved));
+      }
+    } catch {
+      // table may not exist yet on first load — ignore
+    }
+    _loaded = true;
+    _resolveReady?.();
+  }
 
   function setBpm(val) {
     bpm.value = Math.max(1, Math.min(300, val));
@@ -30,28 +36,12 @@ export const useBpmStore = defineStore('bpm', () => {
     setBpm(bpm.value + delta);
   }
 
-  function saveToStorage() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ bpm: bpm.value }));
+  async function saveToStorage() {
+    await settingsRepository.set('bpm', bpm.value);
   }
 
-  function loadFromStorage() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        if (typeof parsed.bpm === 'number') bpm.value = parsed.bpm;
-        return;
-      } catch { /* ignore */ }
-    }
+  // Auto-load on creation
+  load();
 
-    const old = migrateFromOldKey();
-    if (typeof old === 'number') {
-      bpm.value = old;
-      saveToStorage();
-    }
-  }
-
-  loadFromStorage();
-
-  return { bpm, setBpm, adjustBpm, saveToStorage, loadFromStorage };
+  return { bpm, setBpm, adjustBpm, saveToStorage, _ready };
 });

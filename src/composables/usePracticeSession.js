@@ -16,6 +16,8 @@ import { useSessionStore } from '../stores/useSessionStore.js';
 import { useSettingsStore } from '../stores/useSettingsStore.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from './useStatModal.js';
+import { triggerExerciseCompletion } from './helpers/completionFlow.js';
+import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
@@ -57,12 +59,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     const ex = routineStore.getExerciseById(player.activeExerciseId.value);
     if (!ex) return;
 
-    import('../services/audio.js').then(m => m.playBellSound());
-
-    if (ex.statisticName && !ex.completed) {
-      player.pauseSequence();
-    }
-    statModal.requestStatInput(ex, () => finalizeCompletion());
+    triggerExerciseCompletion(ex, player, statModal, () => finalizeCompletion());
   }
 
   function finalizeCompletion() {
@@ -114,7 +111,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     showFinishModal.value = true;
   }
 
-  function acceptFinish() {
+  async function acceptFinish() {
     const routine = routineStore.currentRoutine;
     const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const totalSec = routine.exercises
@@ -134,8 +131,9 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
         repsCompleted: ex.reps, comment: ex.comment || '',
       }));
 
+    let sessionId = null;
     if (completedExercises.length > 0 || totalSec > 0) {
-      sessionStore.addSession({
+      sessionId = await sessionStore.addSession({
         date: today, routineId: routine.id, routineName: routine.name,
         startedAt: player.sessionStartedAt.value
           ? new Date(player.sessionStartedAt.value).toISOString()
@@ -144,6 +142,16 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
         scheduledSec, totalSec, elapsedSec,
         exercises: completedExercises,
       });
+    }
+
+    // Link exerciseLogs to the newly created session
+    if (sessionId) {
+      for (const ex of completedExercises) {
+        const logs = await exerciseLogRepository.getLogsInRange(ex.exerciseId, today, today, true);
+        if (logs.length > 0) {
+          await exerciseLogRepository.linkToSession(sessionId, logs);
+        }
+      }
     }
 
     sessionStore.recordProgressSeconds(totalSec, routine.name);

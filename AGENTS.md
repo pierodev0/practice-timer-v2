@@ -1,25 +1,3 @@
-# Codebase Knowledge Graph (codebase-memory-mcp)
-
-This project uses codebase-memory-mcp to maintain a knowledge graph of the codebase.
-ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
-
-## Priority Order
-1. `search_graph` — find functions, classes, routes, variables by pattern
-2. `trace_path` — trace who calls a function or what it calls
-3. `get_code_snippet` — read specific function/class source code
-4. `query_graph` — run Cypher queries for complex patterns
-5. `get_architecture` — high-level project summary
-
-## When to fall back to grep/glob
-- Searching for string literals, error messages, config values
-- Searching non-code files (Dockerfiles, shell scripts, configs)
-- When MCP tools return insufficient results
-
-## Examples
-- Find a handler: `search_graph(name_pattern=".*OrderHandler.*")`
-- Who calls it: `trace_path(function_name="OrderHandler", direction="inbound")`
-- Read source: `get_code_snippet(qualified_name="pkg/orders.OrderHandler")`
-<!-- codebase-memory-mcp:end -->
 # AGENT.md — Music Routine App
 
 ## Comandos
@@ -38,3 +16,14 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 - **Composables** — orquestan stores, manejan navegación (`useRouter`), contienen toda la lógica de negocio y flujo de la app. Cada vista tiene su propio composable específico cuando la lógica es particular (ej: `useExercisePlay` para ExercisePlayView).
 - **Stores** — estado puro con persistencia (Pinia + Dexie). Sin lógica de navegación ni orquestación.
 - **db/** — schema Dexie y acceso a datos. Las stores consumen db/entities. Las versiones de schema se incrementan al agregar tablas.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->

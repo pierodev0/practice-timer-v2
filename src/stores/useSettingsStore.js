@@ -1,13 +1,13 @@
 /**
- * useSettingsStore — persisted user settings (Dexie key-value).
+ * useSettingsStore — persisted user settings (via settingsRepository).
  *
- * Each setting is stored as a row in the `settings` Dexie table.
+ * Each setting is stored as a key-value row in the `settings` Dexie table.
  * Syncs to Dexie on write so preferences survive reloads.
  */
 
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getDb } from '../db/db.js';
+import * as settingsRepository from '../db/repositories/settingsRepository.js';
 
 export const useSettingsStore = defineStore('settings', () => {
   const fullscreenPlay = ref(false);
@@ -19,10 +19,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function load() {
     if (_loaded) return;
-    const db = await getDb();
     try {
-      const row = await db.settings.get('fullscreenPlay');
-      if (row) fullscreenPlay.value = !!row.value;
+      const val = await settingsRepository.get('fullscreenPlay');
+      if (val !== undefined && val !== null) {
+        fullscreenPlay.value = !!val;
+      }
     } catch {
       // table may not exist yet on first load — ignore
     }
@@ -33,8 +34,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // ── Saving ───────────────────────────────────────────
 
   async function save() {
-    const db = await getDb();
-    await db.settings.put({ key: 'fullscreenPlay', value: fullscreenPlay.value ? 1 : 0 });
+    await settingsRepository.set('fullscreenPlay', fullscreenPlay.value ? 1 : 0);
   }
 
   async function setFullscreenPlay(val) {

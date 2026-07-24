@@ -8,6 +8,7 @@
  * so existing composables keep working. The normalized schema lives in Dexie.
  */
 
+import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import * as routineRepository from '../db/repositories/routineRepository.js';
@@ -184,6 +185,50 @@ export const useRoutineStore = defineStore('routines', () => {
     currentRoutineId.value = routines.value[0]?.id || 'module-1';
   }
 
+  function addRoutine({ id, name, exercises, createdAt }) {
+    routines.value.push({
+      id,
+      name,
+      exercises: exercises || [],
+      createdAt: createdAt || Date.now(),
+    });
+    saveToStorage();
+  }
+
+  function removeRoutine(id) {
+    const idx = routines.value.findIndex(r => r.id === id);
+    if (idx === -1) return false;
+    routines.value.splice(idx, 1);
+    if (currentRoutineId.value === id) {
+      currentRoutineId.value = routines.value[0]?.id;
+    }
+    saveToStorage();
+    return true;
+  }
+
+  function duplicateRoutine(originalId) {
+    const original = routines.value.find(r => r.id === originalId);
+    if (!original) return null;
+
+    const copy = {
+      id: nanoid(),
+      name: original.name + ' (Copia)',
+      createdAt: Date.now(),
+      exercises: original.exercises.map(ex => ({
+        ...deepClone(ex),
+        id: nanoid(),
+        completed: false,
+        remainingSec: ex.durationSec,
+        currentRep: 1,
+        statisticLogs: [],
+      })),
+    };
+
+    routines.value.push(copy);
+    saveToStorage();
+    return copy;
+  }
+
   // ── Init ───────────────────────────────────────────────
 
   (async () => {
@@ -234,6 +279,9 @@ export const useRoutineStore = defineStore('routines', () => {
     setCurrentRoutine,
     resetCurrentRoutine,
     resetToDefaults,
+    addRoutine,
+    removeRoutine,
+    duplicateRoutine,
 
     // Database persistence
     saveToDb,

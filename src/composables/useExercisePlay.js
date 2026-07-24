@@ -11,6 +11,7 @@ import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useTimer } from './useTimer.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from './useStatModal.js';
+import { triggerExerciseCompletion } from './helpers/completionFlow.js';
 
 export function useExercisePlay() {
   const route = useRoute();
@@ -34,11 +35,7 @@ export function useExercisePlay() {
   onTimerComplete = () => {
     const ex = exercise.value;
     if (!ex) return;
-    import('../services/audio.js').then(m => m.playBellSound());
-    if (player.activeExerciseId.value === ex.id) {
-      pauseSequence();
-    }
-    requestStatInput(ex, () => markComplete(ex));
+    triggerExerciseCompletion(ex, player, statModal, () => markComplete(ex));
   };
 
   // ── Reactive state ───────────────────────────────────
@@ -120,13 +117,7 @@ export function useExercisePlay() {
     const ex = exercise.value;
     if (!ex) return;
 
-    import('../services/audio.js').then(m => m.playBellSound());
-
-    if (player.activeExerciseId.value === ex.id) {
-      pauseSequence();
-    }
-
-    requestStatInput(ex, () => markComplete(ex));
+    triggerExerciseCompletion(ex, player, statModal, () => markComplete(ex));
   }
 
   return {

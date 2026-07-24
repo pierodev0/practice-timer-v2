@@ -12,9 +12,9 @@
 |------|--------|--------|
 | **1** | Schema v3 + Repositories | ✅ Completada |
 | **2** | Simplificar Stores + conectar métricas | ✅ Completada |
-| **3** | Linked exerciseLogs + eliminar duplicación | 🔜 Siguiente |
-| **4** | Limpiar DetailsView | ⏳ Pendiente |
-| **5** | Unificar persistencia (BPM + Settings) | ⏳ Pendiente |
+| **3** | Linked exerciseLogs + eliminar duplicación | ✅ Completada |
+| **4** | Limpiar DetailsView | ✅ Completada |
+| **5** | Unificar persistencia (BPM + Settings) | ✅ Completada |
 
 ---
 
@@ -115,67 +115,53 @@ src/
 
 ## Fase 3: Eliminar duplicación + Linked ExerciseLogs
 
-### Qué se modifica
+### ✅ Implementado
 
-**Extraer lógica común de completado:**
-- Crear `src/composables/helpers/completionFlow.js`
-- `usePracticeSession.js` y `useExercisePlay.js` lo usan
+| Archivo | Cambio |
+|---------|--------|
+| `src/composables/helpers/completionFlow.js` | **Nuevo** — `triggerExerciseCompletion()` extrae patrón común (bell + pause + statModal) |
+| `src/composables/usePracticeSession.js` | `handleExerciseCompletion()` usa helper. `acceptFinish()` es async, linkea exerciseLogs a la session via `exerciseLogRepository` |
+| `src/composables/useExercisePlay.js` | `onTimerComplete()` y `completeExercise()` usan helper |
+| `src/stores/useSessionStore.js` | `addSession()` retorna `id` para el linking chain |
+| `tests/usePracticeSession.test.js` | 10 tests (2 nuevos: linking, no-logs). Mocks de exerciseLogRepository agregados |
 
-**Conectar exerciseLogs a la sesión en acceptFinish:**
-```javascript
-// usePracticeSession.acceptFinish() — NUEVO
-async function acceptFinish() {
-  const sessionId = await sessionRepository.create({ ... });
-  
-  // Linkear TODOS los exerciseLogs de hoy a esta sesión
-  const today = new Date().toISOString().slice(0, 10);
-  for (const ex of completedExercises) {
-    await sessionRepository.addExercise(sessionId, ex.exerciseId, { ... });
-    
-    // Vincular logs de este ejercicio hoy a la sesión
-    const logs = await exerciseLogRepository.getLogsInRange(
-      ex.exerciseId, today, today, true
-    );
-    await exerciseLogRepository.linkToSession(sessionId, logs);
-  }
-  
-  // Ahora se puede consultar:
-  // "ejercicio 3 en sesión del día 3 → 2 logs con values 23 y 25"
-}
-```
-
-### Tests
-- `tests/usePracticeSession.test.js` → actualizados
-- `tests/useExercisePlayer.test.js` → pasan sin cambios
-
-### Criterio de éxito
-- `exerciseLogs` tienen `sessionId` poblado después de Finish
-- Se puede consultar "todos los valores de un ejercicio en una sesión"
+### Criterio de éxito ✅
+- `exerciseLogs` linkeados a `sessionId` después de Finish
+- 203 tests pasan
+- Patrón de completado extraído y compartido
 
 ---
 
-## Fase 4: Limpiar DetailsView
+## Fase 4: Limpiar DetailsView ✅
 
-### Qué se modifica
-- `src/composables/useExerciseEditor.js` → añade `resetExercise()`, `doComplete()`, `forceComplete()`
-- `src/views/DetailsView.vue` → elimina import de `useRoutineStore`, elimina lógica inline
+### Qué se hizo
 
-### Criterio de éxito
+| Archivo | Cambio |
+|---------|--------|
+| `src/composables/useExerciseEditor.js` | Añadidos `resetExercise(timer, player)`, `doComplete(timer, player)`, `forceComplete(player, statModal, onSuccess)`. Las funciones operan sobre `exercise.value` (computed interno) y reciben timer/player/statModal como parámetros |
+| `src/views/DetailsView.vue` | Eliminado import de `useRoutineStore`. Eliminada lógica inline (resetExercise, doComplete, forceComplete). Ahora solo tiene glue functions que delegan al editor + navegación pura (`goBack`, `startExercise`) |
+
+### Criterio de éxito ✅
 - DetailsView no importa ningún store
-- DetailsView no tiene lógica de negocio (solo template + emits)
+- DetailsView no tiene lógica de negocio (solo delegación a composables + navegación)
+- 203 tests pasan
 
 ---
 
-## Fase 5: Unificar persistencia
+## Fase 5: Unificar persistencia ✅
 
-### Qué se modifica
-- `src/stores/useBpmStore.js` → migra de localStorage a `settingsRepository`
-- `src/stores/useSettingsStore.js` → migra a `settingsRepository`
-- `tests/bpmStore.test.js` → elimina mock de localStorage
+### Qué se hizo
 
-### Criterio de éxito
-- localStorage ya no se usa en ningún store
-- BPM y FullscreenPlay persisten entre recargas
+| Archivo | Cambio |
+|---------|--------|
+| `src/stores/useBpmStore.js` | Migrado de localStorage a `settingsRepository.get/set`. Eliminados `STORAGE_KEY`, `migrateFromOldKey()`, `loadFromStorage()`. Agregado async `load()` + `_ready` pattern |
+| `src/stores/useSettingsStore.js` | Migrado de `getDb()` directo a `settingsRepository.get/set` |
+| `tests/bpmStore.test.js` | `localStorage.clear()` → mock de `settingsRepository`. 2 nuevos tests: loading saved BPM, saveToStorage persistence. 8 tests total |
+
+### Criterio de éxito ✅
+- Ningún store usa localStorage
+- BPM y FullscreenPlay persisten en Dexie via settingsRepository
+- 205 tests pasan
 
 ---
 
@@ -186,11 +172,11 @@ Fase 1 (Repositories)                    ← ✅
   ↓
 Fase 2 (Stores + métricas)               ← ✅
   ↓
-Fase 3 (Linked exerciseLogs + duplicación)  ← 🔜 Siguiente
+Fase 3 (Linked exerciseLogs + duplicación)  ← ✅
   ↓
-Fase 4 (DetailsView limpio)              ← Pendiente
+Fase 4 (DetailsView limpio)              ← ✅
   ↓
-Fase 5 (Unificar persistencia)            ← Pendiente
+Fase 5 (Unificar persistencia)            ← ✅
 ```
 
 **Orden**: 1 ✅ → 2 ✅ → 3 → 4 + 5 (paralelo)
@@ -234,9 +220,9 @@ cat REFACTOR_PLAN.md
 
 - [x] **Fase 1**: Repositories creados, schema v3, compound key, 75 tests pasando
 - [x] **Fase 2**: Stores no llaman `getDb()`, `exerciseLogs` aceptan `sessionId`
-- [ ] **Fase 3**: `exerciseLogs` linkeados a sesión al hacer Finish
-- [ ] **Fase 4**: DetailsView no importa stores
-- [ ] **Fase 5**: localStorage eliminado, todo en Dexie
-- [ ] Ninguna vista importa un store directamente
-- [ ] Ningún composable muta el store directamente (usa métodos)
-- [ ] El JSON export no incluye campos transitorios
+- [x] **Fase 3**: `exerciseLogs` linkeados a sesión al hacer Finish
+- [x] **Fase 4**: DetailsView no importa stores
+- [x] **Fase 5**: localStorage eliminado, todo en Dexie
+- [x] Ninguna vista importa un store directamente
+- [x] Ningún composable muta el store directamente (usa métodos)
+- [x] El JSON export no incluye campos transitorios
