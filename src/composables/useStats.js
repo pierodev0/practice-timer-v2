@@ -1,15 +1,20 @@
-/**
- * useStats — statistics computations and chart rendering.
- * Encapsulates all Chart.js lifecycle and stat calculations.
- * Views: StatsView
- */
-
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import { useSessionStore } from '../stores/useSessionStore.js';
-import { formatTime, stringToColor, formatDate } from '../lib/utils.js';
+import { stringToColor, formatDate } from '../lib/utils.js';
 import { subDays, differenceInCalendarDays } from 'date-fns';
+
+const CHART_OPTS = {
+  responsive: true,
+  maintainAspectRatio: false,
+};
+
+const LEGEND_BOTTOM = {
+  display: true,
+  position: 'bottom',
+  labels: { boxWidth: 10, font: { size: 10 } },
+};
 
 export function useStats() {
   const routineStore = useRoutineStore();
@@ -19,11 +24,6 @@ export function useStats() {
   const showEditStats = ref(false);
   const filterStart = ref('');
   const filterEnd = ref('');
-
-  let weeklyChart = null;
-  let routineChart = null;
-  let progressChart = null;
-  let scheduleChart = null;
 
   const entries = computed(() => Object.entries(sessionStore.stats));
 
@@ -49,43 +49,14 @@ export function useStats() {
     if (lastDate !== today && lastDate !== yesterday) return 0;
     let s = 1;
     for (let i = dates.length - 2; i >= 0; i--) {
-      const diff = differenceInCalendarDays(
-        new Date(dates[i + 1]), new Date(dates[i])
-      );
+      const diff = differenceInCalendarDays(new Date(dates[i + 1]), new Date(dates[i]));
       if (diff === 1) s++;
       else break;
     }
     return s;
   });
 
-  function goBack() {
-    router.push({ name: 'practice' });
-  }
-
-  function toggleEditStats() {
-    showEditStats.value = !showEditStats.value;
-    if (!showEditStats.value) renderStats();
-  }
-
-  function renderStats() {
-    destroyCharts();
-    renderWeeklyChart();
-    renderRoutineChart();
-    renderProgressChart();
-    renderScheduleChart();
-  }
-
-  function destroyCharts() {
-    [weeklyChart, routineChart, progressChart, scheduleChart].forEach(c => {
-      if (c) { c.destroy(); }
-    });
-  }
-
-  function renderWeeklyChart() {
-    if (weeklyChart) weeklyChart.destroy();
-    const canvas = document.getElementById('weeklyChart');
-    if (!canvas) return;
-
+  const weeklyData = computed(() => {
     const last7Keys = [];
     const last7Labels = [];
     for (let i = 6; i >= 0; i--) {
@@ -101,29 +72,27 @@ export function useStats() {
       }
     });
 
-    const datasets = Array.from(uniqueRoutines).map(name => ({
-      label: name,
-      data: last7Keys.map(k => Math.round((sessionStore.stats[k]?.routines?.[name] || 0) / 60)),
-      backgroundColor: stringToColor(name),
-      borderRadius: 2,
-    }));
+    return {
+      labels: last7Labels,
+      datasets: Array.from(uniqueRoutines).map(name => ({
+        label: name,
+        data: last7Keys.map(k => Math.round((sessionStore.stats[k]?.routines?.[name] || 0) / 60)),
+        backgroundColor: stringToColor(name),
+        borderRadius: 2,
+      })),
+    };
+  });
 
-    weeklyChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: last7Labels, datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-      },
-    });
-  }
+  const weeklyOptions = {
+    ...CHART_OPTS,
+    plugins: { legend: LEGEND_BOTTOM },
+    scales: {
+      x: { stacked: true },
+      y: { stacked: true, beginAtZero: true },
+    },
+  };
 
-  function renderRoutineChart() {
-    if (routineChart) routineChart.destroy();
-    const canvas = document.getElementById('routineChart');
-    if (!canvas) return;
-
+  const routineData = computed(() => {
     const totals = {};
     entries.value.forEach(([_, d]) => {
       if (d.routines) {
@@ -132,26 +101,67 @@ export function useStats() {
         });
       }
     });
-
     const labels = Object.keys(totals);
     const data = Object.values(totals).map(s => Math.round(s / 60));
-    const colors = labels.map(stringToColor);
+    return {
+      labels,
+      datasets: [{ data, backgroundColor: labels.map(stringToColor), borderWidth: 0 }],
+    };
+  });
 
-    routineChart = new Chart(canvas.getContext('2d'), {
-      type: 'doughnut',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } },
-      },
+  const routineOptions = {
+    ...CHART_OPTS,
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } },
+    },
+  };
+
+  const scheduleData = computed(() => {
+    const days = {};
+    sessionStore.sessions.forEach(ses => {
+      if (!ses.scheduledSec || !ses.elapsedSec) return;
+      if (!days[ses.date]) days[ses.date] = { scheduled: 0, elapsed: 0 };
+      days[ses.date].scheduled += ses.scheduledSec;
+      days[ses.date].elapsed += ses.elapsedSec;
     });
-  }
 
-  function renderProgressChart() {
-    if (progressChart) progressChart.destroy();
-    const canvas = document.getElementById('progressChart');
-    if (!canvas) return;
+    const sortedDates = Object.keys(days).sort().slice(-14);
+    const labels = sortedDates.map(d => {
+      const [y, m, day] = d.split('-');
+      return `${Number(day)}/${m}`;
+    });
 
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Programado',
+          data: sortedDates.map(d => Math.round((days[d].scheduled || 0) / 60)),
+          backgroundColor: 'rgba(156, 163, 175, 0.6)',
+          borderColor: 'rgba(156, 163, 175, 1)',
+          borderWidth: 1,
+        },
+        {
+          label: 'Real',
+          data: sortedDates.map(d => Math.round((days[d].elapsed || 0) / 60)),
+          backgroundColor: 'rgba(229, 57, 53, 0.6)',
+          borderColor: 'rgba(229, 57, 53, 1)',
+          borderWidth: 1,
+        },
+      ],
+    };
+  });
+
+  const scheduleOptions = {
+    ...CHART_OPTS,
+    plugins: { legend: LEGEND_BOTTOM },
+    scales: {
+      x: { title: { display: true, text: 'Día' } },
+      y: { title: { display: true, text: 'Minutos' }, beginAtZero: true },
+    },
+  };
+
+  const progressData = computed(() => {
     const allStats = [];
     routineStore.routines.forEach(r => {
       r.exercises.forEach(e => {
@@ -182,60 +192,30 @@ export function useStats() {
         data,
         borderColor: stringToColor(s.name),
         backgroundColor: stringToColor(s.name),
-        tension: 0.1, fill: false, spanGaps: true,
+        tension: 0.1,
+        fill: false,
+        spanGaps: true,
       };
     }).filter(ds => ds !== null);
 
-    progressChart = new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: { labels: sortedDates, datasets },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-        scales: {
-          x: { title: { display: true, text: 'Date' } },
-          y: { title: { display: true, text: 'Value' }, beginAtZero: true },
-        },
-      },
-    });
+    return { labels: sortedDates, datasets };
+  });
+
+  const progressOptions = {
+    ...CHART_OPTS,
+    plugins: { legend: LEGEND_BOTTOM },
+    scales: {
+      x: { title: { display: true, text: 'Date' } },
+      y: { title: { display: true, text: 'Value' }, beginAtZero: true },
+    },
+  };
+
+  function goBack() {
+    router.push({ name: 'practice' });
   }
 
-  function renderScheduleChart() {
-    if (scheduleChart) scheduleChart.destroy();
-    const canvas = document.getElementById('scheduleChart');
-    if (!canvas) return;
-
-    const days = {};
-    sessionStore.sessions.forEach(ses => {
-      if (!ses.scheduledSec || !ses.elapsedSec) return;
-      if (!days[ses.date]) days[ses.date] = { scheduled: 0, elapsed: 0 };
-      days[ses.date].scheduled += ses.scheduledSec;
-      days[ses.date].elapsed += ses.elapsedSec;
-    });
-
-    const sortedDates = Object.keys(days).sort().slice(-14);
-    const labels = sortedDates.map(d => {
-      const [y, m, day] = d.split('-');
-      return `${Number(day)}/${m}`;
-    });
-    const scheduledData = sortedDates.map(d => Math.round((days[d].scheduled || 0) / 60));
-    const elapsedData = sortedDates.map(d => Math.round((days[d].elapsed || 0) / 60));
-
-    scheduleChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Programado', data: scheduledData, backgroundColor: 'rgba(156, 163, 175, 0.6)', borderColor: 'rgba(156, 163, 175, 1)', borderWidth: 1 },
-          { label: 'Real', data: elapsedData, backgroundColor: 'rgba(229, 57, 53, 0.6)', borderColor: 'rgba(229, 57, 53, 1)', borderWidth: 1 },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-        scales: { x: { title: { display: true, text: 'Día' } }, y: { title: { display: true, text: 'Minutos' }, beginAtZero: true } },
-      },
-    });
+  function toggleEditStats() {
+    showEditStats.value = !showEditStats.value;
   }
 
   return {
@@ -247,9 +227,14 @@ export function useStats() {
     sessionsCount,
     avgMinutes,
     streak,
-    renderStats,
-    renderProgressChart,
-    destroyCharts,
+    weeklyData,
+    weeklyOptions,
+    routineData,
+    routineOptions,
+    scheduleData,
+    scheduleOptions,
+    progressData,
+    progressOptions,
     goBack,
     toggleEditStats,
   };

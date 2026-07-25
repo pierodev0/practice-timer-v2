@@ -19,6 +19,7 @@
 import { ref } from 'vue';
 import { useRoutineStore } from '../stores/useRoutineStore.js';
 import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
+import { formatDate } from '../lib/utils.js';
 
 export function useStatModal() {
   const routineStore = useRoutineStore();
@@ -56,7 +57,7 @@ export function useStatModal() {
     const ex = routineStore.getExerciseById(pendingExerciseId);
     if (ex) {
       if (!ex.statisticLogs) ex.statisticLogs = [];
-      const today = new Date().toISOString().slice(0, 10);
+      const today = formatDate(new Date());
       const logData = { date: today, value: val };
       if (sessionId) logData.sessionId = sessionId;
       ex.statisticLogs.push(logData);

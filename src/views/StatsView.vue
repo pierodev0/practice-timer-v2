@@ -1,34 +1,46 @@
-/**
- * StatsView — charts and statistics.
- * Pure presentation: all computations and chart rendering delegated to useStats.
- */
-
 <script setup>
-import { onMounted, watch, onUnmounted } from 'vue';
+import { onMounted } from 'vue';
 import { formatDate } from '../lib/utils.js';
+import { useRoutineStore } from '../stores/useRoutineStore.js';
+import { useSessionStore } from '../stores/useSessionStore.js';
 import { useStats } from '../composables/useStats.js';
 import EditStatsModal from '../components/modals/EditStatsModal.vue';
+import { Line, Bar, Doughnut } from 'vue-chartjs';
+
+const routineStore = useRoutineStore();
+const sessionStore = useSessionStore();
 
 const {
   showEditStats, filterStart, filterEnd,
   totalHours, totalMinutes, sessionsCount, avgMinutes, streak,
-  renderStats, renderProgressChart, destroyCharts, goBack, toggleEditStats,
+  weeklyData, weeklyOptions,
+  routineData, routineOptions,
+  scheduleData, scheduleOptions,
+  progressData, progressOptions,
+  goBack, toggleEditStats,
 } = useStats();
 
-onMounted(() => {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - 7);
-  filterStart.value = formatDate(start);
-  filterEnd.value = formatDate(end);
-  renderStats();
-});
+onMounted(async () => {
+  await Promise.all([routineStore._ready, sessionStore._ready]);
 
-watch([filterStart, filterEnd], () => {
-  renderProgressChart();
-});
+  const statDates = Object.keys(sessionStore.stats);
+  const allDates = new Set(statDates);
+  routineStore.routines.forEach(r => r.exercises.forEach(e => {
+    (e.statisticLogs || []).forEach(log => allDates.add(log.date));
+  }));
+  const sorted = Array.from(allDates).filter(Boolean).sort();
 
-onUnmounted(() => destroyCharts());
+  if (sorted.length > 0) {
+    filterStart.value = sorted[0];
+    filterEnd.value = sorted[sorted.length - 1];
+  } else {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    filterStart.value = formatDate(start);
+    filterEnd.value = formatDate(end);
+  }
+});
 </script>
 
 <template>
@@ -77,32 +89,29 @@ onUnmounted(() => destroyCharts());
           <label class="flex flex-col text-xs text-gray-500 font-bold">Fin:
             <input type="date" v-model="filterEnd" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
           </label>
-          <div class="ml-auto">
-            <button @click="renderProgressChart" class="bg-[#E53935] text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-red-600">Filtrar</button>
-          </div>
         </div>
-        <div class="h-64"><canvas id="progressChart"></canvas></div>
+        <div class="h-64"><Line :data="progressData" :options="progressOptions" /></div>
       </div>
 
       <!-- Weekly Chart -->
       <div class="card p-5">
         <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="far fa-calendar-alt text-[#E53935]"></i> Últimos 7 Días</h3>
         <p class="text-xs text-gray-400 mb-4">Minutos de práctica por rutina</p>
-        <div class="h-64"><canvas id="weeklyChart"></canvas></div>
+        <div class="h-64"><Bar :data="weeklyData" :options="weeklyOptions" /></div>
       </div>
 
       <!-- Distribution -->
       <div class="card p-5">
         <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-chart-pie text-[#E53935]"></i> Distribución por Rutina</h3>
         <p class="text-xs text-gray-400 mb-4">Porcentaje del tiempo total invertido en cada rutina</p>
-        <div class="h-48 flex justify-center"><canvas id="routineChart"></canvas></div>
+        <div class="h-48 flex justify-center"><Doughnut :data="routineData" :options="routineOptions" /></div>
       </div>
 
       <!-- Scheduled vs Real -->
       <div class="card p-5">
         <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-clock text-[#E53935]"></i> Programado vs Real</h3>
         <p class="text-xs text-gray-400 mb-4">Comparación entre el tiempo programado y el real</p>
-        <div class="h-64"><canvas id="scheduleChart"></canvas></div>
+        <div class="h-64"><Bar :data="scheduleData" :options="scheduleOptions" /></div>
       </div>
 
       <div class="text-center">

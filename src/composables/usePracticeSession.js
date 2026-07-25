@@ -18,6 +18,7 @@ import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from './useStatModal.js';
 import { triggerExerciseCompletion } from './helpers/completionFlow.js';
 import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
+import { formatDate } from '../lib/utils.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
@@ -120,7 +121,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     const elapsedSec = player.sessionStartedAt.value
       ? Math.round((Date.now() - player.sessionStartedAt.value) / 1000)
       : totalSec;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatDate(new Date());
 
     const completedExercises = routine.exercises
       .filter(ex => ex.completed)

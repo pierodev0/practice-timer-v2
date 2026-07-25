@@ -1,13 +1,12 @@
 /**
- * useRoutineStore tests — now backed by Dexie instead of localStorage.
- *
- * The store keeps reactive refs for Vue views but persists through Dexie.
- * Importing the store auto-seeds sample routines if the DB is empty.
+ * useRoutineStore tests — backed by Dexie persistence.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { resetDb } from '../src/db/db.js';
+import { resetDb, getDb } from '../src/db/db.js';
+import * as routineRepository from '../src/db/repositories/routineRepository.js';
+import * as exerciseRepository from '../src/db/repositories/exerciseRepository.js';
 
 vi.mock('../src/data/defaultRoutines.js', () => ({
   module1Routine: {
@@ -30,32 +29,40 @@ vi.mock('../src/data/defaultRoutines.js', () => ({
   module12Routine: { id: 'module-12', name: 'Rutina 12', createdAt: 0, exercises: [] },
 }));
 
+async function seedTestRoutines() {
+  const db = await getDb();
+  await db.routines.add({ id: 'module-1', name: 'Rutina 1', createdAt: 0, updatedAt: 0 });
+  await db.routines.add({ id: 'module-2', name: 'Rutina 2', createdAt: 0, updatedAt: 0 });
+  await exerciseRepository.upsert({ id: 'ex-1', title: 'Exercise 1', bpm: 120, durationSec: 300, createdAt: 0 });
+  await exerciseRepository.upsert({ id: 'ex-2', title: 'Exercise 2', bpm: 100, durationSec: 180, statisticName: 'BPM', createdAt: 0 });
+  await routineRepository.addExercise('module-1', 'ex-1', 0);
+  await routineRepository.addExercise('module-1', 'ex-2', 1);
+}
+
 let useRoutineStore;
 
 beforeEach(async () => {
   setActivePinia(createPinia());
-  // Reset Dexie between tests
-  const { getDb } = await import('../src/db/db.js');
   const db = await getDb();
   await resetDb(db);
-  // Clear module cache so store re-creates the db connection
   const mod = await import('../src/stores/useRoutineStore.js');
   useRoutineStore = mod.useRoutineStore;
 });
 
 describe('useRoutineStore', () => {
-  it('loads default routines on init', async () => {
+  it('loads empty routines on init', async () => {
     const store = useRoutineStore();
-    // Wait for async init to populate routines
     await store._ready;
-    expect(store.routines.length).toBeGreaterThan(0);
-    expect(store.currentRoutineId).toBe('module-1');
+    expect(store.routines).toEqual([]);
+    expect(store.currentRoutineId).toBeNull();
   });
 
   it('returns currentRoutine by currentRoutineId', async () => {
     const store = useRoutineStore();
     await store._ready;
-    expect(store.currentRoutine.name).toBe('Rutina 1');
+    store.routines = [{ id: 'r1', name: 'Test', exercises: [] }];
+    store.currentRoutineId = 'r1';
+    expect(store.currentRoutine.name).toBe('Test');
   });
 
   it('creates fallback routine if routines is empty', async () => {
@@ -71,6 +78,8 @@ describe('useRoutineStore', () => {
   it('getExerciseById finds exercise in current routine', async () => {
     const store = useRoutineStore();
     await store._ready;
+    store.routines = [{ id: 'r1', name: 'Test', exercises: [{ id: 'ex-1', title: 'Exercise 1' }] }];
+    store.currentRoutineId = 'r1';
     expect(store.getExerciseById('ex-1').title).toBe('Exercise 1');
   });
 
@@ -83,6 +92,11 @@ describe('useRoutineStore', () => {
   it('visibleExercises filters archived', async () => {
     const store = useRoutineStore();
     await store._ready;
+    store.routines = [{ id: 'r1', name: 'Test', exercises: [
+      { id: 'ex-1', title: 'A', archived: false },
+      { id: 'ex-2', title: 'B', archived: false },
+    ] }];
+    store.currentRoutineId = 'r1';
     store.currentRoutine.exercises.push({ id: 'archived', title: 'Archived', archived: true });
     expect(store.visibleExercises).toHaveLength(2);
   });
@@ -94,8 +108,6 @@ describe('useRoutineStore', () => {
     store.currentRoutineId = 'r1';
     await store.saveToDb();
 
-    // Verify data is in Dexie
-    const { getDb } = await import('../src/db/db.js');
     const db = await getDb();
     const routines = await db.routines.toArray();
     expect(routines).toHaveLength(1);
@@ -106,12 +118,10 @@ describe('useRoutineStore', () => {
     const store = useRoutineStore();
     await store._ready;
 
-    // Manually insert data into Dexie and reload
-    const { getDb } = await import('../src/db/db.js');
     const db = await getDb();
     await db.routines.add({ id: 'r1', name: 'Saved', createdAt: Date.now(), updatedAt: Date.now() });
-    await db.exercises.add({ id: 1, title: 'E1', bpm: 100, durationSec: 60, createdAt: Date.now(), updatedAt: Date.now() });
-    await db.routineExercises.add({ routineId: 'r1', exerciseId: 1, order: 0 });
+    await db.exercises.add({ id: 'ex-1', title: 'E1', bpm: 100, durationSec: 60, createdAt: Date.now(), updatedAt: Date.now() });
+    await db.routineExercises.add({ routineId: 'r1', exerciseId: 'ex-1', order: 0 });
 
     await store.loadFromDb();
     const saved = store.routines.find(r => r.id === 'r1');
@@ -120,24 +130,21 @@ describe('useRoutineStore', () => {
   });
 
   it('persists remainingSec, completed, currentRep through save+reload', async () => {
+    await seedTestRoutines();
     const store = useRoutineStore();
     await store._ready;
 
-    // Modify transient state
     const ex = store.getExerciseById('ex-1');
     ex.remainingSec = 42;
     ex.completed = true;
     ex.currentRep = 3;
 
-    // Save to DB
     await store.saveToDb();
 
-    // Reload from DB (simulating page refresh)
     store.routines = [];
     store.currentRoutineId = null;
     await store.loadFromDb();
 
-    // Verify transient state was preserved
     const reloadedEx = store.getExerciseById('ex-1');
     expect(reloadedEx.remainingSec).toBe(42);
     expect(reloadedEx.completed).toBe(true);
@@ -145,6 +152,7 @@ describe('useRoutineStore', () => {
   });
 
   it('resetCurrentRoutine clears exercise state', async () => {
+    await seedTestRoutines();
     const store = useRoutineStore();
     await store._ready;
     const ex = store.getExerciseById('ex-1');
@@ -160,6 +168,7 @@ describe('useRoutineStore', () => {
   });
 
   it('setCurrentRoutine switches routine', async () => {
+    await seedTestRoutines();
     const store = useRoutineStore();
     await store._ready;
     store.setCurrentRoutine('module-2');

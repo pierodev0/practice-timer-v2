@@ -232,33 +232,12 @@ export const useRoutineStore = defineStore('routines', () => {
   // ── Init ───────────────────────────────────────────────
 
   (async () => {
-    // Seed if empty (reuse domain logic inlined for clarity)
-    const all = await routineRepository.all();
-    if (all.length === 0) {
-      const samples = defaultRoutines();
-      for (const r of samples) {
-        await routineRepository.create({ id: r.id, name: r.name, createdAt: r.createdAt || Date.now() });
-        for (let i = 0; i < r.exercises.length; i++) {
-          const ex = r.exercises[i];
-          await exerciseRepository.upsert({
-            id: ex.id,
-            title: ex.title,
-            bpm: ex.bpm || 60,
-            durationSec: ex.durationSec || 60,
-            autoStart: ex.autoStart ?? true,
-            reps: ex.reps ?? 1,
-            remainingSec: ex.remainingSec ?? ex.durationSec ?? 60,
-            completed: ex.completed ?? false,
-            currentRep: ex.currentRep ?? 1,
-            comment: ex.comment || '',
-            statisticName: ex.statisticName || null,
-            createdAt: Date.now(),
-          });
-          await routineRepository.addExercise(r.id, ex.id, i);
-        }
-      }
-    }
     await loadFromDb();
+    if (routines.value.length === 0) {
+      resetToDefaults();
+      await saveToDb();
+      await loadFromDb();
+    }
     if (!currentRoutineId.value && routines.value.length > 0) {
       currentRoutineId.value = routines.value[0].id;
     }
