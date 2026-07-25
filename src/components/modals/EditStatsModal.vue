@@ -1,13 +1,12 @@
-/**
- * EditStatsModal — view, edit, and delete statistic logs.
- */
-
 <script setup>
 import { ref, computed } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 
 const routineStore = useRoutineStore();
 const emit = defineEmits(['close']);
+
+const editingKey = ref(null);
+const editBuffer = ref('');
 
 const allLogs = computed(() => {
   const logs = [];
@@ -31,19 +30,30 @@ const allLogs = computed(() => {
   return logs.sort((a, b) => new Date(b.date) - new Date(a.date));
 });
 
-function editValue(item) {
-  const newVal = prompt(`Edit value for ${item.title} on ${item.date}:`, item.value);
-  if (newVal !== null && newVal.trim() !== '') {
-    const num = parseFloat(newVal);
-    if (!isNaN(num)) {
-      const r = routineStore.routines.find(x => x.id === item.routineId);
-      const e = r?.exercises.find(x => x.id === item.exerciseId);
-      if (e?.statisticLogs[item.index]) {
-        e.statisticLogs[item.index].value = num;
-        routineStore.saveToStorage();
-      }
-    }
+function keyFor(item) {
+  return `${item.date}|${item.exerciseId}|${item.index}`;
+}
+
+function startEdit(item) {
+  editingKey.value = keyFor(item);
+  editBuffer.value = String(item.value);
+}
+
+function cancelEdit() {
+  editingKey.value = null;
+  editBuffer.value = '';
+}
+
+function saveEdit(item) {
+  const num = parseFloat(editBuffer.value);
+  if (isNaN(num)) return;
+  const r = routineStore.routines.find(x => x.id === item.routineId);
+  const e = r?.exercises.find(x => x.id === item.exerciseId);
+  if (e?.statisticLogs[item.index]) {
+    e.statisticLogs[item.index].value = num;
+    routineStore.saveToStorage();
   }
+  editingKey.value = null;
 }
 
 function deleteLog(item) {
@@ -69,14 +79,27 @@ function deleteLog(item) {
         <div v-if="allLogs.length === 0" class="text-center text-gray-400 py-8">No statistics recorded yet.</div>
         <div v-for="(item, i) in allLogs" :key="i"
           class="bg-white p-3 rounded shadow-sm border border-gray-100 flex justify-between items-center">
-          <div>
+          <div class="flex-1 min-w-0">
             <div class="text-xs text-gray-400 font-bold">{{ item.date }}</div>
-            <div class="font-medium text-gray-700 leading-tight">{{ item.title }}</div>
-            <div class="text-xs text-[#E53935]">{{ item.statName }}: <span class="font-bold text-lg text-gray-800 ml-1">{{ item.value }}</span></div>
+            <div class="font-medium text-gray-700 leading-tight truncate">{{ item.title }}</div>
+            <template v-if="editingKey === keyFor(item)">
+              <input v-model="editBuffer" type="number" step="any"
+                class="w-24 mt-1 border border-blue-300 rounded p-1 text-sm text-gray-700 outline-none focus:border-blue-500"
+                @keyup.enter="saveEdit(item)" @keyup.escape="cancelEdit" autofocus>
+            </template>
+            <template v-else>
+              <div class="text-xs text-[#E53935]">{{ item.statName }}: <span class="font-bold text-lg text-gray-800 ml-1">{{ item.value }}</span></div>
+            </template>
           </div>
-          <div class="flex items-center gap-2">
-            <button @click="editValue(item)" class="w-8 h-8 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center"><i class="fas fa-pencil-alt text-xs"></i></button>
-            <button @click="deleteLog(item)" class="w-8 h-8 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center"><i class="fas fa-trash text-xs"></i></button>
+          <div class="flex items-center gap-2 shrink-0 ml-2">
+            <template v-if="editingKey === keyFor(item)">
+              <button @click="saveEdit(item)" class="w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center"><i class="fas fa-check text-xs"></i></button>
+              <button @click="cancelEdit" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times text-xs"></i></button>
+            </template>
+            <template v-else>
+              <button @click="startEdit(item)" class="w-8 h-8 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center"><i class="fas fa-pencil-alt text-xs"></i></button>
+              <button @click="deleteLog(item)" class="w-8 h-8 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center"><i class="fas fa-trash text-xs"></i></button>
+            </template>
           </div>
         </div>
       </div>

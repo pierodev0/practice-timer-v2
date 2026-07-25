@@ -38,6 +38,14 @@ export async function update(id, data) {
   return db.exerciseLogs.update(id, data);
 }
 
+export async function getLogsBySessionId(sessionId) {
+  const db = await getDb();
+  return db.exerciseLogs
+    .where('sessionId')
+    .equals(sessionId)
+    .toArray();
+}
+
 export async function linkToSession(sessionId, logs) {
   const db = await getDb();
   return db.transaction('rw', [db.exerciseLogs], async () => {

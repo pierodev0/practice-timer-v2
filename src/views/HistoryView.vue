@@ -4,9 +4,14 @@
  */
 
 <script setup>
+import { ref, watch } from 'vue';
 import { formatISOTime } from '../lib/utils.js';
 import { useSessionHistory } from '../composables/useSessionHistory.js';
+import { useRoutineStore } from '../stores/useRoutineStore.js';
 import EditSessionModal from '../components/modals/EditSessionModal.vue';
+import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
+
+const routineStore = useRoutineStore();
 
 const {
   currentYear, currentMonth,
@@ -17,6 +22,23 @@ const {
   exportDay, exportMonth,
   openEditSession, closeEditSession,
 } = useSessionHistory();
+
+const sessionStatMap = ref({});
+
+watch(monthSessions, async (sessions) => {
+  const ids = sessions.map(s => s.id).filter(Boolean);
+  const allLogs = [];
+  for (const sid of ids) {
+    const logs = await exerciseLogRepository.getLogsBySessionId(sid);
+    allLogs.push(...logs);
+  }
+  const map = {};
+  for (const log of allLogs) {
+    if (!map[log.sessionId]) map[log.sessionId] = {};
+    map[log.sessionId][log.exerciseId] = log.value;
+  }
+  sessionStatMap.value = map;
+}, { immediate: true });
 </script>
 
 <template>
@@ -64,7 +86,7 @@ const {
             <div v-for="ex in session.exercises" :key="ex.exerciseId" class="flex items-center gap-2 text-xs text-gray-600">
               <i class="fas fa-check-circle text-green-500 text-[10px]"></i>
               <span>{{ ex.title }}</span>
-              <span v-if="ex.statValue != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statName || '' }}: {{ ex.statValue }}</span>
+              <span v-if="sessionStatMap[session.id]?.[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ routineStore.getExerciseById(ex.exerciseId)?.statisticName || 'Stat' }}: {{ sessionStatMap[session.id][ex.exerciseId] }}</span>
             </div>
           </div>
         </div>

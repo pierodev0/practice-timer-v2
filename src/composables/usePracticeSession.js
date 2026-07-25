@@ -127,8 +127,6 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       .filter(ex => ex.completed)
       .map(ex => ({
         exerciseId: ex.id, title: ex.title, bpm: ex.bpm, durationSec: ex.durationSec,
-        statName: ex.statisticName || null,
-        statValue: ex.statisticLogs?.findLast(l => l.date === today)?.value || null,
         repsCompleted: ex.reps, comment: ex.comment || '',
       }));
 

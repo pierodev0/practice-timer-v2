@@ -80,6 +80,9 @@ onMounted(async () => {
       <div class="card p-5">
         <div class="flex justify-between items-center mb-1">
           <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-chart-line text-[#E53935]"></i> Progreso por Ejercicio</h3>
+          <button @click="toggleEditStats" class="text-xs text-gray-500 border border-gray-300 px-2 py-1 rounded hover:bg-gray-50 flex items-center gap-1">
+            <i class="fas fa-pen text-[10px]"></i> Editar datos
+          </button>
         </div>
         <p class="text-xs text-gray-400 mb-4">Evolución del valor registrado en cada ejercicio</p>
         <div class="flex flex-wrap gap-2 mb-4 items-end bg-gray-50 p-2 rounded-lg">
@@ -114,11 +117,6 @@ onMounted(async () => {
         <div class="h-64"><Bar :data="scheduleData" :options="scheduleOptions" /></div>
       </div>
 
-      <div class="text-center">
-        <button @click="toggleEditStats" class="bg-white text-gray-600 border border-gray-300 px-3 py-1.5 rounded text-sm font-medium hover:bg-gray-50">
-          <i class="fas fa-edit mr-1"></i> Gestionar Datos
-        </button>
-      </div>
     </div>
   </div>
 

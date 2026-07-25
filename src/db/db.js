@@ -7,7 +7,7 @@
  *   routineExercises — ++id, routineId, exerciseId, order  (junction: routine ⇄ exercise)
  *   exerciseLogs     — ++id, exerciseId, date, value, sessionId, [exerciseId+date]
  *   sessions         — ++id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt
- *   sessionExercises — ++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, statValue, comment
+ *   sessionExercises — ++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, comment
  */
 
 import Dexie from 'dexie';
@@ -41,6 +41,16 @@ export function createDb(name = DB_NAME) {
     exerciseLogs: '++id, exerciseId, date, value, sessionId, [exerciseId+date]',
     sessions: '&id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt',
     sessionExercises: '++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, statValue, comment',
+    settings: '&key, value',
+  });
+
+  db.version(4).stores({
+    routines: '&id, name, createdAt, updatedAt',
+    exercises: '&id, title, bpm, durationSec, autoStart, reps, comment, statisticName, createdAt, updatedAt',
+    routineExercises: '&[routineId+exerciseId], order',
+    exerciseLogs: '++id, exerciseId, date, value, sessionId, [exerciseId+date]',
+    sessions: '&id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt',
+    sessionExercises: '++id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, comment',
     settings: '&key, value',
   });
 
