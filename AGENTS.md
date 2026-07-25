@@ -17,6 +17,18 @@
 - **Stores** — estado puro con persistencia (Pinia + Dexie). Sin lógica de navegación ni orquestación.
 - **db/** — schema Dexie y acceso a datos. Las stores consumen db/entities. Las versiones de schema se incrementan al agregar tablas.
 
+## Dev tools
+
+| Variable | Valor | Efecto |
+|---|---|---|
+| `VITE_DEBUG=true` (default en `.env`) | Activa dump de estado (`window.__appState`), auto-seed de datos de prueba, y expone `window.__clearAllData()` en la console |
+| `VITE_DEBUG=false` (o sin la variable) | Modo dev limpio — nada de lo anterior |
+
+Console API (solo con `VITE_DEBUG=true`):
+- `window.__appState` — snapshot del estado actual (stores + Dexie)
+- `window.__clearAllData()` — elimina todas las sesiones y exerciseLogs de prueba (las rutinas por defecto se mantienen)
+- `window.__seedTestData()` — seedea sesiones de prueba manualmente
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

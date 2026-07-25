@@ -162,6 +162,17 @@ export const useRoutineStore = defineStore('routines', () => {
           createdAt: ex.createdAt || Date.now(),
         });
         await routineRepository.addExercise(r.id, ex.id, i);
+
+        // Sync statisticLogs to Dexie
+        if (ex.statisticLogs) {
+          const existingLogs = await exerciseLogRepository.getLogs(ex.id);
+          for (const log of existingLogs) {
+            await exerciseLogRepository.remove(log.id);
+          }
+          for (const log of ex.statisticLogs) {
+            await exerciseLogRepository.addLog(ex.id, log);
+          }
+        }
       }
     }
   }
