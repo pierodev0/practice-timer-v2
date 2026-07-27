@@ -5,7 +5,7 @@
  * for ExercisePlayView. View stays pure presentation.
  */
 
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import { useExerciseStore } from '../../stores/useExerciseStore.js';
@@ -33,7 +33,11 @@ export function useExercisePlay() {
   const player = useExercisePlayer({ timer });
 
   const { showStatModal, statModalTitle, requestStatInput, submitStatValue, skipStat } = statModal;
-  const { isExercisePlaying, activeExerciseId, toggleExercise, playExercise, repeatExercise, pauseSequence, finishRoutine } = player;
+  const {
+    isExercisePlaying, activeExerciseId, toggleExercise, playExercise, repeatExercise,
+    pauseSequence, finishRoutine,
+    markPerfect, markFailed, incrementCount, markFreeDone,
+  } = player;
 
   // Wire completion logic: bell sound + metronome stop + optional stat modal
   onTimerComplete = () => {
@@ -61,11 +65,33 @@ export function useExercisePlay() {
 
   const totalExercises = computed(() => routineExercises.value.length);
 
-  const currentRemaining = computed(() => {
-    if (player.activeExerciseId.value === exercise.value?.id) {
-      return timer.remaining.value;
+  /**
+   * Tiempo a mostrar: count-down si tiene duración target, count-up si no.
+   * Unifica cronómetro y temporizador en un solo valor.
+   * NaN-safe: fallback a 0 para cualquier valor no numérico.
+   */
+  const displayTime = computed(() => {
+    const ex = exercise.value;
+    if (!ex) return 0;
+    const elapsed = Number(timer.globalSeconds.value) || 0;
+    const remaining = Number(timer.remaining.value) || 0;
+
+    if (player.activeExerciseId.value === ex.id) {
+      if (ex.durationSec > 0) return remaining; // count-down
+      return elapsed;                            // count-up
     }
-    return exercise.value?.remainingSec ?? 0;
+    // No iniciado: mostrar 0 si es count-up, remainingSec si es count-down
+    return ex.durationSec > 0 ? (Number(ex.remainingSec) || 0) : elapsed;
+  });
+
+  // ── Auto-play al navegar (solo perfect-reps y count) ────
+
+  watch(exercise, (ex, oldEx) => {
+    if (!ex || ex.id === oldEx?.id) return;
+    // Timer y Free necesitan que el usuario presione Start
+    if (ex.mode === 'perfect-reps' || ex.mode === 'count') {
+      playExercise(ex.id);
+    }
   });
 
   // ── Helpers ──────────────────────────────────────────
@@ -78,6 +104,10 @@ export function useExercisePlay() {
   }
 
   // ── Actions ──────────────────────────────────────────
+
+  function startExercise() {
+    playExercise(exercise.value?.id);
+  }
 
   function goBack() {
     router.push({ name: 'practice' });
@@ -107,7 +137,7 @@ export function useExercisePlay() {
     if (idx < visible.length - 1) {
       const nextId = visible[idx + 1].id;
       router.push({ name: 'play', params: { exerciseId: nextId } });
-      setTimeout(() => playExercise(nextId), 100);
+      // El watch(exercise) se encarga del auto-play para modos sin timer
     } else {
       finishRoutine();
       router.push({ name: 'practice' });
@@ -127,12 +157,14 @@ export function useExercisePlay() {
     routine,
     exerciseIndex,
     totalExercises,
-    currentRemaining,
+    displayTime,
     isExercisePlaying,
+    activeExerciseId,
     showStatModal,
     statModalTitle,
 
     // Actions
+    startExercise,
     goBack,
     togglePlay,
     repeatExercise: doRepeatExercise,
@@ -140,5 +172,10 @@ export function useExercisePlay() {
     completeExercise,
     submitStatValue,
     skipStat,
+    // New mode-specific actions
+    markPerfect,
+    markFailed,
+    incrementCount,
+    markFreeDone,
   };
 }

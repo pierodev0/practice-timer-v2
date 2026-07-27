@@ -65,8 +65,8 @@ export function useRoutineManager() {
     openMenuId.value = openMenuId.value === id ? null : id;
   }
 
-  function switchRoutine(id) {
-    routineStore.setCurrentRoutine(id);
+  async function switchRoutine(id) {
+    await routineService.setCurrentRoutine(id);
     router.push({ name: 'practice' });
   }
 

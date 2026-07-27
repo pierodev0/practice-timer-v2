@@ -141,6 +141,16 @@ function openImage(imgUrl) { lightboxRef.value?.open(imgUrl); }
                   <span v-if="ex.statisticName" class="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded ml-2 border border-purple-200">
                     <i class="fas fa-chart-bar mr-1"></i>{{ ex.statisticName }}<span v-if="ex.statisticLogs?.length" class="font-bold">: {{ ex.statisticLogs[ex.statisticLogs.length - 1].value }}</span>
                   </span>
+                  <!-- Mode badge -->
+                  <span v-if="ex.mode === 'perfect-reps'" class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded ml-2 font-bold border border-green-200">
+                    <i class="fas fa-check-double mr-1"></i>{{ ex.targetPerfect || 1 }} perfectas
+                  </span>
+                  <span v-else-if="ex.mode === 'count'" class="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded ml-2 font-bold border border-orange-200">
+                    <i class="fas fa-hashtag mr-1"></i>{{ ex.reps }} reps
+                  </span>
+                  <span v-else-if="ex.mode === 'free'" class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded ml-2 border border-gray-200">
+                    <i class="fas fa-circle mr-1"></i>Libre
+                  </span>
                 </div>
               </div>
             </div>

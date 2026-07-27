@@ -4,13 +4,20 @@
  * Pure data transformation. No class, no behavior — returns a plain object
  * ready to be persisted as part of a session record.
  *
+ * The exercise object may carry transient playback fields written by the
+ * exercise player (e.g. perfectCount, attempts, actualSec) — these are
+ * captured in the snapshot when present, otherwise null.
+ *
  * @param {Object} exercise — Exercise definition object, expected to carry:
- *   id, title, bpm, durationSec, reps, statisticName, comment
+ *   id, title, bpm, durationSec, reps, statisticName, comment, mode,
+ *   plus transient fields: actualSec, perfectCount, attempts, targetPerfect
  * @param {*} logValue — Recorded stat value (may be null if user skipped stat input)
  * @param {number} repsCompleted — Actual repetitions completed
  * @returns {Object} Session-ready snapshot POJO
  */
 export function createExerciseResult(exercise, logValue, repsCompleted) {
+  const perfect = exercise.mode === 'perfect-reps';
+
   return {
     exerciseId: exercise.id,
     title: exercise.title,
@@ -19,10 +26,10 @@ export function createExerciseResult(exercise, logValue, repsCompleted) {
     repsCompleted,
     statisticName: exercise.statisticName || '',
     statValue: logValue ?? null,
-    actualSec: null,
-    repsPlanned: null,
-    repsActual: null,
-    perfectCount: null,
+    actualSec: exercise.actualSec ?? null,
+    repsPlanned: perfect ? (exercise.targetPerfect ?? null) : null,
+    repsActual: perfect ? (exercise.attempts ?? null) : null,
+    perfectCount: perfect ? (exercise.perfectCount ?? null) : null,
     comment: exercise.comment || '',
   };
 }

@@ -285,3 +285,62 @@ export const module12Routine = {
   name: 'Module 12',
   exercises: module12Exercises
 };
+
+// ============================================================
+// TEST ROUTINE — todos los modos de práctica
+// ============================================================
+
+const testExercises = [
+  // Timer mode (5s para test rápido)
+  ex({ title: 'Warm-up: Metronome', durationSec: 5, bpm: 80 }),
+  ex({ title: 'OMC: A to D (5s)', durationSec: 5, statisticName: 'Changes' }),
+
+  // Perfect-reps mode — target bajo para test rápido
+  createExercise({
+    title: 'Escala de Do — 3 perfectas',
+    mode: 'perfect-reps',
+    targetPerfect: 3,
+    bpm: 80,
+    durationSec: 0,
+    reps: 1,
+    autoStart: false,
+  }),
+  createExercise({
+    title: 'Escala de Mi — 2 perfectas',
+    mode: 'perfect-reps',
+    targetPerfect: 2,
+    bpm: 60,
+    durationSec: 0,
+    reps: 1,
+    autoStart: false,
+  }),
+
+  // Count mode — target bajo para test rápido
+  createExercise({
+    title: 'Cambios A→D x5',
+    mode: 'count',
+    reps: 5,
+    durationSec: 0,
+    bpm: 0,
+    autoStart: false,
+  }),
+
+  // Free mode
+  createExercise({
+    title: 'Improvisación libre',
+    mode: 'free',
+    durationSec: 0,
+    bpm: 0,
+    reps: 1,
+    autoStart: false,
+  }),
+
+  // Timer with stat (5s)
+  ex({ title: 'Canción rápida', durationSec: 5, bpm: 70 }),
+];
+
+export const testRoutine = {
+  id: 'test-modes',
+  name: '🧪 Test Modos',
+  exercises: testExercises,
+};

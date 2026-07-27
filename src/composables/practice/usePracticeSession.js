@@ -110,14 +110,13 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       player.pauseSequence();
       routineService.saveAllToStorage();
 
-      // Autoplay: advance to next exercise
+      // Advance to next exercise (sin auto-play)
       if (routineStore.currentRoutine?.autoplayRoutine) {
         const visible = exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId);
         const idx = visible.findIndex(e => e.id === player.activeExerciseId.value);
         if (idx < visible.length - 1) {
           const nextId = visible[idx + 1].id;
           router.push({ name: 'play', params: { exerciseId: nextId } });
-          setTimeout(() => player.playExercise(nextId), 100);
         } else {
           player.finishRoutine();
           showFinishModal.value = true;

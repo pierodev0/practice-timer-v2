@@ -38,9 +38,20 @@ Definición de ejercicios en las rutinas. No se modifica con la práctica.
 | `autoStart` | `boolean` | Si el timer inicia automáticamente |
 | `reps` | `number` | Repeticiones por defecto |
 | `statisticName` | `string\|null` | Nombre de estadística (e.g. "Changes") |
+| `mode` | `string` | Modo de práctica: `'timer'` \| `'perfect-reps'` \| `'count'` \| `'free'` |
+| `targetPerfect` | `number` | Target de repeticiones perfectas (solo modo `perfect-reps`) |
 | `comment` | `string` | Notas del ejercicio |
 | `createdAt` | `string` | ISO timestamp |
 | `updatedAt` | `string` | ISO timestamp |
+
+Cada modo define qué campos tienen sentido. Ejercicios sin `mode` se tratan como `'timer'`:
+
+| Modo | Campos relevantes | Completación |
+|---|---|---|
+| `timer` | durationSec, bpm, reps, autoStart, statisticName | Cuenta regresiva llega a 0 |
+| `perfect-reps` | targetPerfect, bpm (opcional) | perfectCount >= targetPerfect |
+| `count` | reps | attempts >= reps |
+| `free` | (solo título) | Marcado manual |
 
 ### `sessions`
 
@@ -182,7 +193,9 @@ Usuario edita statValue (22 → 25) o actualSec en EditSessionModal
 
 ## Por qué NO necesitamos
 
-- **Campo `type` en exercises**: El comportamiento se deduce de los campos que tienen valor. `durationSec: 0` + `actualSec > 0` = time-trial. `repsPlanned > 0` = goal-based. `statisticName != null` = tiene estadística. No hay herencia ni subtipos.
+- **Campo `type` en exercises (original)**: El comportamiento se deduce de los campos que tienen valor. `durationSec: 0` + `actualSec > 0` = time-trial. `repsPlanned > 0` = goal-based. `statisticName != null` = tiene estadística. No hay herencia ni subtipos.
+
+  **Nota v6**: Agregamos `mode` como metadata explícita para que el player sepa cómo comportarse en vivo (timer vs perfect-reps vs count vs free). El snapshot en `sessionExercises` sigue siendo inferible de los campos, pero el player necesita la señal en tiempo real sin adivinar.
 - **Tabla separada `pieces` ahora**: Basta con `sessions.pieceId`. Si en el futuro se necesita una biblioteca de repertorio, se añade sin migración.
 - **Normalización total**: El snapshot está desnormalizado a propósito. Es de solo lectura, y su propósito es responder preguntas de display sin joins.
 

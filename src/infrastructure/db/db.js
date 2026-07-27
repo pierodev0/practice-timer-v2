@@ -57,7 +57,7 @@ export function createDb(name = DB_NAME) {
   // v5: Restore statValue and add fields for goal/count/time-trial exercises
   db.version(5).stores({
     routines: '&id, name, createdAt, updatedAt',
-    exercises: '&id, title, bpm, durationSec, autoStart, reps, comment, statisticName, createdAt, updatedAt',
+    exercises: '&id, title, bpm, durationSec, autoStart, reps, comment, statisticName, createdAt, updatedAt, mode, targetPerfect',
     routineExercises: '&[routineId+exerciseId], order',
     exerciseLogs: '++id, exerciseId, date, value, sessionId, [exerciseId+date]',
     sessions: '&id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt',

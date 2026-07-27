@@ -32,6 +32,8 @@ export function createExercise(data = {}) {
     comment: '',
     statisticName: null,
     statisticLogs: [],
+    mode: 'timer',          // 'timer' | 'perfect-reps' | 'count' | 'free'
+    targetPerfect: 1,       // solo aplica si mode === 'perfect-reps'
     ...data,
   };
 }

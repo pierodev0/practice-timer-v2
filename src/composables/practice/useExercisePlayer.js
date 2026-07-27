@@ -78,11 +78,32 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     }
 
     activeExerciseId.value = id;
-    const secs = (ex.remainingSec <= 0) ? ex.durationSec : ex.remainingSec;
-    exerciseRemaining.value = secs;
     bpmStore.setBpm(ex.bpm);
     isExercisePlaying.value = true;
 
+    if (ex.mode === 'perfect-reps' || ex.mode === 'count') {
+      // Sin timer count-down. Inicializar contadores de sesión.
+      ex.perfectCount = 0;
+      ex.attempts = 0;
+      exerciseRemaining.value = 0;
+      if (timer) timer.setExercise(0);
+      return;
+    }
+
+    if (ex.mode === 'free') {
+      ex.perfectCount = 0;
+      ex.attempts = 0;
+      exerciseRemaining.value = 0;
+      if (timer) {
+        timer.setExercise(0);
+        timer.start(); // count-up: remaining=0 no decrementa, pero globalSeconds sube
+      }
+      return;
+    }
+
+    // Timer mode: count-down normal
+    const secs = (ex.remainingSec <= 0) ? ex.durationSec : ex.remainingSec;
+    exerciseRemaining.value = secs;
     if (timer) {
       timer.setExercise(secs);
       timer.start();
@@ -129,6 +150,61 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     }
   }
 
+  // ── Perfect-reps / Count / Free helpers ──────────────
+
+  /**
+   * Marcar la repetición actual como perfecta (solo modo perfect-reps).
+   * Si se alcanza el target, el ejercicio se completa automáticamente.
+   */
+  function markPerfect(id) {
+    const ex = exerciseStore.getById(id);
+    if (!ex || ex.mode !== 'perfect-reps') return;
+    ex.perfectCount = (ex.perfectCount ?? 0) + 1;
+    ex.attempts = (ex.attempts ?? 0) + 1;
+    if (ex.perfectCount >= (ex.targetPerfect || 1)) {
+      ex.completed = true;
+      ex.remainingSec = 0;
+      pauseSequence();
+    }
+  }
+
+  /**
+   * Marcar la repetición actual como fallada (solo modo perfect-reps).
+   * No completa el ejercicio — se sigue intentando.
+   */
+  function markFailed(id) {
+    const ex = exerciseStore.getById(id);
+    if (!ex || ex.mode !== 'perfect-reps') return;
+    ex.attempts = (ex.attempts ?? 0) + 1;
+  }
+
+  /**
+   * Incrementar contador (modo count).
+   * Si se alcanza el target, el ejercicio se completa automáticamente.
+   */
+  function incrementCount(id) {
+    const ex = exerciseStore.getById(id);
+    if (!ex || ex.mode !== 'count') return;
+    ex.attempts = (ex.attempts ?? 0) + 1;
+    ex.currentRep = ex.attempts;
+    if (ex.attempts >= ex.reps) {
+      ex.completed = true;
+      ex.remainingSec = 0;
+      pauseSequence();
+    }
+  }
+
+  /**
+   * Marcar ejercicio libre como completado manualmente.
+   */
+  function markFreeDone(id) {
+    const ex = exerciseStore.getById(id);
+    if (!ex || ex.mode !== 'free') return;
+    ex.completed = true;
+    ex.remainingSec = 0;
+    pauseSequence();
+  }
+
   function repeatExercise(id) {
     const ex = exerciseStore.getById(id);
     if (!ex) return;
@@ -136,6 +212,8 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     ex.remainingSec = ex.durationSec;
     ex.currentRep = 1;
     ex.completed = false;
+    ex.perfectCount = 0;
+    ex.attempts = 0;
     exerciseRemaining.value = ex.durationSec;
     isExercisePlaying.value = true;
 
@@ -143,7 +221,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       timer.setExercise(ex.durationSec);
       timer.start();
     }
-
   }
 
   function finishRoutine() {
@@ -154,6 +231,13 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     const completedCount = exercises.filter(e => e.completed).length;
     const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const elapsedSec = timer ? timer.globalSeconds.value : 0;
+
+    // Capturar actualSec en ejercicios con mode no-timer
+    exercises.forEach(ex => {
+      if (ex.mode && ex.mode !== 'timer' && !ex.actualSec) {
+        ex.actualSec = elapsedSec;
+      }
+    });
 
     return {
       exercises: completedCount,
@@ -171,6 +255,15 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     isExercisePlaying.value = false;
     isAudioOn.value = false;
     exerciseStore.resetForRoutine(routineStore.currentRoutineId);
+    // Resetear transients de modo en todos los ejercicios
+    const routineId = routineStore.currentRoutineId;
+    if (routineId) {
+      const exercises = exerciseStore.getByRoutine(routineId);
+      exercises.forEach(ex => {
+        delete ex.perfectCount;
+        delete ex.attempts;
+      });
+    }
   }
 
   return {
@@ -191,5 +284,10 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     repeatExercise,
     finishRoutine,
     resetRoutineState,
+    // New mode-specific actions
+    markPerfect,
+    markFailed,
+    incrementCount,
+    markFreeDone,
   };
 }

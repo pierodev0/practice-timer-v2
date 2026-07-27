@@ -1,12 +1,19 @@
 <script setup>
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useExerciseForm } from '../composables/routines/useExerciseForm.js';
 
 const router = useRouter();
 const {
   title, statName, bpm, reps, min, sec, autostart,
+  mode, targetPerfect, MODES,
   addNewExercise, resetForm,
 } = useExerciseForm();
+
+const isTimer = computed(() => mode.value === 'timer');
+const isPerfectReps = computed(() => mode.value === 'perfect-reps');
+const isCount = computed(() => mode.value === 'count');
+const isFree = computed(() => mode.value === 'free');
 
 async function handleSubmit() {
   await addNewExercise();
@@ -37,58 +44,115 @@ function goBack() {
             class="w-full text-xl outline-none text-gray-700 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
         </div>
 
-        <!-- Statistic Name -->
+        <!-- Mode Selector -->
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Statistic Name (optional)</label>
-          <input type="text" v-model="statName" placeholder="e.g. Changes, Accuracy"
-            class="w-full text-sm outline-none text-gray-500 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
-        </div>
-
-        <!-- Reps -->
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Reps</span>
-          <div class="flex items-center gap-3">
-            <button @click="reps = Math.max(1, reps - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ reps }}</span>
-            <button @click="reps++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+          <label class="block text-sm font-medium text-gray-600 mb-2">Mode</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button v-for="m in MODES" :key="m.key"
+              @click="mode = m.key"
+              class="flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-xs text-center"
+              :class="mode === m.key ? 'border-[#E53935] bg-red-50 text-[#E53935]' : 'border-gray-200 text-gray-500 hover:border-gray-300'">
+              <i :class="`fas ${m.icon} text-lg`"></i>
+              <span class="font-medium">{{ m.label }}</span>
+            </button>
           </div>
         </div>
 
-        <!-- BPM -->
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Tempo (BPM)</span>
-          <div class="flex items-center gap-3">
-            <button @click="bpm = Math.max(1, bpm - 5)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ bpm }} BPM</span>
-            <button @click="bpm += 5" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+        <!-- Timer fields -->
+        <template v-if="isTimer">
+          <!-- Statistic Name -->
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Statistic Name (optional)</label>
+            <input type="text" v-model="statName" placeholder="e.g. Changes, Accuracy"
+              class="w-full text-sm outline-none text-gray-500 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
           </div>
-        </div>
 
-        <!-- Minutes -->
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Minutes</span>
-          <div class="flex items-center gap-3">
-            <button @click="min = Math.max(0, min - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ min }} min</span>
-            <button @click="min++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+          <!-- Reps -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Reps</span>
+            <div class="flex items-center gap-3">
+              <button @click="reps = Math.max(1, reps - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ reps }}</span>
+              <button @click="reps++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
           </div>
-        </div>
 
-        <!-- Seconds -->
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Seconds</span>
-          <div class="flex items-center gap-3">
-            <button @click="sec = Math.max(0, sec - 5)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ String(sec).padStart(2, '0') }} sec</span>
-            <button @click="sec += 5" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+          <!-- BPM -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Tempo (BPM)</span>
+            <div class="flex items-center gap-3">
+              <button @click="bpm = Math.max(1, bpm - 5)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ bpm }} BPM</span>
+              <button @click="bpm += 5" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
           </div>
-        </div>
 
-        <!-- Auto-Start -->
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Auto-Start</span>
-          <input type="checkbox" v-model="autostart" class="w-5 h-5 accent-[#E53935]">
-        </div>
+          <!-- Minutes -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Minutes</span>
+            <div class="flex items-center gap-3">
+              <button @click="min = Math.max(0, min - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ min }} min</span>
+              <button @click="min++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
+          </div>
+
+          <!-- Seconds -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Seconds</span>
+            <div class="flex items-center gap-3">
+              <button @click="sec = Math.max(0, sec - 5)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ String(sec).padStart(2, '0') }} sec</span>
+              <button @click="sec += 5" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
+          </div>
+
+          <!-- Auto-Start -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Auto-Start</span>
+            <input type="checkbox" v-model="autostart" class="w-5 h-5 accent-[#E53935]">
+          </div>
+        </template>
+
+        <!-- Perfect-reps fields -->
+        <template v-if="isPerfectReps">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Target Perfectas</span>
+            <div class="flex items-center gap-3">
+              <button @click="targetPerfect = Math.max(1, targetPerfect - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ targetPerfect }}</span>
+              <button @click="targetPerfect++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Tempo (BPM)</span>
+            <div class="flex items-center gap-3">
+              <button @click="bpm = Math.max(1, bpm - 5)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ bpm }} BPM</span>
+              <button @click="bpm += 5" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 -mt-2">Opcional — solo para referencia del metrónomo</p>
+        </template>
+
+        <!-- Count fields -->
+        <template v-if="isCount">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-700 font-medium">Target Reps</span>
+            <div class="flex items-center gap-3">
+              <button @click="reps = Math.max(1, reps - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
+              <span class="font-semibold text-lg w-20 text-center">{{ reps }}</span>
+              <button @click="reps++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Free fields — solo título, nada más -->
+        <p v-if="isFree" class="text-sm text-gray-400 italic text-center py-4">
+          <i class="fas fa-circle text-[8px] align-middle mr-1"></i>
+          Sin timer ni target. Solo marcás "Listo" cuando termines.
+        </p>
       </div>
     </div>
 

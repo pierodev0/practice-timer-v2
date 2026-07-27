@@ -114,6 +114,7 @@ export function getDefaultRoutines() {
     routinesSample.module10Routine,
     routinesSample.module11Routine,
     routinesSample.module12Routine,
+    routinesSample.testRoutine,
   ];
 }
 

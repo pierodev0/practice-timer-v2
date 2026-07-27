@@ -21,6 +21,17 @@ export function useExerciseForm() {
   const sec = ref(0);
   const autostart = ref(true);
 
+  // Nuevos campos para modos de práctica
+  const mode = ref('timer');
+  const targetPerfect = ref(5);
+
+  const MODES = [
+    { key: 'timer', label: 'Cronometrado', icon: 'fa-clock', desc: 'Timer con cuenta regresiva' },
+    { key: 'perfect-reps', label: 'Perfectas', icon: 'fa-check-double', desc: 'Lograr N repeticiones perfectas' },
+    { key: 'count', label: 'Contador', icon: 'fa-hashtag', desc: 'Completar N repeticiones' },
+    { key: 'free', label: 'Libre', icon: 'fa-circle', desc: 'Sin timer ni target' },
+  ];
+
   function resetForm() {
     title.value = '';
     statName.value = '';
@@ -29,6 +40,8 @@ export function useExerciseForm() {
     min.value = 2;
     sec.value = 0;
     autostart.value = true;
+    mode.value = 'timer';
+    targetPerfect.value = 5;
   }
 
   async function addNewExercise() {
@@ -38,14 +51,39 @@ export function useExerciseForm() {
       return;
     }
 
-    await routineService.addExercise(routineStore.currentRoutine.id, {
-      title: t,
-      bpm: bpm.value,
-      durationSec: (min.value * 60) + sec.value,
-      autoStart: autostart.value,
-      reps: reps.value,
-      statisticName: statName.value.trim() || null,
-    });
+    const payload = { title: t };
+
+    if (mode.value === 'timer') {
+      payload.bpm = bpm.value;
+      payload.durationSec = (min.value * 60) + sec.value;
+      payload.autoStart = autostart.value;
+      payload.reps = reps.value;
+      payload.statisticName = statName.value.trim() || null;
+    } else if (mode.value === 'perfect-reps') {
+      payload.mode = 'perfect-reps';
+      payload.targetPerfect = targetPerfect.value;
+      payload.bpm = bpm.value;
+      payload.durationSec = 0;
+      payload.reps = 1;
+      payload.autoStart = false;
+      payload.statisticName = null;
+    } else if (mode.value === 'count') {
+      payload.mode = 'count';
+      payload.reps = reps.value;
+      payload.durationSec = 0;
+      payload.bpm = 0;
+      payload.autoStart = false;
+      payload.statisticName = null;
+    } else if (mode.value === 'free') {
+      payload.mode = 'free';
+      payload.durationSec = 0;
+      payload.bpm = 0;
+      payload.reps = 1;
+      payload.autoStart = false;
+      payload.statisticName = null;
+    }
+
+    await routineService.addExercise(routineStore.currentRoutine.id, payload);
 
     resetForm();
     showCreateModal.value = false;
@@ -60,6 +98,9 @@ export function useExerciseForm() {
     min,
     sec,
     autostart,
+    mode,
+    targetPerfect,
+    MODES,
     addNewExercise,
     resetForm,
   };

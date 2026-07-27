@@ -114,7 +114,11 @@ export class PracticeSessionService {
     // 2. Build ExerciseResult array from completed exercises
     const completedExercises = exercises
       .filter(ex => ex.completed)
-      .map(ex => createExerciseResult(ex, logValues[ex.id] ?? null, ex.reps));
+      .map(ex => createExerciseResult(
+        ex,
+        logValues[ex.id] ?? null,
+        ex.mode === 'perfect-reps' ? (ex.perfectCount ?? 0) : ex.reps
+      ));
 
     // Compute duration values
     const scheduledSec = exercises.reduce(
