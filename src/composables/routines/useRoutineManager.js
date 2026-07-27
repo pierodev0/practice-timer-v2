@@ -64,7 +64,7 @@ export function useRoutineManager() {
   }
 
   function switchRoutine(id) {
-    routineStore.currentRoutineId = id;
+    routineStore.setCurrentRoutine(id);
     router.push({ name: 'practice' });
   }
 

@@ -100,13 +100,13 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       if (ex.autoStart) {
         player.isAudioOn.value = true;
       }
-      routineStore.saveToStorage();
+      routineService.saveAllToStorage();
     } else {
       // Exercise completed
       ex.completed = true;
       ex.remainingSec = 0;
       player.pauseSequence();
-      routineStore.saveToStorage();
+      routineService.saveAllToStorage();
 
       // Autoplay: advance to next exercise
       if (routineStore.currentRoutine.autoplayRoutine) {
@@ -138,14 +138,14 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
 
     // Reset all state
     player.resetRoutineState();
-    routineStore.saveToStorage();
+    routineService.saveAllToStorage();
     showFinishModal.value = false;
     _resetSession();
   }
 
   function acceptReset() {
     player.resetRoutineState();
-    routineStore.saveToStorage();
+    routineService.saveAllToStorage();
     showResetModal.value = false;
     _resetSession();
   }
@@ -159,7 +159,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     currentRoutineName,
     visibleExercises,
     currentRoutineAutoplay,
-    saveToStorage: () => routineStore.saveToStorage(),
+    saveToStorage: () => routineService.saveAllToStorage(),
     reorderExercises: (oldIdx, newIdx) => {
       routineService.reorderExercises(routineStore.currentRoutine.id, oldIdx, newIdx);
     },

@@ -27,11 +27,13 @@ export async function seedTestData() {
     import('../stores/useRoutineStore.js'),
     import('../stores/useSessionStore.js'),
   ]);
+  const { RoutineService } = await import('../application/routines/RoutineService.js');
 
   const routineStore = useRoutineStore();
   const sessionStore = useSessionStore();
+  const routineService = new RoutineService();
 
-  await Promise.all([routineStore._ready, sessionStore._ready]);
+  await Promise.all([routineService.init(), sessionStore._ready]);
 
   if (routineStore.routines.length === 0) {
     console.warn('Seed: no routines found');
@@ -141,7 +143,7 @@ export async function seedTestData() {
       }
     }
 
-    await routineStore.loadFromDb();
+    await routineService.loadAllFromStorage();
   }
 
   console.log(`Seed: ${sessionData.length} sessions, ${statExercises.length} exercise(s) with logs`);

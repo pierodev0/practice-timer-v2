@@ -37,7 +37,7 @@ export function useDataManager() {
             e.currentRep = 1;
           });
         });
-        routineStore.saveToStorage();
+        routineService.saveAllToStorage();
         sessionStore.saveToStorage();
         alert('Restauración completa.');
       } catch (err) {

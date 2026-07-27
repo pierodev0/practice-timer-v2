@@ -6,6 +6,7 @@ import { stringToColor, formatDate } from '../../lib/utils.js';
 import { subDays, differenceInCalendarDays } from 'date-fns';
 import { StatsService } from '../../application/tracking/StatsService.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 
 const CHART_OPTS = {
   responsive: true,
@@ -28,7 +29,7 @@ export function useStats() {
   const filterEnd = ref('');
 
   async function initFilters() {
-    await Promise.all([routineStore._ready, sessionStore._ready]);
+    await Promise.all([new RoutineService().init(), sessionStore._ready]);
     const statDates = Object.keys(sessionStore.stats);
     const allDates = new Set(statDates);
     routineStore.routines.forEach(r => r.exercises.forEach(e => {

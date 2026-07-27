@@ -6,6 +6,7 @@
 import { ref, readonly } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 
 // ── Sync status (global singleton) ─────────────────────
 
@@ -43,7 +44,7 @@ export async function initializeSync(uid) {
       if (merged.stats) sessionStore.stats = merged.stats;
       if (merged.sessions) sessionStore.sessions = merged.sessions;
       if (merged.currentRoutineId) routineStore.currentRoutineId = merged.currentRoutineId;
-      routineStore.saveToStorage();
+      new RoutineService().saveAllToStorage();
       sessionStore.saveToStorage();
     });
 

@@ -17,7 +17,7 @@ import * as routineRepository from '../../infrastructure/db/repositories/routine
 import * as exerciseRepository from '../../infrastructure/db/repositories/exerciseRepository.js';
 import { createRoutine } from '../../domain/routines/Routine.js';
 import { createExercise, stripTransients } from '../../domain/routines/Exercise.js';
-import { getDefaultRoutines, saveAll } from '../../infrastructure/services/routinePersistence.js';
+import { getDefaultRoutines, saveAll, loadAll } from '../../infrastructure/services/routinePersistence.js';
 
 export class RoutineService {
   /**
@@ -26,6 +26,49 @@ export class RoutineService {
    */
   constructor({ routineStore } = {}) {
     this._routineStore = routineStore || useRoutineStore();
+  }
+
+  // ── Init / Persistencia global ─────────────────────────
+
+  /**
+   * Inicializar: cargar desde Dexie, sembrar defaults si está vacío.
+   * Llamar desde App.vue o antes de acceder a routines.
+   * @returns {Promise<void>}
+   */
+  async init() {
+    const data = await loadAll();
+    if (data.length === 0) {
+      const defaults = getDefaultRoutines();
+      this._routineStore.setRoutines(defaults.map(r => JSON.parse(JSON.stringify(r))));
+      this._routineStore.setCurrentRoutine(this._routineStore.routines[0]?.id || 'module-1');
+      await saveAll(this._routineStore.routines);
+      const fresh = await loadAll();
+      this._routineStore.setRoutines(fresh);
+    } else {
+      this._routineStore.setRoutines(data);
+    }
+    if (this._routineStore.routines.length > 0 && !this._routineStore.currentRoutineId) {
+      this._routineStore.setCurrentRoutine(this._routineStore.routines[0].id);
+    }
+  }
+
+  /**
+   * Persistir todo el estado actual a Dexie (write-all).
+   * Para callers legacy que no pueden migrar a operaciones individuales.
+   */
+  async saveAllToStorage() {
+    await saveAll(this._routineStore.routines);
+  }
+
+  /**
+   * Recargar todo desde Dexie al estado.
+   */
+  async loadAllFromStorage() {
+    const data = await loadAll();
+    this._routineStore.setRoutines(data);
+    if (data.length > 0 && !this._routineStore.currentRoutineId) {
+      this._routineStore.setCurrentRoutine(data[0].id);
+    }
   }
 
   // ── Rutinas CRUD ───────────────────────────────────────

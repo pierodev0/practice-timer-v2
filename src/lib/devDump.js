@@ -58,7 +58,8 @@ async function dumpStores() {
   const bpmStore = useBpmStore();
   const settingsStore = useSettingsStore();
 
-  await Promise.all([routineStore._ready, sessionStore._ready]);
+  const { RoutineService } = await import('../application/routines/RoutineService.js');
+  await Promise.all([new RoutineService().init(), sessionStore._ready]);
 
   return {
     routines: {

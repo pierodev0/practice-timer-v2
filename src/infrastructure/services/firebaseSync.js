@@ -9,6 +9,7 @@ import { db } from './firebaseConfig.js';
 import { getDeviceId } from './firebaseDevice.js';
 import { exportSyncState } from './firebaseSerializer.js';
 import { mergeState } from './firebaseMerge.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 
 const CLOUD_SYNC_KEY = 'music-cloud-sync';
 
@@ -51,7 +52,7 @@ async function applyStoreSnapshot(data) {
   sessionStore.stats = data.stats || {};
   sessionStore.sessions = data.sessions || [];
   if (data.currentRoutineId) routineStore.currentRoutineId = data.currentRoutineId;
-  routineStore.saveToStorage();
+  new RoutineService().saveAllToStorage();
   sessionStore.saveToStorage();
 }
 

@@ -1,8 +1,9 @@
-import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
+
+const _routineService = new RoutineService();
 
 export function resetExercise(exercise, timer, player) {
   if (!exercise) return;
-  const routineStore = useRoutineStore();
 
   if (player.activeExerciseId.value === exercise.id) {
     player.pauseSequence();
@@ -14,12 +15,11 @@ export function resetExercise(exercise, timer, player) {
   exercise.completed = false;
   exercise.currentRep = 1;
   timer.setExercise(exercise.durationSec);
-  routineStore.saveToStorage();
+  _routineService.saveAllToStorage();
 }
 
 export function doComplete(exercise, timer, player) {
   if (!exercise) return;
-  const routineStore = useRoutineStore();
 
   let timeToAdd = 0;
   if (player.activeExerciseId.value === exercise.id) {
@@ -31,7 +31,7 @@ export function doComplete(exercise, timer, player) {
   timer.globalSeconds.value += timeToAdd;
   exercise.completed = true;
   exercise.remainingSec = 0;
-  routineStore.saveToStorage();
+  _routineService.saveAllToStorage();
 }
 
 export function forceCompleteExercise(exercise, player, statModal, onSuccess) {
