@@ -73,7 +73,8 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
         <button @click="togglePlay" class="play-btn play-btn-pause" aria-label="Play/Pause">
           <i :class="isExercisePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
-        <button @click="completeExercise" class="play-btn play-btn-complete" aria-label="Complete exercise">
+        <button @click="completeExercise" class="play-btn play-btn-complete" aria-label="Complete exercise"
+          :disabled="(isExercisePlaying && activeExerciseId === exercise?.id) || exercise?.completed">
           <i class="fas fa-check"></i>
         </button>
       </div>

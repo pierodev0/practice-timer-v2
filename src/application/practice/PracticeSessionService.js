@@ -106,19 +106,34 @@ export class PracticeSessionService {
   async acceptFinish(routine, exercises, player, sessionId, sessionDate) {
     // 1. Retrieve stat logs for this session
     const logs = await this._exerciseLogRepository.getLogsBySessionId(sessionId);
-    const logValues = {};
-    for (const log of logs) {
-      logValues[log.exerciseId] = log.value;
-    }
 
     // 2. Build ExerciseResult array from completed exercises
-    const completedExercises = exercises
-      .filter(ex => ex.completed)
-      .map(ex => createExerciseResult(
-        ex,
-        logValues[ex.id] ?? null,
-        ex.mode === 'perfect-reps' ? (ex.perfectCount ?? 0) : ex.reps
-      ));
+    //    Group logs by exercise to handle multiple reps per exercise
+    const logsByExercise = {};
+    for (const log of logs) {
+      if (!logsByExercise[log.exerciseId]) logsByExercise[log.exerciseId] = [];
+      logsByExercise[log.exerciseId].push(log);
+    }
+
+    const completedExercises = [];
+    for (const ex of exercises.filter(e => e.completed)) {
+      const exLogs = logsByExercise[ex.id];
+      if (exLogs && exLogs.length > 1) {
+        // Multiple reps: one sessionExercise row per rep
+        exLogs.forEach((log, idx) => {
+          completedExercises.push(createExerciseResult(ex, log.value, 1, idx + 1));
+        });
+      } else {
+        const singleLog = exLogs?.[0];
+        const isPerfect = ex.mode === 'perfect-reps';
+        completedExercises.push(createExerciseResult(
+          ex,
+          singleLog?.value ?? null,
+          isPerfect ? (ex.perfectCount ?? 0) : ex.reps,
+          1
+        ));
+      }
+    }
 
     // Compute duration values
     const scheduledSec = exercises.reduce(

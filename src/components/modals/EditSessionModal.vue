@@ -70,10 +70,11 @@ function remove() {
         <div>
           <label class="text-xs text-gray-500 font-bold uppercase block mb-1">Ejercicios</label>
           <div class="space-y-1">
-            <div v-for="ex in session.exercises" :key="ex.exerciseId" class="flex items-center gap-2 text-xs text-gray-600">
+            <div v-for="(ex, idx) in session.exercises" :key="ex.id || idx" class="flex items-center gap-2 text-xs text-gray-600">
               <i class="fas fa-check-circle text-green-500 text-[10px]"></i>
               <span>{{ ex.title }}</span>
-              <span v-if="statValues[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ statValues[ex.exerciseId] }}</span>
+              <span v-if="(session.exercises.filter(e => e.exerciseId === ex.exerciseId).length) > 1" class="text-gray-400 font-mono ml-auto">#{{ ex.repIndex || 1 }}</span>
+              <span v-if="ex.statValue != null || statValues[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ ex.statValue ?? statValues[ex.exerciseId] }}</span>
             </div>
           </div>
         </div>

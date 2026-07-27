@@ -68,7 +68,7 @@ export function useStatModal() {
     const today = pendingSessionDate || formatDate(new Date());
     const logData = { date: today, value: val };
     if (pendingSessionId) logData.sessionId = pendingSessionId;
-    await statService.addStatLog(pendingExerciseId, today, val);
+    await statService.addStatLog(pendingExerciseId, today, val, logData);
     cleanup();
   }
 

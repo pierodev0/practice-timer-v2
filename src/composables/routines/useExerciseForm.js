@@ -4,7 +4,7 @@
  * Views: DashboardView
  */
 
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 
@@ -25,6 +25,16 @@ export function useExerciseForm() {
   const mode = ref('timer');
   const targetPerfect = ref(5);
 
+  // Toggle for custom statistic name (off by default = uses title)
+  const useCustomStat = ref(false);
+
+  // When user enables custom stat, pre-fill with current title
+  watch(useCustomStat, (val) => {
+    if (val) {
+      statName.value = title.value;
+    }
+  });
+
   const MODES = [
     { key: 'timer', label: 'Cronometrado', icon: 'fa-clock', desc: 'Timer con cuenta regresiva' },
     { key: 'perfect-reps', label: 'Perfectas', icon: 'fa-check-double', desc: 'Lograr N repeticiones perfectas' },
@@ -42,6 +52,7 @@ export function useExerciseForm() {
     autostart.value = true;
     mode.value = 'timer';
     targetPerfect.value = 5;
+    useCustomStat.value = false;
   }
 
   async function addNewExercise() {
@@ -58,7 +69,9 @@ export function useExerciseForm() {
       payload.durationSec = (min.value * 60) + sec.value;
       payload.autoStart = autostart.value;
       payload.reps = reps.value;
-      payload.statisticName = statName.value.trim() || null;
+      payload.statisticName = useCustomStat.value
+        ? (statName.value.trim() || null)
+        : (title.value.trim() || null);
     } else if (mode.value === 'perfect-reps') {
       payload.mode = 'perfect-reps';
       payload.targetPerfect = targetPerfect.value;
@@ -103,5 +116,6 @@ export function useExerciseForm() {
     MODES,
     addNewExercise,
     resetForm,
+    useCustomStat,
   };
 }

@@ -3,8 +3,8 @@ export class StatService {
     this._exerciseLogRepository = exerciseLogRepository;
   }
 
-  async addStatLog(exerciseId, date, statValue) {
-    return this._exerciseLogRepository.addLog(exerciseId, { date, value: statValue });
+  async addStatLog(exerciseId, date, statValue, extraData = {}) {
+    return this._exerciseLogRepository.addLog(exerciseId, { date, value: statValue, ...extraData });
   }
 
   async updateStatLog(logId, data) {

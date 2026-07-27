@@ -5,6 +5,7 @@
  * for ExercisePlayView. View stays pure presentation.
  */
 
+import { nanoid } from 'nanoid';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
@@ -14,6 +15,10 @@ import { useTimer } from './useTimer.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from '../tracking/useStatModal.js';
 import { triggerExerciseCompletion } from '../helpers/completionFlow.js';
+import { PracticeSessionService } from '../../application/practice/PracticeSessionService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { formatDate } from '../../lib/utils.js';
 
 export function useExercisePlay() {
   const route = useRoute();
@@ -22,6 +27,17 @@ export function useExercisePlay() {
   const exerciseStore = useExerciseStore();
   const routineService = new RoutineService();
   const statModal = useStatModal();
+  const sessionStore = useSessionStore();
+  const sessionService = new PracticeSessionService({ sessionStore, exerciseLogRepository });
+
+  // Session identifiers for persisting completed exercises
+  let _sessionId = nanoid();
+  let _sessionDate = formatDate(new Date());
+
+  function _resetSession() {
+    _sessionId = nanoid();
+    _sessionDate = formatDate(new Date());
+  }
 
   // Deferred callback — timer needs player, player needs timer.
   // We create the timer first with a ref to a later-defined function.
@@ -40,10 +56,23 @@ export function useExercisePlay() {
   } = player;
 
   // Wire completion logic: bell sound + metronome stop + optional stat modal
+  // If there are remaining planned reps, advance; otherwise mark complete.
   onTimerComplete = () => {
     const ex = exercise.value;
     if (!ex) return;
-    triggerExerciseCompletion(ex, player, statModal, () => markComplete(ex));
+    triggerExerciseCompletion(ex, player, statModal, () => {
+      if (ex.currentRep < (ex.reps || 1)) {
+        // Advance to next planned rep
+        ex.currentRep++;
+        if (timer) {
+          timer.setExercise(ex.durationSec || 0);
+          timer.start();
+          isExercisePlaying.value = true;
+        }
+      } else {
+        markComplete(ex);
+      }
+    }, _sessionId, _sessionDate);
   };
 
   // ── Reactive state ───────────────────────────────────
@@ -95,6 +124,15 @@ export function useExercisePlay() {
   });
 
   // ── Helpers ──────────────────────────────────────────
+  async function _persistSession() {
+    const routine = routineStore.currentRoutine;
+    if (!routine) return;
+    const exercises = exerciseStore.getByRoutine(routine.id);
+    const hasCompleted = exercises.some(e => e.completed);
+    if (!hasCompleted) return;
+    await sessionService.acceptFinish(routine, exercises, player, _sessionId, _sessionDate);
+    _resetSession();
+  }
 
   function markComplete(ex) {
     ex.completed = true;
@@ -110,25 +148,39 @@ export function useExercisePlay() {
   }
 
   function goBack() {
+    _persistSession();
     router.push({ name: 'practice' });
   }
 
   function togglePlay() {
-    toggleExercise(exercise.value?.id);
+    const ex = exercise.value;
+    if (!ex) return;
+    // If exercise is completed (timer reached 0, all reps done),
+    // pressing Play starts an extra rep instead of resuming.
+    if (ex.completed && ex.mode === 'timer') {
+      ex.currentRep = (ex.currentRep || 0) + 1;
+      ex.completed = false;
+      playExercise(ex.id);
+      return;
+    }
+    toggleExercise(ex.id);
   }
 
   async function doRepeatExercise() {
     const ex = exercise.value;
     if (!ex) return;
-    const newReps = (ex.reps || 1) + 1;
-    await routineService.updateExerciseField(ex.id, 'reps', newReps);
-    ex.currentRep = 1;
+    // Increment currentRep beyond planned reps (extra rep), do NOT mutate ex.reps
+    ex.currentRep = (ex.currentRep || 0) + 1;
     ex.completed = false;
     ex.remainingSec = ex.durationSec;
     if (player.activeExerciseId.value === ex.id) {
       pauseSequence();
     }
-    timer.setExercise(ex.durationSec);
+    if (timer) {
+      timer.setExercise(ex.durationSec || 0);
+      timer.start();
+      isExercisePlaying.value = true;
+    }
   }
 
   function skipExercise() {
@@ -140,6 +192,7 @@ export function useExercisePlay() {
       // El watch(exercise) se encarga del auto-play para modos sin timer
     } else {
       finishRoutine();
+      _persistSession();
       router.push({ name: 'practice' });
     }
   }
@@ -148,7 +201,8 @@ export function useExercisePlay() {
     const ex = exercise.value;
     if (!ex) return;
 
-    triggerExerciseCompletion(ex, player, statModal, () => markComplete(ex));
+    // Manual completion: mark the entire exercise as done.
+    triggerExerciseCompletion(ex, player, statModal, () => markComplete(ex), _sessionId, _sessionDate);
   }
 
   return {

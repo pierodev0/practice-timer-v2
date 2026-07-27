@@ -23,13 +23,15 @@ export async function seedTestData() {
     return;
   }
 
-  const [{ useRoutineStore }, { useSessionStore }] = await Promise.all([
+  const [{ useRoutineStore }, { useExerciseStore }, { useSessionStore }] = await Promise.all([
     import('../stores/useRoutineStore.js'),
+    import('../stores/useExerciseStore.js'),
     import('../stores/useSessionStore.js'),
   ]);
   const { RoutineService } = await import('../application/routines/RoutineService.js');
 
   const routineStore = useRoutineStore();
+  const exerciseStore = useExerciseStore();
   const sessionStore = useSessionStore();
   const routineService = new RoutineService();
 
@@ -46,7 +48,8 @@ export async function seedTestData() {
 
   const statExercises = [];
   routineStore.routines.forEach(r => {
-    r.exercises.forEach(e => {
+    const exercises = exerciseStore.getByRoutine(r.id);
+    exercises.forEach(e => {
       if (e.statisticName) {
         statExercises.push({ routineId: r.id, routineName: r.name, exercise: e });
       }
@@ -110,13 +113,9 @@ export async function seedTestData() {
     sessionIds.push({ id, routineId: sd.routineId });
   }
 
-  const routineMap = { [routine1.id]: routine1 };
-  if (routine2) routineMap[routine2.id] = routine2;
-
   for (const { id, routineId } of sessionIds) {
-    const routine = routineMap[routineId];
-    if (!routine) continue;
-    for (const ex of routine.exercises) {
+    const exercises = exerciseStore.getByRoutine(routineId);
+    for (const ex of exercises) {
       await sessionRepository.addExercise(id, ex.id, {
         exerciseId: ex.id, title: ex.title, bpm: ex.bpm,
         durationSec: ex.durationSec, repsCompleted: ex.reps, comment: ex.comment || '',

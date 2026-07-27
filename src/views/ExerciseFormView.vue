@@ -7,7 +7,7 @@ const router = useRouter();
 const {
   title, statName, bpm, reps, min, sec, autostart,
   mode, targetPerfect, MODES,
-  addNewExercise, resetForm,
+  addNewExercise, resetForm, useCustomStat,
 } = useExerciseForm();
 
 const isTimer = computed(() => mode.value === 'timer');
@@ -60,9 +60,21 @@ function goBack() {
 
         <!-- Timer fields -->
         <template v-if="isTimer">
-          <!-- Statistic Name -->
-          <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Statistic Name (optional)</label>
+          <!-- Statistic Name toggle -->
+          <div class="flex justify-between items-center">
+            <div>
+              <span class="text-gray-700 font-medium">Custom statistic name</span>
+              <p class="text-xs text-gray-400 mt-0.5">When disabled, uses the exercise title</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="useCustomStat" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E53935]"></div>
+            </label>
+          </div>
+
+          <!-- Statistic Name input (only shown when toggle is on) -->
+          <div v-if="useCustomStat">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Statistic Name</label>
             <input type="text" v-model="statName" placeholder="e.g. Changes, Accuracy"
               class="w-full text-sm outline-none text-gray-500 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
           </div>

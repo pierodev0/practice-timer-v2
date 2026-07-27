@@ -62,10 +62,11 @@ const {
             <span class="text-gray-400 font-medium ml-1">({{ formatDuration(session.elapsedSec || session.totalSec) }})</span>
           </div>
           <div class="space-y-1">
-            <div v-for="ex in session.exercises" :key="ex.exerciseId" class="flex items-center gap-2 text-xs text-gray-600">
+            <div v-for="(ex, idx) in session.exercises" :key="ex.id || idx" class="flex items-center gap-2 text-xs text-gray-600">
               <i class="fas fa-check-circle text-green-500 text-[10px]"></i>
               <span>{{ ex.title }}</span>
-              <span v-if="sessionStatMap[session.id]?.[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ sessionStatMap[session.id][ex.exerciseId] }}</span>
+              <span v-if="(session.exercises.filter(e => e.exerciseId === ex.exerciseId).length) > 1" class="text-gray-400 font-mono ml-auto">#{{ ex.repIndex || 1 }}</span>
+              <span v-if="ex.statValue != null || sessionStatMap[session.id]?.[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ ex.statValue ?? sessionStatMap[session.id]?.[ex.exerciseId] }}</span>
             </div>
           </div>
         </div>
