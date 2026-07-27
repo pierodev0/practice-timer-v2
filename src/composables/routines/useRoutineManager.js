@@ -6,10 +6,10 @@
 
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { nanoid } from 'nanoid';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { downloadJSON, sanitizeImportedRoutine } from '../lib/utils.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { downloadJSON } from '../../lib/utils.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 
 export const SORT_MODES = [
   { key: 'created', label: 'Creado', icon: 'fa-clock' },
@@ -19,6 +19,7 @@ export const SORT_MODES = [
 
 export function useRoutineManager() {
   const routineStore = useRoutineStore();
+  const routineService = new RoutineService();
   const sessionStore = useSessionStore();
   const router = useRouter();
 
@@ -64,38 +65,36 @@ export function useRoutineManager() {
 
   function switchRoutine(id) {
     routineStore.currentRoutineId = id;
-    routineStore.saveToStorage();
     router.push({ name: 'practice' });
   }
 
-  function showNewRoutineInput() {
+  async function showNewRoutineInput() {
     const name = prompt('Nueva rutina:');
     if (name && name.trim()) {
-      routineStore.addRoutine({ id: nanoid(), name: name.trim(), exercises: [] });
+      await routineService.addRoutine(name.trim());
     }
   }
 
-  function renameRoutine(id) {
+  async function renameRoutine(id) {
     const r = routineStore.routines.find(x => x.id === id);
     if (!r) return;
     const newName = prompt('Renombrar:', r.name);
     if (newName && newName.trim()) {
-      r.name = newName.trim();
-      routineStore.saveToStorage();
+      await routineService.renameRoutine(id, newName.trim());
     }
   }
 
-  function duplicateRoutine(id) {
-    routineStore.duplicateRoutine(id);
+  async function duplicateRoutine(id) {
+    await routineService.duplicateRoutine(id);
   }
 
-  function deleteRoutine(id) {
+  async function deleteRoutine(id) {
     if (routineStore.routines.length <= 1) {
       alert('No puedes eliminar la única rutina.');
       return;
     }
     if (!confirm('¿Eliminar esta rutina para siempre?')) return;
-    routineStore.removeRoutine(id);
+    await routineService.removeRoutine(id);
   }
 
   function exportRoutine(id) {
@@ -112,16 +111,14 @@ export function useRoutineManager() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const json = JSON.parse(evt.target.result);
         const toAdd = (Array.isArray(json) ? json : [json]).map(r => ({
-          ...sanitizeImportedRoutine(r),
+          ...r,
           createdAt: r.createdAt || Date.now(),
         }));
-        for (const r of toAdd) {
-          routineStore.addRoutine(r);
-        }
+        await routineService.importRoutines(toAdd);
         alert(`Importadas ${toAdd.length} rutina(s).`);
       } catch (err) {
         alert('Error al importar: ' + err.message);

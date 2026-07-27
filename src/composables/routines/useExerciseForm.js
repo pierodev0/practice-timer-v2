@@ -1,15 +1,16 @@
 /**
  * useExerciseForm — create exercise modal state and logic.
- * Encapsulates form fields, validation, and store writes.
+ * Encapsulates form fields, validation, and delegación a service.
  * Views: DashboardView
  */
 
-import { nanoid } from 'nanoid';
 import { ref } from 'vue';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 
 export function useExerciseForm() {
   const routineStore = useRoutineStore();
+  const routineService = new RoutineService();
 
   const showCreateModal = ref(false);
   const title = ref('');
@@ -30,29 +31,22 @@ export function useExerciseForm() {
     autostart.value = true;
   }
 
-  function addNewExercise() {
+  async function addNewExercise() {
     const t = title.value.trim();
     if (!t) {
       alert('Please enter a title.');
       return;
     }
-    const total = (min.value * 60) + sec.value;
-    routineStore.currentRoutine.exercises.push({
-      id: nanoid(),
+
+    await routineService.addExercise(routineStore.currentRoutine.id, {
       title: t,
       bpm: bpm.value,
-      durationSec: total,
-      remainingSec: total,
-      completed: false,
+      durationSec: (min.value * 60) + sec.value,
       autoStart: autostart.value,
-      archived: false,
       reps: reps.value,
-      currentRep: 1,
       statisticName: statName.value.trim() || null,
-      statisticLogs: [],
-      comment: '',
     });
-    routineStore.saveToStorage();
+
     resetForm();
     showCreateModal.value = false;
   }

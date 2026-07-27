@@ -1,47 +1,22 @@
 /**
  * useRoutineStore — manages routines and exercises.
  *
- * State management only — persistence delegated to repositories.
- * Exercises are stored independently and linked via routineExercises.
+ * RESPONSABILIDAD: solo estado + getters + métodos de mutación.
+ * NO hace I/O directamente — delega a routinePersistence.
  *
- * The store presents routines with embedded exercises (read-optimized view)
- * so existing composables keep working. The normalized schema lives in Dexie.
+ * La store presenta rutinas con ejercicios embebidos (read-optimized view)
+ * para que los composables existentes sigan funcionando.
+ * El schema normalizado vive en Dexie (repos).
  */
 
-import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import * as routineRepository from '../db/repositories/routineRepository.js';
-import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
-import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
-import * as routinesSample from '../data/defaultRoutines.js';
-
-function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
-
-function defaultRoutines() {
-  return [
-    routinesSample.module1Routine,
-    routinesSample.module2Routine,
-    routinesSample.module3Routine,
-    routinesSample.module4Routine,
-    routinesSample.module5Routine,
-    routinesSample.module6Routine,
-    routinesSample.module7Routine,
-    routinesSample.module8Routine,
-    routinesSample.module9Routine,
-    routinesSample.module10Routine,
-    routinesSample.module11Routine,
-    routinesSample.module12Routine,
-  ];
-}
+import * as persistence from '../infrastructure/services/routinePersistence.js';
 
 export const useRoutineStore = defineStore('routines', () => {
   const routines = ref([]);
   const currentRoutineId = ref(null);
 
-  // Promise that resolves when the database is seeded and loaded
   let _resolveReady;
   const _ready = new Promise(resolve => { _resolveReady = resolve; });
 
@@ -71,173 +46,54 @@ export const useRoutineStore = defineStore('routines', () => {
     return currentRoutine.value.exercises.find(e => e.id === id);
   }
 
-  // ── Database loading ───────────────────────────────────
+  // ── Mutaciones (puras, sin I/O) ────────────────────────
 
-  /**
-   * Load all routines from Dexie via repositories, attaching their exercises.
-   */
-  async function loadFromDb() {
-    const dbRoutines = await routineRepository.all();
-
-    // Build routines with embedded exercises + logs
-    const result = [];
-    for (const r of dbRoutines) {
-      const exercises = await routineRepository.getExercises(r.id);
-      // Attach exercise logs for stat tracking
-      for (const ex of exercises) {
-        const logs = await exerciseLogRepository.getLogs(ex.id);
-        ex.remainingSec = ex.remainingSec ?? ex.durationSec ?? 60;
-        ex.completed = ex.completed ?? false;
-        ex.currentRep = ex.currentRep ?? 1;
-        ex.archived = ex.archived ?? false;
-        ex.statisticLogs = logs || [];
-      }
-      result.push({
-        id: r.id,
-        name: r.name,
-        createdAt: r.createdAt,
-        exercises,
-      });
-    }
-
-    routines.value = result;
-    if (result.length > 0 && !currentRoutineId.value) {
-      currentRoutineId.value = result[0].id;
-    }
+  /** Reemplazar todas las rutinas (ej: después de loadFromDb) */
+  function setRoutines(data) {
+    routines.value = data;
   }
 
-  // ── Database saving ────────────────────────────────────
-
-  /**
-   * Save all routines to Dexie via repositories.
-   *
-   * Serialized via promise chain: concurrent calls queue up instead of racing.
-   */
-  let _saveQueue = Promise.resolve();
-
-  async function saveToDb() {
-    const prev = _saveQueue;
-    _saveQueue = (async () => {
-      await prev.catch(() => {});
-      await _doSave();
-    })();
-    return _saveQueue;
+  /** Agregar una rutina al estado */
+  function addRoutine(routine) {
+    routines.value.push(routine);
   }
 
-  async function _doSave() {
-    const routineIds = routines.value.map(r => r.id);
-
-    // Get existing routine IDs to detect deletions
-    const existingRoutines = await routineRepository.all();
-    for (const er of existingRoutines) {
-      if (!routineIds.includes(er.id)) {
-        await routineRepository.remove(er.id);
+  /** Eliminar una rutina del estado por id */
+  function removeRoutine(id) {
+    const idx = routines.value.findIndex(r => r.id === id);
+    if (idx !== -1) {
+      if (currentRoutineId.value === id) {
+        currentRoutineId.value = routines.value[0]?.id || null;
       }
-    }
-
-    for (const r of routines.value) {
-      // Upsert routine
-      const existing = await routineRepository.getById(r.id);
-      if (existing) {
-        await routineRepository.update(r.id, { name: r.name });
-      } else {
-        await routineRepository.create({ id: r.id, name: r.name, createdAt: r.createdAt || Date.now() });
-      }
-
-      // Upsert exercises and links
-      for (let i = 0; i < (r.exercises || []).length; i++) {
-        const ex = r.exercises[i];
-        await exerciseRepository.upsert({
-          id: ex.id,
-          title: ex.title,
-          bpm: ex.bpm,
-          durationSec: ex.durationSec,
-          autoStart: ex.autoStart,
-          reps: ex.reps,
-          remainingSec: ex.remainingSec ?? ex.durationSec ?? 60,
-          completed: ex.completed ?? false,
-          currentRep: ex.currentRep ?? 1,
-          comment: ex.comment || '',
-          statisticName: ex.statisticName || null,
-          createdAt: ex.createdAt || Date.now(),
-        });
-        await routineRepository.addExercise(r.id, ex.id, i);
-
-        // Sync statisticLogs to Dexie
-        if (ex.statisticLogs) {
-          const existingLogs = await exerciseLogRepository.getLogs(ex.id);
-          for (const log of existingLogs) {
-            await exerciseLogRepository.remove(log.id);
-          }
-          for (const log of ex.statisticLogs) {
-            await exerciseLogRepository.addLog(ex.id, log);
-          }
-        }
-      }
+      routines.value.splice(idx, 1);
     }
   }
-
-  // ── Action wrappers (keep API stable) ──────────────────
 
   function setCurrentRoutine(id) {
     currentRoutineId.value = id;
   }
 
-  function resetCurrentRoutine() {
-    currentRoutine.value.exercises.forEach(e => {
-      e.completed = false;
-      e.remainingSec = e.durationSec;
-      e.currentRep = 1;
-    });
-  }
-
-  function resetToDefaults() {
-    routines.value = defaultRoutines().map(r => deepClone(r));
-    currentRoutineId.value = routines.value[0]?.id || 'module-1';
-  }
-
-  function addRoutine({ id, name, exercises, createdAt }) {
-    routines.value.push({
-      id,
-      name,
-      exercises: exercises || [],
-      createdAt: createdAt || Date.now(),
-    });
-    saveToDb();
-  }
-
-  function removeRoutine(id) {
-    const idx = routines.value.findIndex(r => r.id === id);
-    if (idx === -1) return false;
-    routines.value.splice(idx, 1);
-    if (currentRoutineId.value === id) {
-      currentRoutineId.value = routines.value[0]?.id;
+  /** Buscar un ejercicio por id en todas las rutinas */
+  function findExercise(exerciseId) {
+    for (const r of routines.value) {
+      const ex = r.exercises.find(e => e.id === exerciseId);
+      if (ex) return ex;
     }
-    saveToDb();
-    return true;
+    return null;
   }
 
-  function duplicateRoutine(originalId) {
-    const original = routines.value.find(r => r.id === originalId);
-    if (!original) return null;
+  // ── Persistencia (delegan a módulo externo) ────────────
 
-    const copy = {
-      id: nanoid(),
-      name: original.name + ' (Copia)',
-      createdAt: Date.now(),
-      exercises: original.exercises.map(ex => ({
-        ...deepClone(ex),
-        id: nanoid(),
-        completed: false,
-        remainingSec: ex.durationSec,
-        currentRep: 1,
-        statisticLogs: [],
-      })),
-    };
+  async function saveToDb() {
+    await persistence.saveAll(routines.value);
+  }
 
-    routines.value.push(copy);
-    saveToDb();
-    return copy;
+  async function loadFromDb() {
+    const data = await persistence.loadAll();
+    routines.value = data;
+    if (data.length > 0 && !currentRoutineId.value) {
+      currentRoutineId.value = data[0].id;
+    }
   }
 
   // ── Init ───────────────────────────────────────────────
@@ -245,7 +101,10 @@ export const useRoutineStore = defineStore('routines', () => {
   (async () => {
     await loadFromDb();
     if (routines.value.length === 0) {
-      resetToDefaults();
+      // Primera ejecución: sembrar defaults
+      const defaults = persistence.getDefaultRoutines();
+      routines.value = defaults.map(r => JSON.parse(JSON.stringify(r)));
+      currentRoutineId.value = routines.value[0]?.id || 'module-1';
       await saveToDb();
       await loadFromDb();
     }
@@ -265,23 +124,20 @@ export const useRoutineStore = defineStore('routines', () => {
     visibleExercises,
     getExerciseById,
 
-    // Actions
-    setCurrentRoutine,
-    resetCurrentRoutine,
-    resetToDefaults,
+    // Mutaciones
+    setRoutines,
     addRoutine,
     removeRoutine,
-    duplicateRoutine,
+    setCurrentRoutine,
+    findExercise,
 
-    // Database persistence
+    // Persistencia (wrappers)
     saveToDb,
     loadFromDb,
-
-    // Alias for backward compat with composables
     saveToStorage: saveToDb,
     loadFromStorage: loadFromDb,
 
-    // Promise that resolves when DB is ready
+    // Ready
     _ready,
   };
 });

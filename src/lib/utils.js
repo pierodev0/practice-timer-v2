@@ -1,4 +1,3 @@
-import { nanoid } from 'nanoid';
 import { format } from 'date-fns';
 
 /**
@@ -49,31 +48,6 @@ export function downloadJSON(content, filename) {
 }
 
 /**
- * Sanitize an imported routine (ensure all fields exist).
- */
-export function sanitizeImportedRoutine(r) {
-  return {
-    id: nanoid(),
-    name: r.name + " (Import)",
-    exercises: (r.exercises || []).map(ex => ({
-      id: nanoid(),
-      title: ex.title || "Untitled",
-      bpm: ex.bpm || 100,
-      durationSec: ex.durationSec || 60,
-      remainingSec: ex.durationSec || 60,
-      completed: false,
-      autoStart: ex.autoStart ?? true,
-      archived: !!ex.archived,
-      reps: ex.reps || 1,
-      currentRep: 1,
-      comment: ex.comment || "",
-      statisticName: ex.statisticName || null,
-      statisticLogs: ex.statisticLogs || []
-    }))
-  };
-}
-
-/**
  * Create today's date string in YYYY-MM-DD format.
  */
 export function formatDate(date) {
@@ -82,13 +56,6 @@ export function formatDate(date) {
 
 export function todayStr() {
   return formatDate(new Date());
-}
-
-/**
- * Simple deep clone via JSON (safe for serializable data).
- */
-export function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
 }
 
 /**
