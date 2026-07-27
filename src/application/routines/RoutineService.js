@@ -14,6 +14,7 @@
 import { nanoid } from 'nanoid';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import * as routineRepository from '../../infrastructure/db/repositories/routineRepository.js';
+import * as routineExerciseRepository from '../../infrastructure/db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../../infrastructure/db/repositories/exerciseRepository.js';
 import { createRoutine } from '../../domain/routines/Routine.js';
 import { createExercise, stripTransients } from '../../domain/routines/Exercise.js';
@@ -133,7 +134,7 @@ export class RoutineService {
     for (let i = 0; i < copy.exercises.length; i++) {
       const ex = copy.exercises[i];
       await exerciseRepository.upsert(stripTransients(ex));
-      await routineRepository.addExercise(copy.id, ex.id, i);
+      await routineExerciseRepository.addExercise(copy.id, ex.id, i);
     }
 
     return copy;
@@ -167,7 +168,7 @@ export class RoutineService {
     r.exercises.push(exercise);
 
     await exerciseRepository.upsert(stripTransients(exercise));
-    await routineRepository.addExercise(routineId, exercise.id, r.exercises.length - 1);
+    await routineExerciseRepository.addExercise(routineId, exercise.id, r.exercises.length - 1);
   }
 
   /**
@@ -195,7 +196,7 @@ export class RoutineService {
     if (idx === -1) return;
 
     r.exercises.splice(idx, 1);
-    await routineRepository.removeExercise(routineId, exerciseId);
+    await routineExerciseRepository.removeExercise(routineId, exerciseId);
     await exerciseRepository.remove(exerciseId);
   }
 
@@ -233,7 +234,7 @@ export class RoutineService {
     r.exercises.splice(idx + 1, 0, copy);
 
     await exerciseRepository.upsert(stripTransients(copy));
-    await routineRepository.addExercise(routineId, copy.id, idx + 1);
+    await routineExerciseRepository.addExercise(routineId, copy.id, idx + 1);
   }
 
   // ── Utilidades ─────────────────────────────────────────
@@ -270,7 +271,7 @@ export class RoutineService {
     allEx.splice(allEx.indexOf(movedEx), 1);
     allEx.splice(allEx.indexOf(targetEx), 0, movedEx);
 
-    await routineRepository.reorderExercises(routineId, allEx.map(e => e.id));
+    await routineExerciseRepository.reorderExercises(routineId, allEx.map(e => e.id));
   }
 
   /**
@@ -294,7 +295,7 @@ export class RoutineService {
       for (let i = 0; i < routine.exercises.length; i++) {
         const ex = routine.exercises[i];
         await exerciseRepository.upsert(stripTransients(ex));
-        await routineRepository.addExercise(routine.id, ex.id, i);
+        await routineExerciseRepository.addExercise(routine.id, ex.id, i);
       }
     }
   }

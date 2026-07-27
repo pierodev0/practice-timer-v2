@@ -5,6 +5,7 @@
  * El store delega load/save aquí y solo maneja estado + getters.
  */
 import * as routineRepository from '../db/repositories/routineRepository.js';
+import * as routineExerciseRepository from '../db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
 import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 import * as routinesSample from '../../data/defaultRoutines.js';
@@ -18,7 +19,7 @@ export async function loadAll() {
 
   const result = [];
   for (const r of dbRoutines) {
-    const exercises = await routineRepository.getExercises(r.id);
+      const exercises = await routineExerciseRepository.getExercises(r.id);
 
     // Adjuntar logs y restaurar transients
     for (const ex of exercises) {
@@ -75,7 +76,7 @@ export async function saveAll(routines) {
       const ex = r.exercises[i];
       const { statisticLogs, completed, remainingSec, currentRep, ...clean } = ex;
       await exerciseRepository.upsert(clean);
-      await routineRepository.addExercise(r.id, ex.id, i);
+      await routineExerciseRepository.addExercise(r.id, ex.id, i);
     }
   }
 }
