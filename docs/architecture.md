@@ -63,48 +63,54 @@ Dos problemas:
 ## La solución: separación estricta
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ VIEW (DashboardView.vue)                                │
-│  └─ Presentación pura.                                  │
-│     Cero imports a stores / repos / domain.             │
-│     Solo llama composables.                             │
-│                                                          │
-│ COMPOSABLE (useRoutineManager)                          │
-│  └─ Orquesta UI + llama services.                       │
-│     Maneja estado de UI (modales, prompts).             │
-│     NO toca stores, NO toca repos.                      │
-│                                                          │
-│ SERVICE (RoutineService)                                │
-│  └─ Lógica de negocio.                                  │
-│     Muta store (vía métodos públicos).                  │
-│     Persiste con repos.                                 │
-│     Crea objetos con factories de dominio.              │
-│                                                          │
-│ STORE (useRoutineStore)       REPOSITORY (routineRepo)  │
-│  └─ Solo estado + getters     └─ Solo Dexie CRUD        │
-│     Cero I/O.                   Cero lógica de negocio.  │
-│     No sabe que Dexie existe.   No sabe que Pinia existe.│
-│                                                          │
-│ DOMAIN FACTORIES (createExercise, createRoutine)        │
-│  └─ Crean objetos, validan, transforman.                │
-│     Sin dependencias de framework.                       │
-│     Sin "new", sin "class", sin "this".                 │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│ VIEW (DashboardView.vue)                                      │
+│  └─ Presentación pura.                                        │
+│     Cero imports a stores / repos / domain.                   │
+│     Solo llama composables.                                   │
+│                                                                │
+│ COMPOSABLE (useRoutineManager)                                │
+│  └─ Orquesta UI + llama services.                             │
+│     Lee estado del store (getters). NO escribe directo.       │
+│                                                                │
+│ SERVICE (RoutineService)                                      │
+│  └─ Lógica de negocio. Orquesta: store + repos + factories.   │
+│     Muta store (vía métodos públicos: addRoutine, etc).       │
+│     Persiste con repos.                                       │
+│     init() para carga + seed de datos al arrancar.            │
+│                                                                │
+│ STORE (useRoutineStore)       REPOSITORY (routineRepository)  │
+│  └─ Solo estado + getters     └─ Solo Dexie CRUD              │
+│     + mutaciones puras           Cero lógica de negocio.       │
+│     Sin I/O, sin _ready,         No sabe que Pinia existe.     │
+│     sin init, sin saveToStorage.                               │
+│                                                                │
+│ PERSISTENCE (routinePersistence)                              │
+│  └─ I/O pesado (loadAll, saveAll, getDefaultRoutines)         │
+│     Separado del store para que la store sea pura.            │
+│     Service usa persistence para init y write-all legacy.      │
+│                                                                │
+│ DOMAIN FACTORIES (createExercise, createRoutine)              │
+│  └─ Crean objetos, validan, transforman.                      │
+│     Sin dependencias de framework. Sin new, sin class.        │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Las reglas (en orden de importancia)
 
-1. **Store no hace I/O** — ni `getDb()`, ni `saveToDb()`, ni `loadFromDb()`. Solo `ref`, `computed`, y métodos que mutan arrays/objetos en memoria.
+1. **Store no hace I/O** — sin `getDb()`, sin `saveToStorage()`, sin `loadFromDb()`, sin `_ready`, sin init IIFE. Solo `ref`, `computed`, y métodos puros que mutan arrays/objetos en memoria.
 
 2. **Service no toca el estado del store directamente** (no `store.routines.push()`). Usa métodos públicos del store (`store.addRoutine(r)`).
 
 3. **View no importa stores ni repos** — toda la comunicación va por composables.
 
-4. **Composable no toca stores ni repos** — llama al service. Maneja UI state (modales, prompts, sort mode).
+4. **Composable solo LEE del store** (getters, state). No ESCRIBE directo — usa store.setCurrentRoutine(id) o delega al service.
 
 5. **Repository no tiene lógica de negocio** — solo `create`, `getById`, `update`, `remove`, `all`. Cero `if` de negocio.
 
-6. **Domain factories crean objetos consistentes** — un solo lugar para defaults, un solo lugar para validación.
+6. **Domain factories crean objetos consistentes** — un solo lugar para defaults, un solo lugar para transformaciones (`stripTransients`, `resetExercise`).
+
+7. **init() en el service, no en el store** — el store no sabe que Dexie existe. El service orquesta la carga + seed de datos al arrancar la app.
 
 ---
 
@@ -249,8 +255,19 @@ const { showNewRoutineInput } = useRoutineManager();
 
 ```js
 // ── Composable (useRoutineManager.js) ──
+// NO importa store. Solo service + UI state.
 export function useRoutineManager() {
+  const routineStore = useRoutineStore();    // solo lectura de getters
   const routineService = new RoutineService();
+
+  const sortedRoutines = computed(() =>
+    [...routineStore.routines].sort(...)      // ✅ leer estado está bien
+  );
+
+  function switchRoutine(id) {
+    routineStore.setCurrentRoutine(id);       // ✅ mutación vía método público
+    router.push({ name: 'practice' });
+  }
 
   async function showNewRoutineInput() {
     const name = prompt('Nueva rutina:');
@@ -258,7 +275,7 @@ export function useRoutineManager() {
     await routineService.addRoutine(name.trim());
   }
 
-  return { showNewRoutineInput };
+  return { showNewRoutineInput, sortedRoutines, switchRoutine };
 }
 ```
 
@@ -278,21 +295,33 @@ export class RoutineService {
 ```
 
 ```js
-// ── Store (useRoutineStore.js) ──
+// ── Store (useRoutineStore.js) — PURA, sin I/O ──
 export const useRoutineStore = defineStore('routines', () => {
   const routines = ref([]);
+  const currentRoutineId = ref(null);
 
-  // Solo muta estado. Cero I/O.
-  function addRoutine(routine) {
-    routines.value.push(routine);
-  }
+  // Getters
+  const currentRoutine = computed(() => { /* fallback + lookup */ });
+  const visibleExercises = computed(() =>
+    currentRoutine.value.exercises.filter(e => !e.archived)
+  );
+  function getExerciseById(id) { ... }
+  function getRoutineById(id) { ... }
 
-  function removeRoutine(id) {
-    const idx = routines.value.findIndex(r => r.id === id);
-    if (idx !== -1) routines.value.splice(idx, 1);
-  }
+  // Mutaciones (puras, sin I/O)
+  function setRoutines(data) { routines.value = data; }
+  function addRoutine(routine) { routines.value.push(routine); }
+  function removeRoutine(id) { ... }
+  function setCurrentRoutine(id) { currentRoutineId.value = id; }
+  function findExercise(exerciseId) { ... }
+  function resetCurrentRoutine() { ... }
 
-  return { routines, addRoutine, removeRoutine };
+  return {
+    routines, currentRoutineId,
+    currentRoutine, visibleExercises, getExerciseById, getRoutineById,
+    setRoutines, addRoutine, removeRoutine, setCurrentRoutine,
+    findExercise, resetCurrentRoutine,
+  };
 });
 ```
 
@@ -339,18 +368,29 @@ Notar que NO se re-escribe TODO. Solo el campo que cambió.
 ## Flujo completo: cargar datos al inicio
 
 ```js
-// Service (init)
-async function loadAll() {
-  const routines = await routineRepository.all();
-  for (const r of routines) {
-    r.exercises = await routineRepository.getExercises(r.id);
-    r.exercises = r.exercises.map(ex => createExercise(ex)); // normalizar
+// Service (init) — se llama desde App.vue o main.js
+class RoutineService {
+  async init() {
+    const data = await loadAll();     // persistence.loadAll()
+    if (data.length === 0) {
+      // Primera ejecución: sembrar defaults
+      const defaults = getDefaultRoutines();
+      this.store.setRoutines(defaults.map(r => deepClone(r)));
+      await saveAll(this.store.routines);
+      const fresh = await loadAll();
+      this.store.setRoutines(fresh);
+    } else {
+      this.store.setRoutines(data);
+    }
   }
-  this.store.setRoutines(routines);
 }
+
+// App.vue
+const routineService = new RoutineService();
+await routineService.init();
 ```
 
-La store recibe datos ya normalizados. No hace I/O.
+La store recibe datos ya normalizados. No hace I/O. No tiene init propio. No tiene `_ready`.
 
 ---
 
@@ -384,22 +424,27 @@ Para migrar un dominio existente a este patrón:
 2. **Crear factory** en `src/domain/<domain>/<Entity>.js`:
    - `createEntity(data)` — constructor con defaults
    - `stripTransients(entity)` — lo que NO se persiste
-   - `cloneEntity(entity)` — si es distinto de createEntity
-   - `resetEntity(entity)` — si aplica
-3. **Limpiar store**:
-   - Eliminar `saveToDb`, `loadFromDb`, `_doSave`
-   - Eliminar API pública que expone I/O
-   - Agregar métodos públicos que solo mutan estado: `add`, `remove`, `update`, `setAll`
-4. **Actualizar service**:
+   - `resetEntity(entity)` — reset a estado inicial
+3. **Crear persistence** en `src/infrastructure/services/<domain>Persistence.js`:
+   - `loadAll()` — cargar desde Dexie con normalización
+   - `saveAll(data)` — write-all para init y callers legacy
+   - `getDefaults()` — datos de primera ejecución
+4. **Limpiar store** — solo estado + getters + mutaciones puras:
+   - Sin `saveToDb`, `loadFromDb`, `_doSave`, init IIFE
+   - Sin `_ready`, `saveToStorage`, `loadFromStorage`
+   - Agregar métodos públicos: `add`, `remove`, `setAll`, `setCurrent`, `find`
+5. **Actualizar service**:
+   - `init()` — carga desde persistence, seed si vacío
    - Usar factories para crear objetos
-   - Llamar store.add/remove/update para mutar estado
+   - Llamar store.add/remove/update para mutar estado (no `store.routines.push`)
    - Llamar repository.create/update/remove para persistir
-   - Llamar repository.all() y pasar por factory para cargar
-5. **Actualizar composables**:
-   - Eliminar imports directos a store
-   - Eliminar llamadas a `saveToStorage` / `loadFromDb`
+   - `saveAllToStorage()` para callers legacy que necesitan write-all
+6. **Actualizar composables**:
+   - NO importar store para escribir (solo para leer getters)
+   - NO llamar `saveToStorage` / `loadFromDb` del store
    - Delegar al service
-6. **Eliminar código muerto**: `deepClone`, `sanitizeImportedRoutine`, `resetCurrentRoutine`, `defaultRoutines()` duplicados, alias `saveToStorage`/`loadFromDb`
+   - Usar `store.setCurrentRoutine(id)` en vez de `store.currentRoutineId = id`
+7. **Eliminar código muerto**: `deepClone`, `sanitize*`, `resetCurrentRoutine`, defaults duplicados, alias
 
 ### Orden de migración
 
@@ -416,18 +461,19 @@ Cada paso es autónomo y testeable. No mezclar dominios en un mismo commit.
 
 ## Checklist para cada migración
 
-- [ ] Factory creada con `create`, `stripTransients`, helpers necesarios
-- [ ] Store no tiene I/O (`saveToDb`, `loadFromDb`, `getDb` eliminados)
-- [ ] Store expone solo métodos de mutación de estado
+- [ ] Domain factory creada (`create`, `stripTransients`, helpers necesarios)
+- [ ] Persistence module separado del store (`loadAll`, `saveAll`, `getDefaults`)
+- [ ] Store NO tiene I/O (sin `saveToDb`, `loadFromDb`, `getDb`, `_ready`, init IIFE)
+- [ ] Store expone solo estado + getters + mutaciones puras
+- [ ] Service tiene `init()` para carga + seed
 - [ ] Service usa factories para crear objetos
-- [ ] Service usa store.add/remove directamente (no `store.routines.push`)
+- [ ] Service usa store.addRoutine/removeRoutine (no `store.routines.push`)
 - [ ] Service persiste con repos (no `store.saveToStorage`)
-- [ ] Composable no importa store ni repo
-- [ ] Composable delega al service
+- [ ] Service expone `saveAllToStorage()` para callers legacy
+- [ ] Composable no escribe directo al store (usa métodos o service)
 - [ ] View no importa store ni repo
 - [ ] `deepClone`, `sanitize*`, alias eliminados si ya no se usan
 - [ ] Build pasa (`pnpm run build`)
-- [ ] Tests pasan (`pnpm run test`)
 
 ---
 
@@ -466,3 +512,35 @@ vi.mock('../../infrastructure/db/repositories/routineRepository.js', () => ({
   create: vi.fn(),
 }));
 ```
+
+### ¿Dónde va el init? ¿Y el `_ready`?
+
+El store no tiene init ni `_ready`. El `init()` está en el service y se llama desde App.vue al arrancar:
+
+```js
+// App.vue
+import { RoutineService } from './application/routines/RoutineService.js';
+
+const routineService = new RoutineService();
+await routineService.init();
+```
+
+Para código que necesita esperar a que los datos estén listos (seedData, devDump, stats), se llama `service.init()` que retorna una Promise.
+
+### ¿Cómo conviven los servicios con el store?
+
+Cada service obtiene el store via `useRoutineStore()` en el constructor (Pinia singleton). Si el service se necesita con un store mockeado para tests:
+
+```js
+class RoutineService {
+  constructor({ routineStore } = {}) {
+    this._routineStore = routineStore || useRoutineStore();
+  }
+}
+```
+
+En producción no se pasa nada. En tests se inyecta un store mock.
+
+### ¿Por qué `saveAllToStorage()` en el service si el principio es no hacer write-all?
+
+Porque los callers legacy (práctica, cloud sync) modifican ejercicios in-place y necesitan persistir todo. `saveAllToStorage()` es un escape hatch que desaparecerá cuando esos dominios se refactoricen al mismo patrón.
