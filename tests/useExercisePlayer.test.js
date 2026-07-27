@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 // Mocks must be hoisted — inline factory, no external references
-vi.mock('../src/services/audio.js', () => ({
+vi.mock('../src/infrastructure/services/audio.js', () => ({
   initAudio: vi.fn(() => Promise.resolve()),
   startMetronome: vi.fn(),
   stopMetronome: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock('../src/services/audio.js', () => ({
   playBellSound: vi.fn(),
 }));
 
-// Prevent unhandled Tone.js rejections from src/services/audio.js
+// Prevent unhandled Tone.js rejections from src/infrastructure/services/audio.js
 globalThis.Tone = {
   start: vi.fn(() => Promise.resolve()),
   Transport: { bpm: { value: 120 }, start: vi.fn(), stop: vi.fn(), scheduleRepeat: vi.fn() },
@@ -84,7 +84,7 @@ describe('useExercisePlayer', () => {
       reset: vi.fn(),
     };
 
-    audioModule = await import('../src/services/audio.js');
+    audioModule = await import('../src/infrastructure/services/audio.js');
 
     const mod = await import('../src/composables/useExercisePlayer.js');
     useExercisePlayer = mod.useExercisePlayer;

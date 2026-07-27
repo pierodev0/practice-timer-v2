@@ -1,14 +1,7 @@
 <script setup>
-import { onMounted } from 'vue';
-import { formatDate } from '../lib/utils.js';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { useStats } from '../composables/useStats.js';
+import { useStats } from '../composables/tracking/useStats.js';
 import EditStatsModal from '../components/modals/EditStatsModal.vue';
 import { Line, Bar, Doughnut } from 'vue-chartjs';
-
-const routineStore = useRoutineStore();
-const sessionStore = useSessionStore();
 
 const {
   showEditStats, filterStart, filterEnd,
@@ -20,27 +13,6 @@ const {
   goBack, toggleEditStats,
 } = useStats();
 
-onMounted(async () => {
-  await Promise.all([routineStore._ready, sessionStore._ready]);
-
-  const statDates = Object.keys(sessionStore.stats);
-  const allDates = new Set(statDates);
-  routineStore.routines.forEach(r => r.exercises.forEach(e => {
-    (e.statisticLogs || []).forEach(log => allDates.add(log.date));
-  }));
-  const sorted = Array.from(allDates).filter(Boolean).sort();
-
-  if (sorted.length > 0) {
-    filterStart.value = sorted[0];
-    filterEnd.value = sorted[sorted.length - 1];
-  } else {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 7);
-    filterStart.value = formatDate(start);
-    filterEnd.value = formatDate(end);
-  }
-});
 </script>
 
 <template>

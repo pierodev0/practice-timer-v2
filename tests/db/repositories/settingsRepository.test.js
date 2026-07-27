@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getDb, resetDb } from '../../../src/db/db.js';
-import * as settingsRepository from '../../../src/db/repositories/settingsRepository.js';
+import { getDb, resetDb } from '../../../src/infrastructure/db/db.js';
+import * as settingsRepository from '../../../src/infrastructure/db/repositories/settingsRepository.js';
 
 let db;
 

@@ -20,7 +20,7 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
   let worker = externalWorker;
 
   if (!worker) {
-    worker = new Worker(new URL('../workers/timerWorker.js', import.meta.url));
+    worker = new Worker(new URL('../../workers/timerWorker.js', import.meta.url));
   }
 
   worker.onmessage = (e) => {

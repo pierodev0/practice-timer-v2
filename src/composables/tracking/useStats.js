@@ -1,9 +1,11 @@
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { stringToColor, formatDate } from '../lib/utils.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { stringToColor, formatDate } from '../../lib/utils.js';
 import { subDays, differenceInCalendarDays } from 'date-fns';
+import { StatsService } from '../../application/tracking/StatsService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 
 const CHART_OPTS = {
   responsive: true,
@@ -24,6 +26,21 @@ export function useStats() {
   const showEditStats = ref(false);
   const filterStart = ref('');
   const filterEnd = ref('');
+
+  async function initFilters() {
+    await Promise.all([routineStore._ready, sessionStore._ready]);
+    const statDates = Object.keys(sessionStore.stats);
+    const allDates = new Set(statDates);
+    routineStore.routines.forEach(r => r.exercises.forEach(e => {
+      (e.statisticLogs || []).forEach(log => allDates.add(log.date));
+    }));
+    const sorted = Array.from(allDates).filter(Boolean).sort();
+    if (sorted.length > 0) {
+      filterStart.value = sorted[0];
+      filterEnd.value = sorted[sorted.length - 1];
+    }
+  }
+  initFilters();
 
   const entries = computed(() => Object.entries(sessionStore.stats));
 
@@ -161,45 +178,27 @@ export function useStats() {
     },
   };
 
-  const progressData = computed(() => {
-    const allStats = [];
-    routineStore.routines.forEach(r => {
-      r.exercises.forEach(e => {
-        if (e.statisticLogs && e.statisticLogs.length > 0) {
-          allStats.push({ name: `${e.title} (${e.statisticName})`, logs: e.statisticLogs });
-        }
-      });
+  const statsService = new StatsService({ exerciseLogRepository });
+
+  const progressData = ref({ labels: [], datasets: [] });
+
+  async function loadProgressData() {
+    const result = await statsService.loadProgressData(
+      routineStore.routines,
+      filterStart.value,
+      filterEnd.value
+    );
+    // Enhance datasets with chart-specific properties
+    result.datasets.forEach(ds => {
+      ds.backgroundColor = ds.borderColor;
+      ds.tension = 0.1;
+      ds.fill = false;
+      ds.spanGaps = true;
     });
+    progressData.value = result;
+  }
 
-    const uniqueDates = new Set();
-    allStats.forEach(s => {
-      s.logs.forEach(log => {
-        if (log.date >= filterStart.value && log.date <= filterEnd.value) {
-          uniqueDates.add(log.date);
-        }
-      });
-    });
-    const sortedDates = Array.from(uniqueDates).sort();
-
-    const datasets = allStats.map(s => {
-      const data = sortedDates.map(date => {
-        const entry = s.logs.findLast(l => l.date === date);
-        return entry ? entry.value : null;
-      });
-      if (data.every(v => v === null)) return null;
-      return {
-        label: s.name,
-        data,
-        borderColor: stringToColor(s.name),
-        backgroundColor: stringToColor(s.name),
-        tension: 0.1,
-        fill: false,
-        spanGaps: true,
-      };
-    }).filter(ds => ds !== null);
-
-    return { labels: sortedDates, datasets };
-  });
+  watch([filterStart, filterEnd], loadProgressData, { immediate: true });
 
   const progressOptions = {
     ...CHART_OPTS,
@@ -237,5 +236,6 @@ export function useStats() {
     progressOptions,
     goBack,
     toggleEditStats,
+    initFilters,
   };
 }

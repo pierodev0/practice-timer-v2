@@ -5,16 +5,16 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { useFirebaseAuth } from '../composables/useFirebaseAuth.js';
-import { useCloudSync } from '../composables/useCloudSync.js';
-import { useSessionHistory } from '../composables/useSessionHistory.js';
-import { useSettings } from '../composables/useSettings.js';
+import { useFirebaseAuth } from '../composables/settings/useFirebaseAuth.js';
+import { useCloudSync } from '../composables/settings/useCloudSync.js';
+import { useDataManager } from '../composables/settings/useDataManager.js';
+import { useSettings } from '../composables/settings/useSettings.js';
 
 const router = useRouter();
 const auth = useFirebaseAuth();
 const cloudSync = useCloudSync();
 const settingsStore = useSettings();
-const { exportAllData, restoreAllData, deleteAllData } = useSessionHistory();
+const { exportAllData, restoreAllData, deleteAllData } = useDataManager();
 
 function goToStats() {
   router.push({ name: 'stats' });

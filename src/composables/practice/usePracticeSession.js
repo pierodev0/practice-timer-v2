@@ -2,32 +2,50 @@
  * usePracticeSession — full practice flow composable.
  *
  * Handles exercise completion (stat modal flow, reps, autoplay),
- * finish routine (save session, record stats), and reset.
- * Wraps useExercisePlayer + stores.
+ * finish routine (save session with full snapshot), and reset.
+ *
+ * sessionId is generated at composable start and regenerated after
+ * each finish/reset, so all exerciseLogs are linked from creation
+ * without needing a post-hoc linking step.
  *
  * @param {Object} options
  * @param {Object} options.timer - Injected timer (for testing)
  */
 
 import { ref, computed } from 'vue';
+import { nanoid } from 'nanoid';
 import { useRouter } from 'vue-router';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { useSettingsStore } from '../stores/useSettingsStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { useSettingsStore } from '../../stores/useSettingsStore.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
-import { useStatModal } from './useStatModal.js';
-import { triggerExerciseCompletion } from './helpers/completionFlow.js';
-import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
-import { formatDate } from '../lib/utils.js';
+import { useStatModal } from '../tracking/useStatModal.js';
+import { triggerExerciseCompletion } from '../helpers/completionFlow.js';
+import { PracticeSessionService } from '../../application/practice/PracticeSessionService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
+import { formatDate } from '../../lib/utils.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
+  const routineService = new RoutineService({ routineStore });
   const sessionStore = useSessionStore();
   const router = useRouter();
 
   const player = useExercisePlayer({ timer: externalTimer });
   const statModal = useStatModal();
   const settingsStore = useSettingsStore();
+  const sessionService = new PracticeSessionService({ sessionStore, exerciseLogRepository });
+
+  // ── Session identifiers (regenerated after each finish/reset) ──
+
+  let _sessionId = nanoid();
+  let _sessionDate = formatDate(new Date());
+
+  function _resetSession() {
+    _sessionId = nanoid();
+    _sessionDate = formatDate(new Date());
+  }
 
   // ── Finish / Reset modal state ──────────────────────
 
@@ -41,7 +59,9 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
   const visibleExercises = computed(() => routineStore.visibleExercises);
   const currentRoutineAutoplay = computed({
     get: () => routineStore.currentRoutine.autoplayRoutine ?? false,
-    set: (val) => { routineStore.currentRoutine.autoplayRoutine = val; routineStore.saveToStorage(); },
+    set: (val) => {
+      routineService.updateRoutineField(routineStore.currentRoutine.id, 'autoplayRoutine', val);
+    },
   });
 
   // ── Exercise start (fullscreen vs inline) ──────────
@@ -60,7 +80,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     const ex = routineStore.getExerciseById(player.activeExerciseId.value);
     if (!ex) return;
 
-    triggerExerciseCompletion(ex, player, statModal, () => finalizeCompletion());
+    triggerExerciseCompletion(ex, player, statModal, () => finalizeCompletion(), _sessionId, _sessionDate);
   }
 
   function finalizeCompletion() {
@@ -114,57 +134,20 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
 
   async function acceptFinish() {
     const routine = routineStore.currentRoutine;
-    const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const totalSec = routine.exercises
-      .filter(ex => ex.completed)
-      .reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const elapsedSec = player.sessionStartedAt.value
-      ? Math.round((Date.now() - player.sessionStartedAt.value) / 1000)
-      : totalSec;
-    const today = formatDate(new Date());
-
-    const completedExercises = routine.exercises
-      .filter(ex => ex.completed)
-      .map(ex => ({
-        exerciseId: ex.id, title: ex.title, bpm: ex.bpm, durationSec: ex.durationSec,
-        repsCompleted: ex.reps, comment: ex.comment || '',
-      }));
-
-    let sessionId = null;
-    if (completedExercises.length > 0 || totalSec > 0) {
-      sessionId = await sessionStore.addSession({
-        date: today, routineId: routine.id, routineName: routine.name,
-        startedAt: player.sessionStartedAt.value
-          ? new Date(player.sessionStartedAt.value).toISOString()
-          : new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        scheduledSec, totalSec, elapsedSec,
-        exercises: completedExercises,
-      });
-    }
-
-    // Link exerciseLogs to the newly created session
-    if (sessionId) {
-      for (const ex of completedExercises) {
-        const logs = await exerciseLogRepository.getLogsInRange(ex.exerciseId, today, today, true);
-        if (logs.length > 0) {
-          await exerciseLogRepository.linkToSession(sessionId, logs);
-        }
-      }
-    }
-
-    sessionStore.recordProgressSeconds(totalSec, routine.name);
+    await sessionService.acceptFinish(routine, player, _sessionId, _sessionDate);
 
     // Reset all state
     player.resetRoutineState();
     routineStore.saveToStorage();
     showFinishModal.value = false;
+    _resetSession();
   }
 
   function acceptReset() {
     player.resetRoutineState();
     routineStore.saveToStorage();
     showResetModal.value = false;
+    _resetSession();
   }
 
   return {
@@ -178,14 +161,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
     currentRoutineAutoplay,
     saveToStorage: () => routineStore.saveToStorage(),
     reorderExercises: (oldIdx, newIdx) => {
-      const visible = routineStore.currentRoutine.exercises.filter(e => !e.archived);
-      const movedEx = visible[oldIdx];
-      const targetEx = visible[newIdx];
-      if (!movedEx || !targetEx) return;
-      const allEx = routineStore.currentRoutine.exercises;
-      allEx.splice(allEx.indexOf(movedEx), 1);
-      allEx.splice(allEx.indexOf(targetEx), 0, movedEx);
-      routineStore.saveToStorage();
+      routineService.reorderExercises(routineStore.currentRoutine.id, oldIdx, newIdx);
     },
     startExercise,
     handleExerciseCompletion,

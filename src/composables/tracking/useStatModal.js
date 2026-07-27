@@ -3,13 +3,16 @@
  *
  * Provides a unified stat-prompt flow for any exercise completion context:
  * - If the exercise has a `statisticName` and isn't completed → opens modal
- * - On save: persists `{ date, value }` to `ex.statisticLogs` and `exerciseLogs`
+ * - On save: persists `{ date, value, sessionId }` directly to `exerciseLogs`
  * - On skip or no stat: calls `onComplete` callback directly
+ *
+ * sessionId and sessionDate are threaded through requestStatInput to
+ * ensure logs are linked from creation and use a consistent date.
  *
  * Usage:
  *   const statModal = useStatModal();
- *   statModal.requestStatInput(exercise, () => doComplete());
- *   statModal.submitStatValue(42, sessionId); // sessionId is optional
+ *   statModal.requestStatInput(exercise, () => doComplete(), sessionId, sessionDate);
+ *   statModal.submitStatValue(42);
  *
  * Template:
  *   <StatInputModal v-if="statModal.showStatModal" :title="statModal.statModalTitle"
@@ -17,17 +20,18 @@
  */
 
 import { ref } from 'vue';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
-import { formatDate } from '../lib/utils.js';
+import { StatService } from '../../application/practice/StatService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
+import { formatDate } from '../../lib/utils.js';
 
 export function useStatModal() {
-  const routineStore = useRoutineStore();
-
+  const statService = new StatService({ exerciseLogRepository });
   const showStatModal = ref(false);
   const statModalTitle = ref('');
 
   let pendingExerciseId = null;
+  let pendingSessionId = null;
+  let pendingSessionDate = null;
   let onComplete = null;
 
   /**
@@ -35,13 +39,20 @@ export function useStatModal() {
    * If the exercise has no statisticName or is already completed,
    * `onComplete` is called immediately. Otherwise the modal opens
    * and `onComplete` fires after save/skip.
+   *
+   * @param {Object} exercise
+   * @param {Function} cb
+   * @param {string} [sessionId]   - Pre-generated session ID for linking logs
+   * @param {string} [sessionDate] - Session date (YYYY-MM-DD) for consistent log dates
    */
-  function requestStatInput(exercise, cb) {
+  function requestStatInput(exercise, cb, sessionId, sessionDate) {
     if (!exercise.statisticName || exercise.completed) {
       cb();
       return;
     }
     pendingExerciseId = exercise.id;
+    pendingSessionId = sessionId ?? null;
+    pendingSessionDate = sessionDate ?? null;
     statModalTitle.value = exercise.statisticName;
     onComplete = cb;
     showStatModal.value = true;
@@ -49,20 +60,15 @@ export function useStatModal() {
 
   /**
    * Submit a stat value for the pending exercise.
+   * Writes directly to exerciseLogs with sessionId and consistent date.
    * @param {number} val - The stat value
-   * @param {string} [sessionId] - Optional session ID to link this log to
    */
-  async function submitStatValue(val, sessionId) {
+  async function submitStatValue(val) {
     showStatModal.value = false;
-    const ex = routineStore.getExerciseById(pendingExerciseId);
-    if (ex) {
-      if (!ex.statisticLogs) ex.statisticLogs = [];
-      const today = formatDate(new Date());
-      const logData = { date: today, value: val };
-      if (sessionId) logData.sessionId = sessionId;
-      ex.statisticLogs.push(logData);
-      await exerciseLogRepository.addLog(pendingExerciseId, logData);
-    }
+    const today = pendingSessionDate || formatDate(new Date());
+    const logData = { date: today, value: val };
+    if (pendingSessionId) logData.sessionId = pendingSessionId;
+    await statService.addStatLog(pendingExerciseId, today, val);
     cleanup();
   }
 
@@ -74,6 +80,8 @@ export function useStatModal() {
   function cleanup() {
     const cb = onComplete;
     pendingExerciseId = null;
+    pendingSessionId = null;
+    pendingSessionDate = null;
     onComplete = null;
     cb?.();
   }

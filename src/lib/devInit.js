@@ -13,7 +13,7 @@ if (import.meta.env.VITE_DEBUG === 'true') {
     window.__devDump = devDump;
     window.__seedTestData = seedTestData;
     window.__clearAllData = async () => {
-      const { getDb } = await import('../db/db.js');
+      const { getDb } = await import('../infrastructure/db/db.js');
       const db = await getDb();
       await db.sessions.clear();
       await db.sessionExercises.clear();

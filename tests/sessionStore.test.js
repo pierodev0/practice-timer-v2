@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { getDb, resetDb } from '../src/db/db.js';
+import { getDb, resetDb } from '../src/infrastructure/db/db.js';
 
 vi.mock('nanoid', () => {
   let counter = 0;

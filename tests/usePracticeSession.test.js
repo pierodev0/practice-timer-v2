@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 // Mocks
-vi.mock('../src/services/audio.js', () => ({
+vi.mock('../src/infrastructure/services/audio.js', () => ({
   playBellSound: vi.fn(),
   initAudio: vi.fn(() => Promise.resolve()),
   startMetronome: vi.fn(),
@@ -45,11 +45,12 @@ vi.mock('nanoid', () => ({ nanoid: vi.fn(() => 'mock-session-id') }));
 // Quick mocks: addLog for submitStatValue in stat modal, others for session linking
 const mockGetLogsInRange = vi.fn();
 const mockLinkToSession = vi.fn();
-vi.mock('../src/db/repositories/exerciseLogRepository.js', () => ({
+vi.mock('../src/infrastructure/db/repositories/exerciseLogRepository.js', () => ({
   getLogsInRange: (...args) => mockGetLogsInRange(...args),
   linkToSession: (...args) => mockLinkToSession(...args),
   addLog: vi.fn(),
   getLogs: vi.fn(() => Promise.resolve([])),
+  getLogsBySessionId: vi.fn(() => Promise.resolve([])),
 }));
 
 let usePracticeSession;
@@ -67,7 +68,7 @@ beforeEach(async () => {
   localStorage.clear();
 
   // Reset Dexie between tests
-  const { getDb, resetDb } = await import('../src/db/db.js');
+  const { getDb, resetDb } = await import('../src/infrastructure/db/db.js');
   const db = await getDb();
   await resetDb(db);
 

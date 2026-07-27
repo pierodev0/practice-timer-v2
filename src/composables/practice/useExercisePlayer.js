@@ -9,9 +9,9 @@
  */
 
 import { ref, computed, readonly } from 'vue';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { useBpmStore } from '../stores/useBpmStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { useBpmStore } from '../../stores/useBpmStore.js';
 
 export function useExercisePlayer({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
@@ -24,7 +24,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   const activeExerciseId = ref(null);
   const isExercisePlaying = ref(false);
   const exerciseRemaining = ref(0);
-  const sessionStartedAt = ref(null);
+
 
   // ── Computed (expose store state readonly) ─────────────
 
@@ -37,7 +37,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   // ── Audio helpers ─────────────────────────────────────
 
   async function ensureAudio() {
-    const m = await import('../services/audio.js');
+    const m = await import('../../infrastructure/services/audio.js');
     return m;
   }
 
@@ -81,16 +81,10 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     bpmStore.setBpm(ex.bpm);
     isExercisePlaying.value = true;
 
-    if (sessionStartedAt.value === null) {
-      sessionStartedAt.value = Date.now();
-    }
-
     if (timer) {
       timer.setExercise(secs);
       timer.start();
     }
-
-    routineStore.saveToStorage();
 
     // Auto-start metronome
     if (ex.autoStart) {
@@ -123,7 +117,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       m.stopMetronome();
     });
 
-    routineStore.saveToStorage();
   }
 
   function toggleExercise(id) {
@@ -149,7 +142,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       timer.start();
     }
 
-    routineStore.saveToStorage();
   }
 
   function finishRoutine() {
@@ -158,15 +150,13 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     const routine = routineStore.currentRoutine;
     const completedCount = routine.exercises.filter(e => e.completed).length;
     const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const elapsedSec = sessionStartedAt.value
-      ? Math.round((Date.now() - sessionStartedAt.value) / 1000)
-      : (timer ? timer.globalSeconds.value : 0);
+    const elapsedSec = timer ? timer.globalSeconds.value : 0;
 
     return {
       exercises: completedCount,
       scheduledSec,
       elapsedSec,
-      startedAt: sessionStartedAt.value ? new Date(sessionStartedAt.value).toISOString() : null,
+      startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     };
   }
@@ -177,7 +167,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     exerciseRemaining.value = 0;
     isExercisePlaying.value = false;
     isAudioOn.value = false;
-    sessionStartedAt.value = null;
     routineStore.resetCurrentRoutine();
   }
 
@@ -187,8 +176,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     activeExerciseId,
     isExercisePlaying,
     exerciseRemaining,
-    sessionStartedAt,
-
     // Computed
     bpm: readonly(bpm),
 

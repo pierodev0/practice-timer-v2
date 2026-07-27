@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { StatService } from '../../application/practice/StatService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 
 const routineStore = useRoutineStore();
+const statService = new StatService({ exerciseLogRepository });
 const emit = defineEmits(['close']);
 
 const editingKey = ref(null);
@@ -44,25 +47,27 @@ function cancelEdit() {
   editBuffer.value = '';
 }
 
-function saveEdit(item) {
+async function saveEdit(item) {
   const num = parseFloat(editBuffer.value);
   if (isNaN(num)) return;
   const r = routineStore.routines.find(x => x.id === item.routineId);
   const e = r?.exercises.find(x => x.id === item.exerciseId);
-  if (e?.statisticLogs[item.index]) {
-    e.statisticLogs[item.index].value = num;
-    routineStore.saveToStorage();
+  const log = e?.statisticLogs[item.index];
+  if (log) {
+    await statService.updateStatLog(log.id, { value: num });
+    log.value = num;
   }
   editingKey.value = null;
 }
 
-function deleteLog(item) {
+async function deleteLog(item) {
   if (!confirm('Delete this record?')) return;
   const r = routineStore.routines.find(x => x.id === item.routineId);
   const e = r?.exercises.find(x => x.id === item.exerciseId);
-  if (e) {
+  const log = e?.statisticLogs[item.index];
+  if (log) {
+    await statService.deleteStatLog(log.id);
     e.statisticLogs.splice(item.index, 1);
-    routineStore.saveToStorage();
   }
 }
 </script>

@@ -7,10 +7,10 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { formatTime, getFirstImage, getFirstUrl } from '../lib/utils.js';
-import { useTimer } from '../composables/useTimer.js';
-import { useSortable } from '../composables/useSortable.js';
-import { usePracticeSession } from '../composables/usePracticeSession.js';
-import { useExerciseForm } from '../composables/useExerciseForm.js';
+import { useTimer } from '../composables/practice/useTimer.js';
+import { useSortable } from '../composables/ui/useSortable.js';
+import { usePracticeSession } from '../composables/practice/usePracticeSession.js';
+import { useExerciseForm } from '../composables/routines/useExerciseForm.js';
 import ImageLightbox from '../components/modals/ImageLightbox.vue';
 import FinishModal from '../components/modals/FinishModal.vue';
 import ResetModal from '../components/modals/ResetModal.vue';

@@ -4,11 +4,13 @@
  * Views: HistoryView
  */
 
-import { ref, computed } from 'vue';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
-import { formatISOTime, downloadJSON } from '../lib/utils.js';
-import { downloadDayXLSX, downloadMonthXLSX } from '../services/export.js';
+import { ref, computed, watch } from 'vue';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
+import { formatISOTime, downloadJSON } from '../../lib/utils.js';
+import { downloadDayXLSX, downloadMonthXLSX } from '../../infrastructure/services/export.js';
+import { HistoryService } from '../../application/tracking/HistoryService.js';
+import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -18,11 +20,13 @@ const MONTHS = [
 export function useSessionHistory() {
   const routineStore = useRoutineStore();
   const sessionStore = useSessionStore();
+  const historyService = new HistoryService({ exerciseLogRepository });
 
   const currentYear = ref(new Date().getFullYear());
   const currentMonth = ref(new Date().getMonth());
   const editSessionId = ref(null);
   const showEditModal = ref(false);
+  const sessionStatMap = ref({});
 
   const monthLabel = computed(() =>
     `${MONTHS[currentMonth.value]} ${currentYear.value}`
@@ -43,6 +47,19 @@ export function useSessionHistory() {
     });
     return Object.keys(groups).sort((a, b) => b.localeCompare(a));
   });
+
+  // ── Stat values for visible sessions ──────────────────
+  // Efficient: one query per exerciseId with statisticName for the full month range,
+  // matched by exerciseId + date (not sessionId — existing logs lack the link).
+
+  let _statWatchCount = 0;
+
+  watch(monthSessions, async (sessions) => {
+    const count = ++_statWatchCount;
+    const map = await historyService.getSessionStatMap(sessions);
+    if (count !== _statWatchCount) return; // stale response
+    sessionStatMap.value = map;
+  }, { immediate: true });
 
   function prevMonth() {
     currentMonth.value--;
@@ -104,61 +121,6 @@ export function useSessionHistory() {
     editSessionId.value = null;
   }
 
-  // ── Backup / Restore (for SettingsView) ────────────────
-
-  function exportAllData() {
-    downloadJSON(
-      JSON.stringify({
-        routines: routineStore.routines,
-        stats: sessionStore.stats,
-        sessions: sessionStore.sessions,
-      }, null, 2),
-      `backup_${new Date().toISOString().slice(0, 10)}.json`
-    );
-  }
-
-  function restoreAllData(e) {
-    const file = e.target.files?.[0];
-    if (!file || !confirm('Esto sobreescribirá todos los datos actuales. ¿Continuar?')) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const json = JSON.parse(evt.target.result);
-        routineStore.routines = json.routines || [];
-        sessionStore.stats = json.stats || sessionStore.stats;
-        sessionStore.sessions = json.sessions || [];
-        routineStore.currentRoutineId = routineStore.routines[0]?.id || 'module-1';
-        routineStore.routines.forEach(r => {
-          r.exercises.forEach(e => {
-            e.completed = false;
-            e.remainingSec = e.durationSec;
-            e.currentRep = 1;
-          });
-        });
-        routineStore.saveToStorage();
-        sessionStore.saveToStorage();
-        alert('Restauración completa.');
-      } catch (err) {
-        alert('Error al restaurar: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  function deleteAllData() {
-    if (!confirm('⚠️ ¿Estás seguro?\n\nEsta acción borrará TODOS tus datos...')) return;
-    if (prompt('Escribe "BORRAR" para confirmar:') !== 'BORRAR') {
-      alert('Cancelado.');
-      return;
-    }
-    routineStore.resetToDefaults();
-    sessionStore.resetAll();
-    routineStore.saveToStorage();
-    sessionStore.saveToStorage();
-    alert('Todos los datos han sido eliminados.');
-  }
-
   return {
     currentYear,
     currentMonth,
@@ -167,6 +129,7 @@ export function useSessionHistory() {
     monthLabel,
     monthSessions,
     dayGroups,
+    sessionStatMap,
     prevMonth,
     nextMonth,
     resolveRoutineName,
@@ -175,8 +138,5 @@ export function useSessionHistory() {
     exportMonth,
     openEditSession,
     closeEditSession,
-    exportAllData,
-    restoreAllData,
-    deleteAllData,
   };
 }

@@ -7,7 +7,7 @@
 
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import * as settingsRepository from '../db/repositories/settingsRepository.js';
+import * as settingsRepository from '../infrastructure/db/repositories/settingsRepository.js';
 
 export const useSettingsStore = defineStore('settings', () => {
   const fullscreenPlay = ref(false);

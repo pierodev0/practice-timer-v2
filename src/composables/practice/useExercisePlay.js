@@ -7,16 +7,18 @@
 
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { RoutineService } from '../../application/routines/RoutineService.js';
 import { useTimer } from './useTimer.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
-import { useStatModal } from './useStatModal.js';
-import { triggerExerciseCompletion } from './helpers/completionFlow.js';
+import { useStatModal } from '../tracking/useStatModal.js';
+import { triggerExerciseCompletion } from '../helpers/completionFlow.js';
 
 export function useExercisePlay() {
   const route = useRoute();
   const router = useRouter();
   const routineStore = useRoutineStore();
+  const routineService = new RoutineService({ routineStore });
   const statModal = useStatModal();
 
   // Deferred callback — timer needs player, player needs timer.
@@ -70,7 +72,6 @@ export function useExercisePlay() {
     ex.completed = true;
     ex.remainingSec = 0;
     ex.currentRep = ex.reps;
-    routineStore.saveToStorage();
     // Stay on the view — user navigates via Skip / Back / Repeat
   }
 
@@ -84,11 +85,11 @@ export function useExercisePlay() {
     toggleExercise(exercise.value?.id);
   }
 
-  function doRepeatExercise() {
+  async function doRepeatExercise() {
     const ex = exercise.value;
     if (!ex) return;
-
-    ex.reps += 1;
+    const newReps = (ex.reps || 1) + 1;
+    await routineService.updateExerciseField(ex.id, 'reps', newReps);
     ex.currentRep = 1;
     ex.completed = false;
     ex.remainingSec = ex.durationSec;
@@ -96,8 +97,6 @@ export function useExercisePlay() {
       pauseSequence();
     }
     timer.setExercise(ex.durationSec);
-    routineStore.saveToStorage();
-    // User presses Play manually to start
   }
 
   function skipExercise() {

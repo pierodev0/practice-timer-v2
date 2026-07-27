@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 // Mock the exerciseLog repository
-vi.mock('../../src/db/repositories/exerciseLogRepository.js', () => ({
+vi.mock('../../src/infrastructure/db/repositories/exerciseLogRepository.js', () => ({
   addLog: vi.fn().mockResolvedValue(1),
 }));
 
@@ -53,7 +53,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   const mod = await import('../../src/composables/useStatModal.js');
   useStatModal = mod.default || mod.useStatModal;
-  exerciseLogRepository = await import('../../src/db/repositories/exerciseLogRepository.js');
+  exerciseLogRepository = await import('../../src/infrastructure/db/repositories/exerciseLogRepository.js');
 });
 
 describe('useStatModal', () => {

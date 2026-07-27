@@ -4,7 +4,7 @@
  */
 
 <script setup>
-import { useRoutineManager } from '../composables/useRoutineManager.js';
+import { useRoutineManager } from '../composables/routines/useRoutineManager.js';
 
 const {
   sortMode, sortAsc, openMenuId, SORT_MODES,

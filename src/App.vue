@@ -1,8 +1,8 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue';
 import BottomNav from './components/BottomNav.vue';
-import { initAuth } from './composables/useFirebaseAuth.js';
-import { initializeSync, stopSync } from './composables/useCloudSync.js';
+import { initAuth } from './composables/settings/useFirebaseAuth.js';
+import { initializeSync, stopSync } from './composables/settings/useCloudSync.js';
 
 onMounted(() => {
   initAuth((user) => {

@@ -4,9 +4,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { resetDb, getDb } from '../src/db/db.js';
-import * as routineRepository from '../src/db/repositories/routineRepository.js';
-import * as exerciseRepository from '../src/db/repositories/exerciseRepository.js';
+import { resetDb, getDb } from '../src/infrastructure/db/db.js';
+import * as routineRepository from '../src/infrastructure/db/repositories/routineRepository.js';
+import * as exerciseRepository from '../src/infrastructure/db/repositories/exerciseRepository.js';
 
 vi.mock('../src/data/defaultRoutines.js', () => ({
   module1Routine: {

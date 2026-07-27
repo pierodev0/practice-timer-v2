@@ -4,8 +4,8 @@
  */
 
 import { ref, readonly } from 'vue';
-import { useRoutineStore } from '../stores/useRoutineStore.js';
-import { useSessionStore } from '../stores/useSessionStore.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useSessionStore } from '../../stores/useSessionStore.js';
 
 // ── Sync status (global singleton) ─────────────────────
 
@@ -27,7 +27,7 @@ export async function initializeSync(uid) {
   if (!uid) return;
   setStatus('syncing');
 
-  const { downloadAndMergeState, startSyncListener, stopSyncListener } = await import('../services/firebaseSync.js');
+  const { downloadAndMergeState, startSyncListener, stopSyncListener } = await import('../../infrastructure/services/firebaseSync.js');
 
   try {
     await downloadAndMergeState(uid);
@@ -65,13 +65,13 @@ export function stopSync() {
 
 export async function syncNow() {
   const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../services/firebaseConfig.js');
+  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) return;
 
   setStatus('syncing');
   try {
-    const { uploadState, downloadAndMergeState } = await import('../services/firebaseSync.js');
+    const { uploadState, downloadAndMergeState } = await import('../../infrastructure/services/firebaseSync.js');
     await uploadState(user.uid);
     await downloadAndMergeState(user.uid);
     setStatus('synced');
@@ -81,7 +81,7 @@ export async function syncNow() {
 }
 
 export async function loginAndSync() {
-  const { loginGoogle } = await import('../services/firebaseAuth.js');
+  const { loginGoogle } = await import('../../infrastructure/services/firebaseAuth.js');
   try {
     await loginGoogle();
     // Auth observer in useFirebaseAuth will trigger sync
@@ -91,7 +91,7 @@ export async function loginAndSync() {
 }
 
 export async function logout() {
-  const { logoutGoogle } = await import('../services/firebaseAuth.js');
+  const { logoutGoogle } = await import('../../infrastructure/services/firebaseAuth.js');
   await logoutGoogle();
 }
 
@@ -99,41 +99,41 @@ export async function logout() {
 
 export async function saveCloudBackup(label) {
   const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../services/firebaseConfig.js');
+  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) throw new Error('Not logged in');
 
-  const { saveBackup } = await import('../services/firebaseSync.js');
+  const { saveBackup } = await import('../../infrastructure/services/firebaseSync.js');
   return saveBackup(user.uid, label);
 }
 
 export async function listCloudBackups() {
   const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../services/firebaseConfig.js');
+  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) throw new Error('Not logged in');
 
-  const { listBackups } = await import('../services/firebaseSync.js');
+  const { listBackups } = await import('../../infrastructure/services/firebaseSync.js');
   return listBackups(user.uid);
 }
 
 export async function loadCloudBackup(backupId) {
   const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../services/firebaseConfig.js');
+  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) throw new Error('Not logged in');
 
-  const { loadBackup } = await import('../services/firebaseSync.js');
+  const { loadBackup } = await import('../../infrastructure/services/firebaseSync.js');
   return loadBackup(user.uid, backupId);
 }
 
 export async function deleteCloudBackup(backupId) {
   const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../services/firebaseConfig.js');
+  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) throw new Error('Not logged in');
 
-  const { deleteBackup } = await import('../services/firebaseSync.js');
+  const { deleteBackup } = await import('../../infrastructure/services/firebaseSync.js');
   return deleteBackup(user.uid, backupId);
 }
 

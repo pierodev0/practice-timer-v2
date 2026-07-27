@@ -8,10 +8,11 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { formatTime } from '../lib/utils.js';
-import { useTimer } from '../composables/useTimer.js';
-import { useExercisePlayer } from '../composables/useExercisePlayer.js';
-import { useExerciseEditor } from '../composables/useExerciseEditor.js';
-import { useStatModal } from '../composables/useStatModal.js';
+import { useTimer } from '../composables/practice/useTimer.js';
+import { useExercisePlayer } from '../composables/practice/useExercisePlayer.js';
+import { useExerciseEditor } from '../composables/routines/useExerciseEditor.js';
+import { useStatModal } from '../composables/tracking/useStatModal.js';
+import { resetExercise as resetExerciseHelper, doComplete as doCompleteHelper, forceCompleteExercise } from '../composables/helpers/exerciseCompletion.js';
 import StatInputModal from '../components/modals/StatInputModal.vue';
 
 const route = useRoute();
@@ -28,8 +29,7 @@ const { showStatModal, statModalTitle, requestStatInput, submitStatValue, skipSt
 
 const { exercise, title, statName, comment, autoStart, showMenu,
   updateTitle, updateStatName, adjustBPM, adjustReps, adjustTime,
-  updateAutoStart, updateComment, duplicate, archive, remove,
-  resetExercise: editorReset, doComplete: editorComplete, forceComplete: editorForceComplete } = editor;
+  updateAutoStart, updateComment, duplicate, archive, remove } = editor;
 
 const { activeExerciseId } = player;
 const { remaining } = timer;
@@ -55,16 +55,16 @@ function startExercise() {
 }
 
 function resetExercise() {
-  editorReset(timer, player);
+  resetExerciseHelper(exercise.value, timer, player);
 }
 
 function doAndGoBack() {
-  editorComplete(timer, player);
+  doCompleteHelper(exercise.value, timer, player);
   goBack();
 }
 
 function forceComplete() {
-  editorForceComplete(player, statModal, () => doAndGoBack());
+  forceCompleteExercise(exercise.value, player, statModal, () => doAndGoBack());
 }
 </script>
 

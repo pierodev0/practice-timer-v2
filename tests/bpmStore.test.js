@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 // Mock settingsRepository — returns undefined by default (no saved BPM → default 120)
-vi.mock('../src/db/repositories/settingsRepository.js', () => ({
+vi.mock('../src/infrastructure/db/repositories/settingsRepository.js', () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(() => Promise.resolve()),
 }));
@@ -55,7 +55,7 @@ describe('useBpmStore', () => {
 
   it('loads saved BPM from settingsRepository', async () => {
     // Override mock to return a saved value
-    const { get } = await import('../src/db/repositories/settingsRepository.js');
+    const { get } = await import('../src/infrastructure/db/repositories/settingsRepository.js');
     get.mockResolvedValue(160);
 
     // Need a fresh store to trigger re-load with new mock
@@ -71,7 +71,7 @@ describe('useBpmStore', () => {
     store.setBpm(180);
     await store.saveToStorage();
 
-    const { set } = await import('../src/db/repositories/settingsRepository.js');
+    const { set } = await import('../src/infrastructure/db/repositories/settingsRepository.js');
     expect(set).toHaveBeenCalledWith('bpm', 180);
   });
 });

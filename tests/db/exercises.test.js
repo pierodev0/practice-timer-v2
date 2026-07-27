@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getDb, resetDb } from '../../src/db/db.js';
-import * as exercises from '../../src/db/entities/exercises.js';
+import { getDb, resetDb } from '../../src/infrastructure/db/db.js';
+import * as exercises from '../../src/infrastructure/db/entities/exercises.js';
 
 let db;
 

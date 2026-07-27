@@ -4,7 +4,7 @@
  */
 
 <script setup>
-import { useExercisePlay } from '../composables/useExercisePlay.js';
+import { useExercisePlay } from '../composables/practice/useExercisePlay.js';
 import { formatTime } from '../lib/utils.js';
 import StatInputModal from '../components/modals/StatInputModal.vue';
 

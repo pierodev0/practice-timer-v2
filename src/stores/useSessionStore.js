@@ -8,7 +8,8 @@
 import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import * as sessionRepository from '../db/repositories/sessionRepository.js';
+import * as sessionRepository from '../infrastructure/db/repositories/sessionRepository.js';
+import * as exerciseLogRepository from '../infrastructure/db/repositories/exerciseLogRepository.js';
 
 /**
  * Build the stats object from an array of sessions.
@@ -33,12 +34,23 @@ export const useSessionStore = defineStore('sessions', () => {
   let _resolveReady;
   const _ready = new Promise(resolve => { _resolveReady = resolve; });
 
+  /**
+   * Centralized refresh of stats from the sessions array.
+   * Replaces 4 manual recomputation calls with a single helper.
+   */
+  function _refreshStats() {
+    stats.value = buildStats(sessions.value);
+  }
+
   // ── Database loading ───────────────────────────────────
 
   async function loadFromDb() {
     const all = await sessionRepository.all();
+    for (const s of all) {
+      s.exercises = await sessionRepository.getExercises(s.id);
+    }
     sessions.value = all;
-    stats.value = buildStats(all);
+    _refreshStats();
   }
 
   // ── Database saving ────────────────────────────────────
@@ -65,7 +77,7 @@ export const useSessionStore = defineStore('sessions', () => {
     // Update ref synchronously first (optimistic update for callers)
     const record = { id, ...clone };
     sessions.value.push(record);
-    stats.value = buildStats(sessions.value);
+    _refreshStats();
 
     // Then persist to Dexie asynchronously
     await sessionRepository.create({ id, ...clone });
@@ -97,10 +109,24 @@ export const useSessionStore = defineStore('sessions', () => {
 
     await sessionRepository.update(id, data);
 
+    // Sync exerciseLogs when date changes (edge case: editing session date)
+    if (data.date && data.date !== oldSession.date) {
+      await exerciseLogRepository.updateDateBySessionId(id, data.date);
+    }
+
+    // Sync exerciseLogs when stat values change (editing exercises)
+    if (data.exercises) {
+      for (const ex of data.exercises) {
+        if (ex.exerciseId && ex.statValue != null) {
+          await exerciseLogRepository.updateBySessionAndExercise(id, ex.exerciseId, { value: ex.statValue });
+        }
+      }
+    }
+
     // Recompute stats from scratch
     const all = await sessionRepository.all();
     sessions.value = all;
-    stats.value = buildStats(all);
+    _refreshStats();
 
     return true;
   }
@@ -109,12 +135,13 @@ export const useSessionStore = defineStore('sessions', () => {
     const idx = sessions.value.findIndex(s => s.id === id);
     if (idx === -1) return false;
 
+    await exerciseLogRepository.deleteBySessionId(id);
     await sessionRepository.remove(id);
-    sessions.value.splice(idx, 1);
 
-    // Recompute stats from all sessions
+    // Reload from DB for consistency and refresh stats
     const all = await sessionRepository.all();
-    stats.value = buildStats(all);
+    sessions.value = all;
+    _refreshStats();
 
     return true;
   }

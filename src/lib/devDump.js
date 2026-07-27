@@ -3,7 +3,7 @@
  * Exposed as window.__devDump() in main.js when import.meta.env.DEV is true.
  */
 
-import { getDb } from '../db/db.js';
+import { getDb } from '../infrastructure/db/db.js';
 
 const TABLE_NAMES = [
   'routines', 'exercises', 'routineExercises',

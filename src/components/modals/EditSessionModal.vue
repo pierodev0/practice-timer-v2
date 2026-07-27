@@ -5,32 +5,23 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useSessionStore } from '../../stores/useSessionStore.js';
-import { useRoutineStore } from '../../stores/useRoutineStore.js';
-import * as exerciseLogRepository from '../../db/repositories/exerciseLogRepository.js';
 
 const sessionStore = useSessionStore();
-const routineStore = useRoutineStore();
 const emit = defineEmits(['close', 'saved']);
 
 const props = defineProps({
   sessionId: String,
+  statValues: { type: Object, default: () => ({}) },
 });
 
 const session = ref(null);
 const editDate = ref('');
-const statValues = ref({});
 
 onMounted(async () => {
   const s = sessionStore.sessions.find(x => x.id === props.sessionId);
   if (s) {
     session.value = s;
     editDate.value = s.date || '';
-    const logs = await exerciseLogRepository.getLogsBySessionId(props.sessionId);
-    const map = {};
-    for (const log of logs) {
-      map[log.exerciseId] = log.value;
-    }
-    statValues.value = map;
   }
 });
 
@@ -82,7 +73,7 @@ function remove() {
             <div v-for="ex in session.exercises" :key="ex.exerciseId" class="flex items-center gap-2 text-xs text-gray-600">
               <i class="fas fa-check-circle text-green-500 text-[10px]"></i>
               <span>{{ ex.title }}</span>
-              <span v-if="statValues[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ routineStore.getExerciseById(ex.exerciseId)?.statisticName || 'Stat' }}: {{ statValues[ex.exerciseId] }}</span>
+              <span v-if="statValues[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ statValues[ex.exerciseId] }}</span>
             </div>
           </div>
         </div>

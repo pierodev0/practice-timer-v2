@@ -5,10 +5,10 @@
  * Idempotent: skips if sessions already exist.
  */
 
-import { getDb } from '../db/db.js';
+import { getDb } from '../infrastructure/db/db.js';
 import { format } from 'date-fns';
-import * as sessionRepository from '../db/repositories/sessionRepository.js';
-import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
+import * as sessionRepository from '../infrastructure/db/repositories/sessionRepository.js';
+import * as exerciseLogRepository from '../infrastructure/db/repositories/exerciseLogRepository.js';
 
 let _seeded = false;
 
@@ -102,8 +102,25 @@ export async function seedTestData() {
     }
   }
 
+  const sessionIds = [];
   for (const sd of sessionData) {
-    await sessionRepository.create(sd);
+    const id = await sessionRepository.create(sd);
+    sessionIds.push({ id, routineId: sd.routineId });
+  }
+
+  const routineMap = { [routine1.id]: routine1 };
+  if (routine2) routineMap[routine2.id] = routine2;
+
+  for (const { id, routineId } of sessionIds) {
+    const routine = routineMap[routineId];
+    if (!routine) continue;
+    for (const ex of routine.exercises) {
+      await sessionRepository.addExercise(id, ex.id, {
+        exerciseId: ex.id, title: ex.title, bpm: ex.bpm,
+        durationSec: ex.durationSec, repsCompleted: ex.reps, comment: ex.comment || '',
+        statisticName: ex.statisticName || '',
+      });
+    }
   }
 
   await sessionStore.loadFromDb();
