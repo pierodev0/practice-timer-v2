@@ -23,7 +23,8 @@ export const useRoutineStore = defineStore('routines', () => {
       currentRoutineId.value = routines.value[0].id;
       return routines.value[0];
     }
-    return null;
+    // Safe fallback mientras init() no ha cargado datos
+    return { id: null, name: '' };
   });
 
   // ── Mutaciones (puras, sin I/O) ────────────────────────
