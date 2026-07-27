@@ -11,6 +11,11 @@ const routes = [
     component: () => import('../views/DashboardView.vue'),
   },
   {
+    path: '/exercise/new',
+    name: 'exercise-new',
+    component: () => import('../views/ExerciseFormView.vue'),
+  },
+  {
     path: '/practice/:exerciseId',
     name: 'details',
     component: () => import('../views/DetailsView.vue'),

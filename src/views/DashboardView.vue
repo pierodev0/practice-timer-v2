@@ -10,7 +10,6 @@ import { formatTime, getFirstImage, getFirstUrl } from '../lib/utils.js';
 import { useTimer } from '../composables/practice/useTimer.js';
 import { useSortable } from '../composables/ui/useSortable.js';
 import { usePracticeSession } from '../composables/practice/usePracticeSession.js';
-import { useExerciseForm } from '../composables/routines/useExerciseForm.js';
 import ImageLightbox from '../components/modals/ImageLightbox.vue';
 import FinishModal from '../components/modals/FinishModal.vue';
 import ResetModal from '../components/modals/ResetModal.vue';
@@ -24,7 +23,6 @@ const timer = useTimer({
   onExerciseComplete: () => session.handleExerciseCompletion(),
 });
 const session = usePracticeSession({ timer });
-const form = useExerciseForm();
 const { remaining, isRunning } = timer;
 const { reorderExercises, saveToStorage } = session;
 const sortable = useSortable({
@@ -41,12 +39,6 @@ const {
   handleFinishRoutine, acceptFinish, acceptReset,
   showStatModal, statModalTitle, submitStatValue, skipStat,
 } = session;
-
-const {
-  showCreateModal, addNewExercise, resetForm,
-  title: newTitle, statName: newStatName, bpm: newBpm,
-  reps: newReps, min: newMin, sec: newSec, autostart: newAutostart,
-} = form;
 
 const lightboxRef = ref(null);
 
@@ -169,57 +161,9 @@ function openImage(imgUrl) { lightboxRef.value?.open(imgUrl); }
       </div>
     </main>
 
-    <button @click="showCreateModal = true" class="fixed bottom-20 right-6 w-14 h-14 bg-[#E53935] text-white rounded-full shadow-xl flex items-center justify-center text-2xl active:scale-90 transition-transform z-20">
+    <button @click="router.push({ name: 'exercise-new' })" class="fixed bottom-20 right-6 w-14 h-14 bg-[#E53935] text-white rounded-full shadow-xl flex items-center justify-center text-2xl active:scale-90 transition-transform z-20">
       <i class="fas fa-plus"></i>
     </button>
-
-    <!-- Create modal -->
-    <div v-if="showCreateModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showCreateModal = false">
-      <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl">
-        <div class="p-4 border-b border-gray-100">
-          <input type="text" v-model="newTitle" placeholder="Exercise title" class="text-xl w-full outline-none text-gray-700">
-          <input type="text" v-model="newStatName" placeholder="Statistic Name (Optional)" class="mt-3 text-sm w-full outline-none text-gray-500 border-b border-gray-200 focus:border-[#E53935] transition-colors pb-1">
-        </div>
-        <div class="p-6 space-y-6">
-          <div class="flex justify-between items-center"><span>Reps</span>
-            <div class="flex items-center gap-3">
-              <button @click="newReps = Math.max(1, newReps - 1)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-              <span class="font-medium w-20 text-center">{{ newReps }}</span>
-              <button @click="newReps++" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-            </div>
-          </div>
-          <div class="flex justify-between items-center"><span>Tempo</span>
-            <div class="flex items-center gap-3">
-              <button @click="newBpm = Math.max(1, newBpm - 5)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-              <span class="font-medium w-20 text-center">{{ newBpm }} BPM</span>
-              <button @click="newBpm += 5" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-            </div>
-          </div>
-          <div class="flex justify-between items-center"><span>Minutes</span>
-            <div class="flex items-center gap-3">
-              <button @click="newMin = Math.max(0, newMin - 1)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-              <span class="font-medium w-20 text-center">{{ newMin }} min</span>
-              <button @click="newMin++" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-            </div>
-          </div>
-          <div class="flex justify-between items-center"><span>Seconds</span>
-            <div class="flex items-center gap-3">
-              <button @click="newSec = Math.max(0, newSec - 5)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-              <span class="font-medium w-20 text-center">{{ String(newSec).padStart(2, '0') }} sec</span>
-              <button @click="newSec += 5" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-            </div>
-          </div>
-          <div class="flex justify-between items-center">
-            <span>Auto-Start</span>
-            <input type="checkbox" v-model="newAutostart" class="w-5 h-5 accent-[#E53935]">
-          </div>
-          <div class="flex justify-end gap-2 pt-4">
-            <button @click="showCreateModal = false" class="px-4 py-2 text-gray-500">Cancel</button>
-            <button @click="addNewExercise" class="btn-primary px-6 py-2">create</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <ImageLightbox ref="lightboxRef" />
     <FinishModal v-if="showFinishModal" v-bind="finishSummary" @accept="acceptFinish" @cancel="showFinishModal = false" />
