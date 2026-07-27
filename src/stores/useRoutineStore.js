@@ -1,11 +1,9 @@
 /**
- * useRoutineStore — manages routines and exercises.
+ * useRoutineStore — manages routines (metadata only).
  *
  * RESPONSABILIDAD: solo estado + getters + métodos de mutación.
- * NO hace I/O. NO tiene init. No sabe que Dexie existe.
- *
- * La store presenta rutinas con ejercicios embebidos (read-optimized view).
- * El schema normalizado vive en Dexie (repos).
+ * NO maneja exercises (ver useExerciseStore).
+ * NO hace I/O. NO tiene init.
  */
 
 import { defineStore } from 'pinia';
@@ -19,31 +17,14 @@ export const useRoutineStore = defineStore('routines', () => {
 
   const currentRoutine = computed(() => {
     if (!Array.isArray(routines.value)) routines.value = [];
-    let r = routines.value.find(x => x.id === currentRoutineId.value);
-    if (!r) {
-      if (routines.value.length > 0) {
-        currentRoutineId.value = routines.value[0].id;
-        r = routines.value[0];
-      } else {
-        r = { id: 'fallback', name: 'Rutina Recuperada', exercises: [] };
-        routines.value = [r];
-        currentRoutineId.value = r.id;
-      }
+    const r = routines.value.find(x => x.id === currentRoutineId.value);
+    if (r) return r;
+    if (routines.value.length > 0) {
+      currentRoutineId.value = routines.value[0].id;
+      return routines.value[0];
     }
-    return r;
+    return null;
   });
-
-  const visibleExercises = computed(() =>
-    currentRoutine.value.exercises.filter(e => !e.archived)
-  );
-
-  function getExerciseById(id) {
-    return currentRoutine.value.exercises.find(e => e.id === id);
-  }
-
-  function getRoutineById(id) {
-    return routines.value.find(r => r.id === id);
-  }
 
   // ── Mutaciones (puras, sin I/O) ────────────────────────
 
@@ -69,39 +50,13 @@ export const useRoutineStore = defineStore('routines', () => {
     currentRoutineId.value = id;
   }
 
-  function findExercise(exerciseId) {
-    for (const r of routines.value) {
-      const ex = r.exercises.find(e => e.id === exerciseId);
-      if (ex) return ex;
-    }
-    return null;
-  }
-
-  function resetCurrentRoutine() {
-    currentRoutine.value.exercises.forEach(e => {
-      e.completed = false;
-      e.remainingSec = e.durationSec;
-      e.currentRep = 1;
-    });
-  }
-
   return {
-    // State
     routines,
     currentRoutineId,
-
-    // Getters
     currentRoutine,
-    visibleExercises,
-    getExerciseById,
-    getRoutineById,
-
-    // Mutaciones
     setRoutines,
     addRoutine,
     removeRoutine,
     setCurrentRoutine,
-    findExercise,
-    resetCurrentRoutine,
   };
 });

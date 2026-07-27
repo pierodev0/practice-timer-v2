@@ -16,6 +16,7 @@ import { ref, computed } from 'vue';
 import { nanoid } from 'nanoid';
 import { useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
 import { useSettingsStore } from '../../stores/useSettingsStore.js';
@@ -28,7 +29,8 @@ import { formatDate } from '../../lib/utils.js';
 
 export function usePracticeSession({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
-  const routineService = new RoutineService({ routineStore });
+  const exerciseStore = useExerciseStore();
+  const routineService = new RoutineService({ routineStore, exerciseStore });
   const sessionStore = useSessionStore();
   const router = useRouter();
 
@@ -56,7 +58,7 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
   // ── Read-only store proxies for views ────────────────
 
   const currentRoutineName = computed(() => routineStore.currentRoutine?.name || 'My routine');
-  const visibleExercises = computed(() => routineStore.visibleExercises);
+  const visibleExercises = computed(() => exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId));
   const currentRoutineAutoplay = computed({
     get: () => routineStore.currentRoutine.autoplayRoutine ?? false,
     set: (val) => {
@@ -77,14 +79,14 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
   // ── Exercise completion flow ─────────────────────────
 
   function handleExerciseCompletion() {
-    const ex = routineStore.getExerciseById(player.activeExerciseId.value);
+    const ex = exerciseStore.getById(player.activeExerciseId.value);
     if (!ex) return;
 
     triggerExerciseCompletion(ex, player, statModal, () => finalizeCompletion(), _sessionId, _sessionDate);
   }
 
   function finalizeCompletion() {
-    const ex = routineStore.getExerciseById(player.activeExerciseId.value);
+    const ex = exerciseStore.getById(player.activeExerciseId.value);
     if (!ex) return;
 
     if (ex.currentRep < ex.reps) {
@@ -109,8 +111,8 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
       routineService.saveAllToStorage();
 
       // Autoplay: advance to next exercise
-      if (routineStore.currentRoutine.autoplayRoutine) {
-        const visible = routineStore.visibleExercises;
+      if (routineStore.currentRoutine?.autoplayRoutine) {
+        const visible = exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId);
         const idx = visible.findIndex(e => e.id === player.activeExerciseId.value);
         if (idx < visible.length - 1) {
           const nextId = visible[idx + 1].id;
@@ -134,7 +136,8 @@ export function usePracticeSession({ timer: externalTimer } = {}) {
 
   async function acceptFinish() {
     const routine = routineStore.currentRoutine;
-    await sessionService.acceptFinish(routine, player, _sessionId, _sessionDate);
+    const exercises = exerciseStore.getByRoutine(routine?.id);
+    await sessionService.acceptFinish(routine, exercises, player, _sessionId, _sessionDate);
 
     // Reset all state
     player.resetRoutineState();

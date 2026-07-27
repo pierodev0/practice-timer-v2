@@ -1,8 +1,8 @@
 /**
- * routinePersistence — carga y guardado de rutinas en Dexie.
+ * routinePersistence — carga y guardado de rutinas y ejercicios en Dexie.
  *
- * Separa la lógica de I/O del estado (store).
- * El store delega load/save aquí y solo maneja estado + getters.
+ * Separa la lógica de I/O del estado (stores).
+ * Devuelve datos planos listos para poblar useRoutineStore y useExerciseStore.
  */
 import * as routineRepository from '../db/repositories/routineRepository.js';
 import * as routineExerciseRepository from '../db/repositories/routineExerciseRepository.js';
@@ -11,46 +11,53 @@ import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository
 import * as routinesSample from '../../data/defaultRoutines.js';
 
 /**
- * Cargar todas las rutinas desde Dexie con sus ejercicios.
- * @returns {Array<Object>} rutinas con ejercicios embebidos
+ * Cargar todo desde Dexie.
+ * @returns {{ routines: Array, exercises: Array }}
+ *   routines — solo metadata (id, name, createdAt)
+ *   exercises — planos con routineId y order denormalizados
  */
 export async function loadAll() {
   const dbRoutines = await routineRepository.all();
+  const routines = [];
+  const exercises = [];
 
-  const result = [];
   for (const r of dbRoutines) {
-      const exercises = await routineExerciseRepository.getExercises(r.id);
+    const exs = await routineExerciseRepository.getExercises(r.id);
 
-    // Adjuntar logs y restaurar transients
-    for (const ex of exercises) {
+    // Adjuntar logs y restaurar transients + denormalizar junction
+    for (let i = 0; i < exs.length; i++) {
+      const ex = exs[i];
       const logs = await exerciseLogRepository.getLogs(ex.id);
       ex.remainingSec = ex.remainingSec ?? ex.durationSec;
       ex.completed = ex.completed ?? false;
       ex.currentRep = ex.currentRep ?? 1;
       ex.archived = ex.archived ?? false;
       ex.statisticLogs = logs || [];
+      ex.routineId = r.id;
+      ex.order = i;
+      exercises.push(ex);
     }
 
-    result.push({
+    routines.push({
       id: r.id,
       name: r.name,
       createdAt: r.createdAt,
-      exercises,
     });
   }
 
-  return result;
+  return { routines, exercises };
 }
 
 /**
- * Guardar todas las rutinas a Dexie.
- * Re-escribe el estado completo (write-all pattern heredado).
- * @param {Array<Object>} routines — rutinas del store
+ * Guardar todo a Dexie (write-all).
+ * Usado por saveAllToStorage() para callers legacy.
+ * @param {Array} routines — array de rutinas
+ * @param {Array} exercises — array de ejercicios (con routineId, order)
  */
-export async function saveAll(routines) {
+export async function saveAll(routines, exercises) {
   const routineIds = routines.map(r => r.id);
 
-  // Detectar rutinas eliminadas en el store y borrarlas
+  // Detectar rutinas eliminadas
   const existingRoutines = await routineRepository.all();
   for (const er of existingRoutines) {
     if (!routineIds.includes(er.id)) {
@@ -58,33 +65,40 @@ export async function saveAll(routines) {
     }
   }
 
+  // Upsert routines
   for (const r of routines) {
-    // Upsert routine
     const existing = await routineRepository.getById(r.id);
     if (existing) {
       await routineRepository.update(r.id, { name: r.name });
     } else {
       await routineRepository.create({
-        id: r.id,
-        name: r.name,
-        createdAt: r.createdAt || Date.now(),
+        id: r.id, name: r.name, createdAt: r.createdAt || Date.now(),
       });
     }
+  }
 
-    // Upsert ejercicios y links, limpiando transients
-    for (let i = 0; i < (r.exercises || []).length; i++) {
-      const ex = r.exercises[i];
-      const { statisticLogs, completed, remainingSec, currentRep, ...clean } = ex;
-      await exerciseRepository.upsert(clean);
-      await routineExerciseRepository.addExercise(r.id, ex.id, i);
+  // Upsert exercises + rebuild links
+  const links = {};
+  for (const ex of exercises) {
+    await exerciseRepository.upsert(stripTransients(ex));
+    if (ex.routineId) {
+      if (!links[ex.routineId]) links[ex.routineId] = [];
+      links[ex.routineId].push({ id: ex.id, order: ex.order ?? 0 });
+    }
+  }
+
+  for (const [routineId, exerciseLinks] of Object.entries(links)) {
+    exerciseLinks.sort((a, b) => a.order - b.order);
+    for (let i = 0; i < exerciseLinks.length; i++) {
+      await routineExerciseRepository.addExercise(routineId, exerciseLinks[i].id, i);
     }
   }
 }
 
 /**
- * Obtener las rutinas por defecto (primer uso).
- * Son los 12 módulos de JustinGuitar Beginner Course.
- * @returns {Array<Object>}
+ * Obtener rutinas por defecto (formato embebido, primer uso).
+ * El service se encarga de aplanar exercises.
+ * @returns {Array<Object>} rutinas con exercises[] adentro
  */
 export function getDefaultRoutines() {
   return [
@@ -101,4 +115,9 @@ export function getDefaultRoutines() {
     routinesSample.module11Routine,
     routinesSample.module12Routine,
   ];
+}
+
+function stripTransients(ex) {
+  const { statisticLogs, completed, remainingSec, currentRep, ...clean } = ex;
+  return clean;
 }

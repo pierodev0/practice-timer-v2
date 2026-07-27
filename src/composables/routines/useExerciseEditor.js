@@ -7,11 +7,13 @@
 
 import { ref, computed, watch } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useBpmStore } from '../../stores/useBpmStore.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 
 export function useExerciseEditor(exerciseIdRef) {
   const routineStore = useRoutineStore();
+  const exerciseStore = useExerciseStore();
   const routineService = new RoutineService();
   const bpmStore = useBpmStore();
 
@@ -21,7 +23,7 @@ export function useExerciseEditor(exerciseIdRef) {
     return exerciseIdRef.value;
   });
 
-  const exercise = computed(() => routineStore.getExerciseById(exerciseId.value));
+  const exercise = computed(() => exerciseStore.getById(exerciseId.value));
 
   const title = ref('');
   const statName = ref('');

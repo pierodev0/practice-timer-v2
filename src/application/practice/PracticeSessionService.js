@@ -96,13 +96,14 @@ export class PracticeSessionService {
    * 3. Persists session via sessionStore.addSession
    * 4. Calls sessionStore.recordProgressSeconds
    *
-   * @param {Object} routine — Routine definition (currentRoutine)
+   * @param {Object} routine — Routine definition (id, name)
+   * @param {Array}  exercises — Exercises with completion state
    * @param {Object} player — useExercisePlayer composable instance
    * @param {string} sessionId — Pre-generated session identifier
    * @param {string} sessionDate — Session date (YYYY-MM-DD)
    * @returns {Promise<string>} The persisted session id
    */
-  async acceptFinish(routine, player, sessionId, sessionDate) {
+  async acceptFinish(routine, exercises, player, sessionId, sessionDate) {
     // 1. Retrieve stat logs for this session
     const logs = await this._exerciseLogRepository.getLogsBySessionId(sessionId);
     const logValues = {};
@@ -111,16 +112,16 @@ export class PracticeSessionService {
     }
 
     // 2. Build ExerciseResult array from completed exercises
-    const completedExercises = routine.exercises
+    const completedExercises = exercises
       .filter(ex => ex.completed)
       .map(ex => createExerciseResult(ex, logValues[ex.id] ?? null, ex.reps));
 
     // Compute duration values
-    const scheduledSec = routine.exercises.reduce(
+    const scheduledSec = exercises.reduce(
       (sum, e) => sum + e.durationSec * e.reps,
       0
     );
-    const totalSec = routine.exercises
+    const totalSec = exercises
       .filter(ex => ex.completed)
       .reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const elapsedSec = player.sessionStartedAt?.value

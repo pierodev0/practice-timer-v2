@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { StatService } from '../../application/practice/StatService.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 
-const routineStore = useRoutineStore();
+const exerciseStore = useExerciseStore();
 const statService = new StatService({ exerciseLogRepository });
 const emit = defineEmits(['close']);
 
@@ -13,22 +13,20 @@ const editBuffer = ref('');
 
 const allLogs = computed(() => {
   const logs = [];
-  routineStore.routines.forEach(r => {
-    r.exercises.forEach(e => {
-      if (e.statisticLogs && e.statisticLogs.length > 0) {
-        e.statisticLogs.forEach((log, idx) => {
-          logs.push({
-            routineId: r.id,
-            exerciseId: e.id,
-            index: idx,
-            title: e.title,
-            statName: e.statisticName || 'Stat',
-            date: log.date,
-            value: log.value,
-          });
+  exerciseStore.exercises.forEach(e => {
+    if (e.statisticLogs && e.statisticLogs.length > 0) {
+      e.statisticLogs.forEach((log, idx) => {
+        logs.push({
+          routineId: e.routineId,
+          exerciseId: e.id,
+          index: idx,
+          title: e.title,
+          statName: e.statisticName || 'Stat',
+          date: log.date,
+          value: log.value,
         });
-      }
-    });
+      });
+    }
   });
   return logs.sort((a, b) => new Date(b.date) - new Date(a.date));
 });
@@ -50,8 +48,7 @@ function cancelEdit() {
 async function saveEdit(item) {
   const num = parseFloat(editBuffer.value);
   if (isNaN(num)) return;
-  const r = routineStore.routines.find(x => x.id === item.routineId);
-  const e = r?.exercises.find(x => x.id === item.exerciseId);
+  const e = exerciseStore.getById(item.exerciseId);
   const log = e?.statisticLogs[item.index];
   if (log) {
     await statService.updateStatLog(log.id, { value: num });
@@ -62,8 +59,7 @@ async function saveEdit(item) {
 
 async function deleteLog(item) {
   if (!confirm('Delete this record?')) return;
-  const r = routineStore.routines.find(x => x.id === item.routineId);
-  const e = r?.exercises.find(x => x.id === item.exerciseId);
+  const e = exerciseStore.getById(item.exerciseId);
   const log = e?.statisticLogs[item.index];
   if (log) {
     await statService.deleteStatLog(log.id);

@@ -10,11 +10,13 @@
 
 import { ref, computed, readonly } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
 import { useBpmStore } from '../../stores/useBpmStore.js';
 
 export function useExercisePlayer({ timer: externalTimer } = {}) {
   const routineStore = useRoutineStore();
+  const exerciseStore = useExerciseStore();
   const sessionStore = useSessionStore();
   const bpmStore = useBpmStore();
 
@@ -64,12 +66,12 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   }
 
   function playExercise(id) {
-    const ex = routineStore.getExerciseById(id);
+    const ex = exerciseStore.getById(id);
     if (!ex) return;
 
     // Save remaining of previous exercise
     if (activeExerciseId.value && activeExerciseId.value !== id) {
-      const prev = routineStore.getExerciseById(activeExerciseId.value);
+      const prev = exerciseStore.getById(activeExerciseId.value);
       if (prev) {
         prev.remainingSec = timer ? timer.remaining.value : exerciseRemaining.value;
       }
@@ -101,7 +103,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
 
   function pauseSequence() {
     if (activeExerciseId.value) {
-      const ex = routineStore.getExerciseById(activeExerciseId.value);
+      const ex = exerciseStore.getById(activeExerciseId.value);
       if (ex) {
         ex.remainingSec = timer ? timer.remaining.value : exerciseRemaining.value;
       }
@@ -128,7 +130,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   }
 
   function repeatExercise(id) {
-    const ex = routineStore.getExerciseById(id);
+    const ex = exerciseStore.getById(id);
     if (!ex) return;
 
     ex.remainingSec = ex.durationSec;
@@ -148,8 +150,9 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     pauseSequence();
 
     const routine = routineStore.currentRoutine;
-    const completedCount = routine.exercises.filter(e => e.completed).length;
-    const scheduledSec = routine.exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
+    const exercises = exerciseStore.getByRoutine(routine?.id);
+    const completedCount = exercises.filter(e => e.completed).length;
+    const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const elapsedSec = timer ? timer.globalSeconds.value : 0;
 
     return {
@@ -167,7 +170,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     exerciseRemaining.value = 0;
     isExercisePlaying.value = false;
     isAudioOn.value = false;
-    routineStore.resetCurrentRoutine();
+    exerciseStore.resetForRoutine(routineStore.currentRoutineId);
   }
 
   return {

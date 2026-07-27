@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
 import { downloadJSON } from '../../lib/utils.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
@@ -19,6 +20,7 @@ export const SORT_MODES = [
 
 export function useRoutineManager() {
   const routineStore = useRoutineStore();
+  const exerciseStore = useExerciseStore();
   const routineService = new RoutineService();
   const sessionStore = useSessionStore();
   const router = useRouter();
@@ -128,6 +130,20 @@ export function useRoutineManager() {
     e.target.value = '';
   }
 
+  // ── Exercise counts por rutina (para el template) ────
+
+  function getExerciseCount(routineId) {
+    return exerciseStore.getByRoutine(routineId).filter(e => !e.archived).length;
+  }
+
+  function getArchivedCount(routineId) {
+    return exerciseStore.getByRoutine(routineId).filter(e => e.archived).length;
+  }
+
+  function hasArchived(routineId) {
+    return getArchivedCount(routineId) > 0;
+  }
+
   return {
     sortMode,
     sortAsc,
@@ -143,5 +159,8 @@ export function useRoutineManager() {
     deleteRoutine,
     exportRoutine,
     importRoutines,
+    getExerciseCount,
+    getArchivedCount,
+    hasArchived,
   };
 }

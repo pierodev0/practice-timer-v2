@@ -16,28 +16,22 @@ export class StatsService {
   }
 
   /**
-   * Load progress chart data for all exercises in the given routines.
+   * Load progress chart data for all exercises with statisticName.
    *
-   * For each exercise with a statisticName, queries logs in the date
-   * range and builds chart-compatible datasets. Returns the same shape
-   * expected by vue-chartjs Line charts.
-   *
-   * @param {Array<Object>} routines — Routines with exercises
+   * @param {Array<Object>} exercises — Flat array of exercises
    * @param {string} filterStart — Start date (YYYY-MM-DD)
    * @param {string} filterEnd — End date (YYYY-MM-DD)
    * @returns {Promise<{ labels: string[], datasets: Array<{ label: string, data: Array<*>, borderColor: string }> }>}
    */
-  async loadProgressData(routines, filterStart, filterEnd) {
+  async loadProgressData(exercises, filterStart, filterEnd) {
     // Collect exercises that have a statisticName
     const statExercises = [];
-    for (const r of routines) {
-      for (const ex of r.exercises) {
-        if (ex.statisticName) {
-          statExercises.push({
-            name: `${ex.title} (${ex.statisticName})`,
-            exerciseId: ex.id,
-          });
-        }
+    for (const ex of exercises) {
+      if (ex.statisticName) {
+        statExercises.push({
+          name: `${ex.title} (${ex.statisticName})`,
+          exerciseId: ex.id,
+        });
       }
     }
 

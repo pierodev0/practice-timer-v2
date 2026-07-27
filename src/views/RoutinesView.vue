@@ -12,6 +12,7 @@ const {
   handleSortClick, toggleMenu, switchRoutine,
   showNewRoutineInput, renameRoutine, duplicateRoutine,
   deleteRoutine, exportRoutine, importRoutines,
+  getExerciseCount, getArchivedCount, hasArchived,
 } = useRoutineManager();
 </script>
 
@@ -70,8 +71,8 @@ const {
                 <span v-if="r.id === currentRoutineId" class="text-xs font-normal ml-1 inline">· Activa</span>
               </p>
               <p class="text-xs text-gray-400">
-                {{ r.exercises.filter(e => !e.archived).length }} ejercicio(s)
-                <template v-if="r.exercises.some(e => e.archived)">({{ r.exercises.filter(e => e.archived).length }} archivados)</template>
+                {{ getExerciseCount(r.id) }} ejercicio(s)
+                <template v-if="hasArchived(r.id)">({{ getArchivedCount(r.id) }} archivados)</template>
               </p>
             </div>
           </div>

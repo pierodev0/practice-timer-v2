@@ -8,6 +8,7 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 import { useTimer } from './useTimer.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
@@ -18,7 +19,8 @@ export function useExercisePlay() {
   const route = useRoute();
   const router = useRouter();
   const routineStore = useRoutineStore();
-  const routineService = new RoutineService({ routineStore });
+  const exerciseStore = useExerciseStore();
+  const routineService = new RoutineService();
   const statModal = useStatModal();
 
   // Deferred callback — timer needs player, player needs timer.
@@ -44,20 +46,20 @@ export function useExercisePlay() {
 
   const exerciseId = computed(() => route.params.exerciseId);
 
-  const exercise = computed(() => routineStore.getExerciseById(exerciseId.value));
+  const exercise = computed(() => exerciseStore.getById(exerciseId.value));
 
   const routine = computed(() => routineStore.currentRoutine);
 
+  const routineExercises = computed(() =>
+    routine.value ? exerciseStore.getVisibleForRoutine(routine.value.id) : []
+  );
+
   const exerciseIndex = computed(() => {
-    if (!routine.value) return 0;
-    const visible = routine.value.exercises.filter(e => !e.archived);
+    const visible = routineExercises.value;
     return visible.findIndex(e => e.id === exerciseId.value) + 1;
   });
 
-  const totalExercises = computed(() => {
-    if (!routine.value) return 0;
-    return routine.value.exercises.filter(e => !e.archived).length;
-  });
+  const totalExercises = computed(() => routineExercises.value.length);
 
   const currentRemaining = computed(() => {
     if (player.activeExerciseId.value === exercise.value?.id) {
@@ -100,7 +102,7 @@ export function useExercisePlay() {
   }
 
   function skipExercise() {
-    const visible = routine.value?.exercises.filter(e => !e.archived) ?? [];
+    const visible = routine.value ? exerciseStore.getVisibleForRoutine(routine.value.id) : [];
     const idx = visible.findIndex(e => e.id === exerciseId.value);
     if (idx < visible.length - 1) {
       const nextId = visible[idx + 1].id;

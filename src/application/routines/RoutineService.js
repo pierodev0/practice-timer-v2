@@ -1,18 +1,14 @@
 /**
  * RoutineService — lógica de negocio para rutinas y ejercicios.
  *
- * Usa domain factories para crear objetos, repos para persistir,
- * y store para estado en memoria (Pinia).
- *
- * Reglas:
- * 1. No llama saveToStorage() del store — persiste directo via repos
- * 2. Usa store.addRoutine/removeRoutine para mutar estado (no ref directo)
- * 3. Usa domain factories (createExercise, createRoutine, stripTransients)
- * 4. Cada operación persiste solo lo que cambió
+ * Orquesta: domain factories + useRoutineStore + useExerciseStore + repos.
+ * Cada operación persiste solo lo que cambió.
+ * saveAllToStorage() es write-all legacy para callers de práctica/cloud.
  */
 
 import { nanoid } from 'nanoid';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import * as routineRepository from '../../infrastructure/db/repositories/routineRepository.js';
 import * as routineExerciseRepository from '../../infrastructure/db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../../infrastructure/db/repositories/exerciseRepository.js';
@@ -21,65 +17,55 @@ import { createExercise, stripTransients } from '../../domain/routines/Exercise.
 import { getDefaultRoutines, saveAll, loadAll } from '../../infrastructure/services/routinePersistence.js';
 
 export class RoutineService {
-  /**
-   * @param {Object} options
-   * @param {Object} [options.routineStore] — para tests, omitir en prod
-   */
-  constructor({ routineStore } = {}) {
+  constructor({ routineStore, exerciseStore } = {}) {
     this._routineStore = routineStore || useRoutineStore();
+    this._exerciseStore = exerciseStore || useExerciseStore();
   }
 
   // ── Init / Persistencia global ─────────────────────────
 
-  /**
-   * Inicializar: cargar desde Dexie, sembrar defaults si está vacío.
-   * Llamar desde App.vue o antes de acceder a routines.
-   * @returns {Promise<void>}
-   */
   async init() {
     const data = await loadAll();
-    if (data.length === 0) {
+    if (data.routines.length === 0) {
       const defaults = getDefaultRoutines();
-      this._routineStore.setRoutines(defaults.map(r => JSON.parse(JSON.stringify(r))));
-      this._routineStore.setCurrentRoutine(this._routineStore.routines[0]?.id || 'module-1');
-      await saveAll(this._routineStore.routines);
+      const cloned = defaults.map(r => JSON.parse(JSON.stringify(r)));
+      const routines = cloned.map(r => ({ id: r.id, name: r.name, createdAt: r.createdAt }));
+      const exercises = cloned.flatMap(r =>
+        (r.exercises || []).map((ex, i) => ({ ...ex, routineId: r.id, order: i }))
+      );
+      this._routineStore.setRoutines(routines);
+      this._exerciseStore.setAll(exercises);
+      this._routineStore.setCurrentRoutine(routines[0]?.id || null);
+      await saveAll(routines, exercises);
       const fresh = await loadAll();
-      this._routineStore.setRoutines(fresh);
+      this._routineStore.setRoutines(fresh.routines);
+      this._exerciseStore.setAll(fresh.exercises);
     } else {
-      this._routineStore.setRoutines(data);
+      this._routineStore.setRoutines(data.routines);
+      this._exerciseStore.setAll(data.exercises);
     }
     if (this._routineStore.routines.length > 0 && !this._routineStore.currentRoutineId) {
       this._routineStore.setCurrentRoutine(this._routineStore.routines[0].id);
     }
   }
 
-  /**
-   * Persistir todo el estado actual a Dexie (write-all).
-   * Para callers legacy que no pueden migrar a operaciones individuales.
-   */
   async saveAllToStorage() {
-    await saveAll(this._routineStore.routines);
+    await saveAll(this._routineStore.routines, this._exerciseStore.exercises);
   }
 
-  /**
-   * Recargar todo desde Dexie al estado.
-   */
   async loadAllFromStorage() {
     const data = await loadAll();
-    this._routineStore.setRoutines(data);
-    if (data.length > 0 && !this._routineStore.currentRoutineId) {
-      this._routineStore.setCurrentRoutine(data[0].id);
+    this._routineStore.setRoutines(data.routines);
+    this._exerciseStore.setAll(data.exercises);
+    if (data.routines.length > 0 && !this._routineStore.currentRoutineId) {
+      this._routineStore.setCurrentRoutine(data.routines[0].id);
     }
   }
 
   // ── Rutinas CRUD ───────────────────────────────────────
 
-  /**
-   * Crear una rutina vacía.
-   * @param {string} name
-   */
   async addRoutine(name) {
-    const routine = createRoutine({ name, exercises: [] });
+    const routine = createRoutine({ name });
     this._routineStore.addRoutine(routine);
     await routineRepository.create({
       id: routine.id,
@@ -88,63 +74,50 @@ export class RoutineService {
     });
   }
 
-  /**
-   * Eliminar una rutina y todos sus ejercicios vinculados.
-   * @param {string} id
-   */
   async removeRoutine(id) {
-    // Primero persistir (repo tmb elimina junction links)
     await routineRepository.remove(id);
-    // Luego actualizar estado
     this._routineStore.removeRoutine(id);
+    // Exercises de esta rutina también se eliminan de memoria
+    const toRemove = this._exerciseStore.getByRoutine(id);
+    toRemove.forEach(ex => this._exerciseStore.remove(ex.id));
   }
 
-  /**
-   * Duplicar una rutina con nuevos IDs en los ejercicios.
-   * @param {string} originalId
-   * @returns {Object|null} rutina duplicada
-   */
   async duplicateRoutine(originalId) {
     const original = this._routineStore.routines.find(r => r.id === originalId);
     if (!original) return null;
+
+    const originalExercises = this._exerciseStore.getByRoutine(originalId);
 
     const copy = createRoutine({
       id: nanoid(),
       name: original.name + ' (Copia)',
       createdAt: Date.now(),
-      exercises: original.exercises.map(ex =>
-        createExercise({
-          ...stripTransients(ex),
-          id: nanoid(),
-          statisticLogs: [],
-        })
-      ),
     });
+
+    const copyExercises = originalExercises.map((ex, i) =>
+      createExercise({
+        ...stripTransients(ex),
+        id: nanoid(),
+        routineId: copy.id,
+        order: i,
+        statisticLogs: [],
+      })
+    );
 
     this._routineStore.addRoutine(copy);
+    copyExercises.forEach(ex => this._exerciseStore.add(ex));
 
-    // Persistir rutina
     await routineRepository.create({
-      id: copy.id,
-      name: copy.name,
-      createdAt: copy.createdAt,
+      id: copy.id, name: copy.name, createdAt: copy.createdAt,
     });
-
-    // Persistir ejercicios y links
-    for (let i = 0; i < copy.exercises.length; i++) {
-      const ex = copy.exercises[i];
+    for (const ex of copyExercises) {
       await exerciseRepository.upsert(stripTransients(ex));
-      await routineExerciseRepository.addExercise(copy.id, ex.id, i);
+      await routineExerciseRepository.addExercise(copy.id, ex.id, ex.order);
     }
 
     return copy;
   }
 
-  /**
-   * Renombrar una rutina.
-   * @param {string} id
-   * @param {string} newName
-   */
   async renameRoutine(id, newName) {
     const r = this._routineStore.routines.find(x => x.id === id);
     if (!r) return;
@@ -154,97 +127,65 @@ export class RoutineService {
 
   // ── Ejercicios CRUD ────────────────────────────────────
 
-  /**
-   * Agregar un ejercicio a una rutina.
-   * Recibe datos parciales — createExercise completa los defaults.
-   * @param {string} routineId
-   * @param {Object} data — campos del ejercicio (parcial OK)
-   */
   async addExercise(routineId, data) {
     const r = this._routineStore.routines.find(x => x.id === routineId);
     if (!r) return;
 
-    const exercise = createExercise(data);
-    r.exercises.push(exercise);
+    const exercises = this._exerciseStore.getByRoutine(routineId);
+    const order = exercises.length;
+
+    const exercise = createExercise({ ...data, routineId, order });
+    this._exerciseStore.add(exercise);
 
     await exerciseRepository.upsert(stripTransients(exercise));
-    await routineExerciseRepository.addExercise(routineId, exercise.id, r.exercises.length - 1);
+    await routineExerciseRepository.addExercise(routineId, exercise.id, order);
   }
 
-  /**
-   * Actualizar un campo de un ejercicio.
-   * @param {string} exerciseId
-   * @param {string} field
-   * @param {*} value
-   */
   async updateExerciseField(exerciseId, field, value) {
-    const ex = this._routineStore.findExercise(exerciseId);
+    const ex = this._exerciseStore.getById(exerciseId);
     if (!ex) return;
     ex[field] = value;
     await exerciseRepository.update(exerciseId, { [field]: value });
   }
 
-  /**
-   * Eliminar un ejercicio de una rutina.
-   * @param {string} routineId
-   * @param {string} exerciseId
-   */
   async removeExercise(routineId, exerciseId) {
-    const r = this._routineStore.routines.find(x => x.id === routineId);
-    if (!r) return;
-    const idx = r.exercises.findIndex(e => e.id === exerciseId);
-    if (idx === -1) return;
-
-    r.exercises.splice(idx, 1);
+    this._exerciseStore.remove(exerciseId);
     await routineExerciseRepository.removeExercise(routineId, exerciseId);
     await exerciseRepository.remove(exerciseId);
   }
 
-  /**
-   * Archivar un ejercicio (ocultarlo de la vista activa).
-   * @param {string} routineId
-   * @param {string} exerciseId
-   */
   async archiveExercise(routineId, exerciseId) {
-    const ex = this._routineStore.findExercise(exerciseId);
+    const ex = this._exerciseStore.getById(exerciseId);
     if (!ex) return;
     ex.archived = true;
     await exerciseRepository.update(exerciseId, { archived: true });
   }
 
-  /**
-   * Duplicar un ejercicio dentro de la misma rutina.
-   * @param {string} routineId
-   * @param {string} exerciseId
-   */
   async duplicateExercise(routineId, exerciseId) {
-    const r = this._routineStore.routines.find(x => x.id === routineId);
-    if (!r) return;
-    const idx = r.exercises.findIndex(e => e.id === exerciseId);
-    if (idx === -1) return;
+    const original = this._exerciseStore.getById(exerciseId);
+    if (!original) return;
 
-    const original = r.exercises[idx];
+    const exercises = this._exerciseStore.getByRoutine(routineId);
+    const idx = exercises.findIndex(e => e.id === exerciseId);
+    const newOrder = idx + 1;
+
     const copy = createExercise({
       ...stripTransients(original),
       id: nanoid(),
       title: original.title + ' (Copy)',
+      routineId,
+      order: newOrder,
       statisticLogs: [],
     });
 
-    r.exercises.splice(idx + 1, 0, copy);
+    this._exerciseStore.add(copy);
 
     await exerciseRepository.upsert(stripTransients(copy));
-    await routineExerciseRepository.addExercise(routineId, copy.id, idx + 1);
+    await routineExerciseRepository.addExercise(routineId, copy.id, newOrder);
   }
 
   // ── Utilidades ─────────────────────────────────────────
 
-  /**
-   * Actualizar un campo de una rutina.
-   * @param {string} routineId
-   * @param {string} field
-   * @param {*} value
-   */
   async updateRoutineField(routineId, field, value) {
     const r = this._routineStore.routines.find(x => x.id === routineId);
     if (!r) return;
@@ -252,65 +193,60 @@ export class RoutineService {
     await routineRepository.update(routineId, { [field]: value });
   }
 
-  /**
-   * Reordenar ejercicios (drag & drop).
-   * @param {string} routineId
-   * @param {number} oldIdx
-   * @param {number} newIdx
-   */
   async reorderExercises(routineId, oldIdx, newIdx) {
-    const r = this._routineStore.routines.find(x => x.id === routineId);
-    if (!r) return;
+    const exercises = this._exerciseStore.getByRoutine(routineId);
+    const [moved] = exercises.splice(oldIdx, 1);
+    exercises.splice(newIdx, 0, moved);
 
-    const visible = r.exercises.filter(e => !e.archived);
-    const movedEx = visible[oldIdx];
-    const targetEx = visible[newIdx];
-    if (!movedEx || !targetEx) return;
+    // Actualizar orders en memoria
+    exercises.forEach((ex, i) => { ex.order = i; });
 
-    const allEx = r.exercises;
-    allEx.splice(allEx.indexOf(movedEx), 1);
-    allEx.splice(allEx.indexOf(targetEx), 0, movedEx);
-
-    await routineExerciseRepository.reorderExercises(routineId, allEx.map(e => e.id));
+    await routineExerciseRepository.reorderExercises(
+      routineId,
+      this._exerciseStore.getByRoutine(routineId).map(e => e.id)
+    );
   }
 
-  /**
-   * Importar rutinas desde JSON (usado en importRoutines de useRoutineManager).
-   * @param {Array<Object>} routines — datos a importar
-   */
-  async importRoutines(routines) {
-    for (const r of routines) {
+  async importRoutines(routinesData) {
+    for (const r of routinesData) {
+      const rawExercises = r.exercises || [];
       const routine = createRoutine({
-        ...r,
-        exercises: (r.exercises || []).map(ex => createExercise(ex)),
+        id: r.id || nanoid(),
+        name: r.name,
+        createdAt: r.createdAt,
       });
+      const exercises = rawExercises.map((ex, i) =>
+        createExercise({ ...ex, routineId: routine.id, order: i })
+      );
+
       this._routineStore.addRoutine(routine);
+      exercises.forEach(ex => this._exerciseStore.add(ex));
 
       await routineRepository.create({
-        id: routine.id,
-        name: routine.name,
-        createdAt: routine.createdAt,
+        id: routine.id, name: routine.name, createdAt: routine.createdAt,
       });
-
-      for (let i = 0; i < routine.exercises.length; i++) {
-        const ex = routine.exercises[i];
+      for (const ex of exercises) {
         await exerciseRepository.upsert(stripTransients(ex));
-        await routineExerciseRepository.addExercise(routine.id, ex.id, i);
+        await routineExerciseRepository.addExercise(routine.id, ex.id, ex.order);
       }
     }
   }
 
-  /**
-   * Resetear a rutinas por defecto (primer uso o reset manual).
-   */
   async resetToDefaults() {
     const defaults = getDefaultRoutines();
-    const routines = defaults.map(r => JSON.parse(JSON.stringify(r)));
+    const cloned = defaults.map(r => JSON.parse(JSON.stringify(r)));
+
+    const routines = cloned.map(r => ({
+      id: r.id, name: r.name, createdAt: r.createdAt,
+    }));
+    const exercises = cloned.flatMap(r =>
+      (r.exercises || []).map((ex, i) => ({ ...ex, routineId: r.id, order: i }))
+    );
 
     this._routineStore.setRoutines(routines);
+    this._exerciseStore.setAll(exercises);
     this._routineStore.setCurrentRoutine(routines[0]?.id || 'module-1');
 
-    // Write-all necesario para reset completo
-    await saveAll(routines);
+    await saveAll(routines, exercises);
   }
 }

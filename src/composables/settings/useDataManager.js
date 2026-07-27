@@ -1,17 +1,20 @@
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
 import { downloadJSON } from '../../lib/utils.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 
 export function useDataManager() {
   const routineStore = useRoutineStore();
+  const exerciseStore = useExerciseStore();
   const sessionStore = useSessionStore();
-  const routineService = new RoutineService({ routineStore });
+  const routineService = new RoutineService({ routineStore, exerciseStore });
 
   function exportAllData() {
     downloadJSON(
       JSON.stringify({
         routines: routineStore.routines,
+        exercises: exerciseStore.exercises,
         stats: sessionStore.stats,
         sessions: sessionStore.sessions,
       }, null, 2),
@@ -26,17 +29,20 @@ export function useDataManager() {
     reader.onload = (evt) => {
       try {
         const json = JSON.parse(evt.target.result);
-        routineStore.routines = json.routines || [];
+        // Backward compat: si routines tienen exercises embebidos, aplanarlos
+        let routines = json.routines || [];
+        let exercises = json.exercises || [];
+        if (routines.length > 0 && routines[0].exercises) {
+          exercises = routines.flatMap(r =>
+            (r.exercises || []).map((ex, i) => ({ ...ex, routineId: r.id, order: i }))
+          );
+          routines = routines.map(r => ({ id: r.id, name: r.name, createdAt: r.createdAt }));
+        }
+        routineStore.setRoutines(routines);
+        exerciseStore.setAll(exercises);
         sessionStore.stats = json.stats || sessionStore.stats;
         sessionStore.sessions = json.sessions || [];
-        routineStore.currentRoutineId = routineStore.routines[0]?.id || 'module-1';
-        routineStore.routines.forEach(r => {
-          r.exercises.forEach(e => {
-            e.completed = false;
-            e.remainingSec = e.durationSec;
-            e.currentRep = 1;
-          });
-        });
+        routineStore.setCurrentRoutine(routines[0]?.id || null);
         routineService.saveAllToStorage();
         sessionStore.saveToStorage();
         alert('Restauración completa.');

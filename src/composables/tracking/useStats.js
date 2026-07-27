@@ -7,6 +7,7 @@ import { subDays, differenceInCalendarDays } from 'date-fns';
 import { StatsService } from '../../application/tracking/StatsService.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 
 const CHART_OPTS = {
   responsive: true,
@@ -32,9 +33,9 @@ export function useStats() {
     await Promise.all([new RoutineService().init(), sessionStore._ready]);
     const statDates = Object.keys(sessionStore.stats);
     const allDates = new Set(statDates);
-    routineStore.routines.forEach(r => r.exercises.forEach(e => {
+    useExerciseStore().exercises.forEach(e => {
       (e.statisticLogs || []).forEach(log => allDates.add(log.date));
-    }));
+    });
     const sorted = Array.from(allDates).filter(Boolean).sort();
     if (sorted.length > 0) {
       filterStart.value = sorted[0];
@@ -185,7 +186,7 @@ export function useStats() {
 
   async function loadProgressData() {
     const result = await statsService.loadProgressData(
-      routineStore.routines,
+      useExerciseStore().exercises,
       filterStart.value,
       filterEnd.value
     );
