@@ -82,13 +82,6 @@ export function useSessionHistory() {
     return r ? r.name : session.routineName;
   }
 
-  function formatDuration(seconds) {
-    if (!seconds) return '0m';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.round((seconds % 3600) / 60);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
-  }
-
   function exportDay(dateStr) {
     const daySessions = sessionStore.sessions.filter(s => s.date === dateStr);
     if (daySessions.length === 0) return;
@@ -133,7 +126,6 @@ export function useSessionHistory() {
     prevMonth,
     nextMonth,
     resolveRoutineName,
-    formatDuration,
     exportDay,
     exportMonth,
     openEditSession,

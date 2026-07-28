@@ -4,7 +4,7 @@
  */
 
 <script setup>
-import { formatISOTime } from '../lib/utils.js';
+import { formatISOTime, formatTime } from '../lib/utils.js';
 import { useSessionHistory } from '../composables/tracking/useSessionHistory.js';
 import EditSessionModal from '../components/modals/EditSessionModal.vue';
 
@@ -14,7 +14,7 @@ const {
   monthLabel, monthSessions, dayGroups,
   sessionStatMap,
   prevMonth, nextMonth,
-  resolveRoutineName, formatDuration,
+  resolveRoutineName,
   exportDay, exportMonth,
   openEditSession, closeEditSession,
 } = useSessionHistory();
@@ -51,7 +51,7 @@ const {
             <div class="flex items-center gap-2">
               <i class="fas fa-dumbbell text-[#E53935] text-sm"></i>
               <span class="font-bold text-gray-800 text-sm">{{ resolveRoutineName(session) }}</span>
-              <span class="text-xs text-gray-400 font-normal">({{ formatDuration(session.scheduledSec) }})</span>
+              <span class="text-xs text-gray-400 font-normal">({{ formatTime(session.scheduledSec) }})</span>
             </div>
             <button @click="openEditSession(session.id)" class="text-xs text-gray-400 hover:text-[#E53935] p-1 rounded" title="Editar sesión">
               <i class="fas fa-pencil-alt"></i>
@@ -59,14 +59,48 @@ const {
           </div>
           <div class="text-xs text-gray-500 mb-2">
             {{ formatISOTime(session.startedAt) }} <i class="fas fa-arrow-right text-[10px] text-gray-300 mx-1"></i> {{ formatISOTime(session.completedAt) }}
-            <span class="text-gray-400 font-medium ml-1">({{ formatDuration(session.elapsedSec || session.totalSec) }})</span>
+            <span class="text-gray-400 font-medium ml-1">({{ formatTime(session.elapsedSec || session.totalSec) }})</span>
           </div>
-          <div class="space-y-1">
-            <div v-for="(ex, idx) in session.exercises" :key="ex.id || idx" class="flex items-center gap-2 text-xs text-gray-600">
-              <i class="fas fa-check-circle text-green-500 text-[10px]"></i>
-              <span>{{ ex.title }}</span>
-              <span v-if="(session.exercises.filter(e => e.exerciseId === ex.exerciseId).length) > 1" class="text-gray-400 font-mono ml-auto">#{{ ex.repIndex || 1 }}</span>
-              <span v-if="ex.statValue != null || sessionStatMap[session.id]?.[ex.exerciseId] != null" class="text-[#E53935] font-medium ml-auto">{{ ex.statisticName || 'Stat' }}: {{ ex.statValue ?? sessionStatMap[session.id]?.[ex.exerciseId] }}</span>
+          <div class="space-y-1.5">
+            <div v-for="(ex, idx) in session.exercises" :key="ex.id || idx" class="flex items-start gap-2 text-xs text-gray-600">
+              <i class="fas fa-check-circle text-green-500 mt-0.5 text-[10px] flex-shrink-0"></i>
+              <div class="flex-1 min-w-0 space-y-0.5">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <!-- Mode badge -->
+                  <span v-if="ex.mode === 'perfect-reps'" class="text-emerald-600" title="Perfect reps"><i class="fas fa-star text-[10px]"></i></span>
+                  <span v-else-if="ex.mode === 'count'" class="text-orange-500" title="Count"><i class="fas fa-hashtag text-[10px]"></i></span>
+                  <span v-else-if="ex.mode === 'free'" class="text-gray-400" title="Free"><i class="fas fa-circle-notch text-[10px]"></i></span>
+                  <span v-else class="text-blue-500" title="Timer"><i class="fas fa-hourglass-half text-[10px]"></i></span>
+                  <span class="font-medium text-gray-700 truncate max-w-[180px]">{{ ex.title }}</span>
+                  <span v-if="(session.exercises.filter(e => e.exerciseId === ex.exerciseId).length) > 1" class="text-gray-400 font-mono flex-shrink-0">#{{ ex.repIndex || 1 }}</span>
+                  <span v-if="ex.bpm" class="text-gray-400 flex-shrink-0 ml-auto opacity-60">♩ {{ ex.bpm }}</span>
+                </div>
+                <div class="flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[11px]">
+                  <!-- Timer mode -->
+                  <template v-if="ex.mode === 'timer'">
+                    <span class="text-gray-500">{{ formatTime(ex.durationSec) }}</span>
+                    <span v-if="ex.repsCompleted > 1" class="text-gray-400">{{ ex.repsCompleted }}×</span>
+                  </template>
+                  <!-- Perfect-reps mode -->
+                  <template v-else-if="ex.mode === 'perfect-reps'">
+                    <span class="text-emerald-600 font-semibold">{{ ex.perfectCount }}/{{ ex.repsPlanned }} perfectas</span>
+                    <span v-if="ex.repsActual > ex.repsPlanned" class="text-gray-400">({{ ex.repsActual }} intentos)</span>
+                  </template>
+                  <!-- Count mode -->
+                  <template v-else-if="ex.mode === 'count'">
+                    <span class="text-orange-500 font-semibold">{{ ex.repsActual ?? 0 }}/{{ ex.repsPlanned }} reps</span>
+                  </template>
+                  <!-- Free mode -->
+                  <template v-else-if="ex.mode === 'free'">
+                    <span v-if="ex.actualSec" class="text-gray-500">{{ formatTime(ex.actualSec) }}</span>
+                    <span v-else class="text-gray-400 italic">Libre</span>
+                  </template>
+                  <!-- Stat value -->
+                  <span v-if="ex.statValue != null || sessionStatMap[session.id]?.[ex.exerciseId] != null" class="text-[#E53935] font-medium">
+                    {{ ex.statisticName || 'Stat' }}: {{ ex.statValue ?? sessionStatMap[session.id]?.[ex.exerciseId] }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

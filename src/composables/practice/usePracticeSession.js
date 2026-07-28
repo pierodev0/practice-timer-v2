@@ -248,10 +248,11 @@ export function usePracticeSession() {
   }
 
   function _buildSnapshot(ex, logValue, repsCompleted, repIndex) {
-    const perfect = ex.mode === 'perfect-reps';
+    const mode = ex.mode || 'timer';
     return {
       exerciseId: ex.id,
       title: ex.title,
+      mode,
       bpm: ex.bpm,
       durationSec: ex.durationSec,
       repsCompleted,
@@ -259,9 +260,9 @@ export function usePracticeSession() {
       statisticName: ex.statisticName || '',
       statValue: logValue ?? null,
       actualSec: ex.actualSec ?? null,
-      repsPlanned: perfect ? (ex.targetPerfect ?? null) : null,
-      repsActual: perfect ? (ex.attempts ?? null) : null,
-      perfectCount: perfect ? (ex.perfectCount ?? null) : null,
+      repsPlanned: mode === 'perfect-reps' ? (ex.targetPerfect ?? null) : mode === 'count' ? (ex.reps ?? null) : null,
+      repsActual: mode === 'perfect-reps' || mode === 'count' ? (ex.attempts ?? null) : null,
+      perfectCount: mode === 'perfect-reps' ? (ex.perfectCount ?? null) : null,
       comment: ex.comment || '',
     };
   }
