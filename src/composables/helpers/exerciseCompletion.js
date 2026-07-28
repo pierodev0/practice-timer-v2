@@ -9,7 +9,7 @@ export function resetExercise(exercise, timer, player) {
     player.pauseSequence();
   }
   if (exercise.completed) {
-    timer.globalSeconds.value = Math.max(0, timer.globalSeconds.value - exercise.durationSec);
+    timer.sessionElapsed.value = Math.max(0, timer.sessionElapsed.value - exercise.durationSec);
   }
   exercise.remainingSec = exercise.durationSec;
   exercise.completed = false;
@@ -28,7 +28,7 @@ export function doComplete(exercise, timer, player) {
   } else {
     timeToAdd = exercise.remainingSec;
   }
-  timer.globalSeconds.value += timeToAdd;
+  timer.sessionElapsed.value += timeToAdd;
   exercise.completed = true;
   exercise.remainingSec = 0;
   _routineService.saveAllToStorage();

@@ -1,22 +1,33 @@
 /**
- * useTimer — Web Worker based countdown timer composable.
+ * useTimer — Web Worker based count-up timer composable.
  *
  * Manages a Web Worker for reliable 1-second ticks (even when tab is hidden),
- * exposes reactive globalSeconds and remaining, and calls onExerciseComplete
- * when remaining hits zero.
+ * exposes reactive elapsed (per-exercise, resets on setExercise) and
+ * sessionElapsed (total session, resets on reset()), and calls
+ * onExerciseComplete when the exercise duration is reached.
+ *
+ * Display helpers:
+ *   timer mode:  timer.remaining (count-down)
+ *   free mode:   timer.elapsed (count-up)
+ *   total time:  timer.sessionElapsed
  *
  * @param {Object} options
- * @param {Function} options.onExerciseComplete - called when remaining reaches 0
+ * @param {Function} options.onExerciseComplete - called when elapsed reaches duration
  * @param {Worker}   options.worker - injected Worker instance (for testing)
  */
 
-import { ref, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 
 export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
-  const globalSeconds = ref(0);
-  const remaining = ref(0);
+  const elapsed = ref(0);
+  const sessionElapsed = ref(0);
   const isRunning = ref(false);
 
+  let _duration = 0;
+
+  const remaining = computed(() =>
+    _duration > 0 ? Math.max(0, _duration - elapsed.value) : 0
+  );
   let worker = externalWorker;
 
   if (!worker) {
@@ -31,13 +42,11 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
 
   function handleTick() {
     if (!isRunning.value) return;
-    globalSeconds.value++;
-    if (remaining.value > 0) {
-      remaining.value--;
-      if (remaining.value <= 0) {
-        isRunning.value = false;
-        if (onExerciseComplete) onExerciseComplete();
-      }
+    elapsed.value++;
+    sessionElapsed.value++;
+    if (_duration > 0 && elapsed.value >= _duration) {
+      isRunning.value = false;
+      if (onExerciseComplete) onExerciseComplete();
     }
   }
 
@@ -52,13 +61,14 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
   }
 
   function setExercise(durationSec) {
-    remaining.value = durationSec;
+    elapsed.value = 0;
+    _duration = durationSec;
   }
 
   function reset() {
     stop();
-    globalSeconds.value = 0;
-    remaining.value = 0;
+    elapsed.value = 0;
+    sessionElapsed.value = 0;
   }
 
   function dispose() {
@@ -71,8 +81,9 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
   onUnmounted(dispose);
 
   return {
-    globalSeconds,
+    elapsed,
     remaining,
+    sessionElapsed,
     isRunning,
     start,
     stop,

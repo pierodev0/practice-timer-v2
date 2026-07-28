@@ -25,8 +25,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   const isAudioOn = ref(false);
   const activeExerciseId = ref(null);
   const isExercisePlaying = ref(false);
-  const exerciseRemaining = ref(0);
-
 
   // ── Computed (expose store state readonly) ─────────────
 
@@ -72,8 +70,8 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     // Save remaining of previous exercise
     if (activeExerciseId.value && activeExerciseId.value !== id) {
       const prev = exerciseStore.getById(activeExerciseId.value);
-      if (prev) {
-        prev.remainingSec = timer ? timer.remaining.value : exerciseRemaining.value;
+      if (prev && timer) {
+        prev.remainingSec = timer ? timer.remaining.value : 0;
       }
     }
 
@@ -85,7 +83,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       // Sin timer count-down. Inicializar contadores de sesión.
       ex.perfectCount = 0;
       ex.attempts = 0;
-      exerciseRemaining.value = 0;
       if (timer) timer.setExercise(0);
       return;
     }
@@ -93,17 +90,15 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     if (ex.mode === 'free') {
       ex.perfectCount = 0;
       ex.attempts = 0;
-      exerciseRemaining.value = 0;
       if (timer) {
         timer.setExercise(0);
-        timer.start(); // count-up: remaining=0 no decrementa, pero globalSeconds sube
+        timer.start();
       }
       return;
     }
 
     // Timer mode: count-down normal
     const secs = (ex.remainingSec <= 0) ? ex.durationSec : ex.remainingSec;
-    exerciseRemaining.value = secs;
     if (timer) {
       timer.setExercise(secs);
       timer.start();
@@ -125,8 +120,8 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   function pauseSequence() {
     if (activeExerciseId.value) {
       const ex = exerciseStore.getById(activeExerciseId.value);
-      if (ex) {
-        ex.remainingSec = timer ? timer.remaining.value : exerciseRemaining.value;
+      if (ex && timer) {
+        ex.remainingSec = timer ? timer.remaining.value : 0;
       }
     }
 
@@ -214,7 +209,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     ex.completed = false;
     ex.perfectCount = 0;
     ex.attempts = 0;
-    exerciseRemaining.value = ex.durationSec;
     isExercisePlaying.value = true;
 
     if (timer) {
@@ -230,7 +224,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     const exercises = exerciseStore.getByRoutine(routine?.id);
     const completedCount = exercises.filter(e => e.completed).length;
     const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const elapsedSec = timer ? timer.globalSeconds.value : 0;
+    const elapsedSec = timer ? timer.sessionElapsed.value : 0;
 
     // Capturar actualSec en ejercicios con mode no-timer
     exercises.forEach(ex => {
@@ -251,7 +245,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
   function resetRoutineState() {
     if (timer) timer.reset();
     activeExerciseId.value = null;
-    exerciseRemaining.value = 0;
     isExercisePlaying.value = false;
     isAudioOn.value = false;
     exerciseStore.resetForRoutine(routineStore.currentRoutineId);
@@ -271,7 +264,6 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     isAudioOn,
     activeExerciseId,
     isExercisePlaying,
-    exerciseRemaining,
     // Computed
     bpm: readonly(bpm),
 

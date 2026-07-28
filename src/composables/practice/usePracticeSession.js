@@ -73,10 +73,9 @@ export function usePracticeSession() {
   const displayTime = computed(() => {
     const ex = exercise.value;
     if (!ex) return 0;
-    const elapsed = Number(timer.globalSeconds.value) || 0;
-    const remaining = Number(timer.remaining.value) || 0;
+    const elapsed = Number(timer.elapsed.value) || 0;
     if (player.activeExerciseId.value === ex.id) {
-      return ex.durationSec > 0 ? remaining : elapsed;
+      return ex.durationSec > 0 ? timer.remaining.value : elapsed;
     }
     return ex.durationSec > 0 ? (Number(ex.remainingSec) || 0) : elapsed;
   });
@@ -115,7 +114,6 @@ export function usePracticeSession() {
     if (ex.currentRep < (ex.reps || DEFAULT_REPS)) {
       ex.currentRep++;
       ex.remainingSec = ex.durationSec;
-      player.exerciseRemaining.value = ex.durationSec;
       player.isExercisePlaying.value = true;
       timer.setExercise(ex.durationSec);
       timer.start();
@@ -224,7 +222,7 @@ export function usePracticeSession() {
 
     const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
     const totalSec = completedExercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const elapsedSec = timer.globalSeconds.value || totalSec;
+    const elapsedSec = timer.sessionElapsed.value || totalSec;
 
     await sessionStore.addSession({
       id: _sessionId,

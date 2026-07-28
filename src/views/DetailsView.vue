@@ -32,13 +32,12 @@ const { exercise, title, statName, comment, autoStart, showMenu,
   updateAutoStart, updateComment, duplicate, archive, remove } = editor;
 
 const { activeExerciseId } = player;
-const { remaining } = timer;
 
 // ── Computed ────────────────────────────────────────────────
 
 const currentRemaining = computed(() =>
   (activeExerciseId.value === exercise.value?.id)
-    ? remaining.value
+    ? timer.remaining.value
     : exercise.value?.remainingSec ?? 0
 );
 
