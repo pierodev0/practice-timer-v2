@@ -53,6 +53,8 @@ Cada modo define qué campos tienen sentido. Ejercicios sin `mode` se tratan com
 | `count` | reps | attempts >= reps |
 | `free` | (solo título) | Marcado manual |
 
+El campo `statisticName` controla si al completar un ejercicio timer se pide un valor al usuario. Si es `null`, solo suena la campana y se da por terminado sin modal.
+
 ### `sessions`
 
 Cada sesión es una práctica completa. Su metadata es independiente del tipo de ejercicios que contenga.
@@ -63,7 +65,6 @@ Cada sesión es una práctica completa. Su metadata es independiente del tipo de
 | `date` | `string` | `YYYY-MM-DD` |
 | `routineId` | `string` | FK a la rutina practicada |
 | `routineName` | `string` | Snapshot del nombre de la rutina |
-| `pieceId` | `string\|null` | FK opcional a pieza musical (futuro) |
 | `startedAt` | `string` | ISO timestamp de inicio |
 | `completedAt` | `string` | ISO timestamp de fin |
 | `scheduledSec` | `number` | Tiempo planificado total (`∑ durationSec × reps`) |
@@ -122,25 +123,29 @@ Indexes: `[exerciseId+date]`, `sessionId`
 ### Creación de sesión
 
 ```
-1. Usuario arranca rutina → usePracticeSession genera sessionId (nanoid)
+1. Usuario da Start en Dashboard → ExercisePlayView monta usePracticeSession
+   _sessionId y _sessionDate se generan al nivel módulo (sobreviven montaje/desmontaje)
 
 2. Por cada ejercicio completado:
-   ├── Si tiene statisticName → submitStatValue(val, sessionId)
-   │   └── exerciseLog.add({ exerciseId, date, value, sessionId })
-   └── Se acumula en ex.statisticLogs[] (caché en memoria)
+   └── Si tiene statisticName != null → submitStatValue(val, sessionId)
+       └── exerciseLog.add({ exerciseId, date: sessionDate, value: val, sessionId })
 
-3. Usuario finaliza → acceptFinish()
+3. Usuario da Finish (solo desde fullscreen) → acceptFinish()
+   ├── Recupera logs de Dexie: exerciseLogRepository.getLogsBySessionId(_sessionId)
+   ├── Agrupa logs por exerciseId (soporta multi-rep)
    └── sessionStore.addSession({
-         date, routineId, routineName,
+         id: _sessionId, date, routineId, routineName,
          startedAt, completedAt, scheduledSec, totalSec, elapsedSec,
-         exercises: routine.exercises.filter(completed).map(ex => ({
-           exerciseId, title, bpm, durationSec, repsCompleted,
-           statisticName, statValue: ex.statisticLogs?.last?.value,
-           actualSec, repsActual, perfectCount, comment
+         exercises: completedExercises.map(ex => ({
+           exerciseId, title, bpm, durationSec, repsCompleted, repIndex,
+           statisticName, statValue: logValue,
+           actualSec, repsPlanned, repsActual, perfectCount, comment
          }))
        })
      // No necesita linkToSession() — los logs ya tienen sessionId
 ```
+
+Se genera un **nuevo** `_sessionId` después de cada Finish, así que sesiones distintas nunca comparten IDs.
 
 ### Lectura de stats en HistoryView
 
@@ -186,8 +191,6 @@ Usuario edita statValue (22 → 25) o actualSec en EditSessionModal
 | "¿Cómo evoluciona mi tiempo en este ejercicio?" | `sessions → sessionExercises WHERE exerciseId=X` por rango de fechas, comparando `actualSec` |
 | "¿Cómo evoluciona mi tasa de perfección?" | `sessions → sessionExercises WHERE exerciseId=X`, calculando `perfectCount / repsActual` |
 | "¿Cómo evolucionan mis Changes?" | `exerciseLogs WHERE exerciseId=X` por rango de fechas |
-| "¿Cuántas veces practiqué la Canción X?" | `sessions WHERE pieceId=X` |
-| "¿Qué canciones practiqué este mes?" | `sessions WHERE pieceId != null` agrupado por pieceId |
 
 ---
 
@@ -195,16 +198,19 @@ Usuario edita statValue (22 → 25) o actualSec en EditSessionModal
 
 - **Campo `type` en exercises (original)**: El comportamiento se deduce de los campos que tienen valor. `durationSec: 0` + `actualSec > 0` = time-trial. `repsPlanned > 0` = goal-based. `statisticName != null` = tiene estadística. No hay herencia ni subtipos.
 
-  **Nota v6**: Agregamos `mode` como metadata explícita para que el player sepa cómo comportarse en vivo (timer vs perfect-reps vs count vs free). El snapshot en `sessionExercises` sigue siendo inferible de los campos, pero el player necesita la señal en tiempo real sin adivinar.
-- **Tabla separada `pieces` ahora**: Basta con `sessions.pieceId`. Si en el futuro se necesita una biblioteca de repertorio, se añade sin migración.
+  Agregamos `mode` como metadata explícita para que el player sepa cómo comportarse en vivo (timer vs perfect-reps vs count vs free). El snapshot en `sessionExercises` sigue siendo inferible de los campos, pero el player necesita la señal en tiempo real sin adivinar.
 - **Normalización total**: El snapshot está desnormalizado a propósito. Es de solo lectura, y su propósito es responder preguntas de display sin joins.
 
-## Migración desde v4
+## Historial de versión
 
-Como no hay usuarios reales, se puede dropear la base y recrear desde cero con el schema v5. Alternativamente, migración en caliente:
+### v5 → actual
 
-1. `db.version(5).stores()` — añadir `statValue`, `actualSec`, `repsPlanned`, `repsActual`, `perfectCount` al schema de `sessionExercises`
-2. Eliminar `getLogsInRange` de `acceptFinish()` y reemplazar con lectura de `ex.statisticLogs`
-3. Threadear `sessionId` desde el inicio de la rutina hasta `submitStatValue()`
-4. Eliminar `sessionStatMap` de `useSessionHistory` y de las vistas
-5. Añadir `updateBySessionAndExercise` y `deleteBySessionId` a `exerciseLogRepository`
+- `exerciseLogRepository.getLogsBySessionId()` reemplazó la caché en memoria `ex.statisticLogs[]`
+- `acceptFinish()` lee logs desde Dexie con el `_sessionId` en vez de acumular en memoria
+- `_sessionId` movido a nivel módulo para sobrevivir montaje/desmontaje de ExercisePlayView
+- Se eliminaron `PracticeSessionService`, `StatService`, `ExerciseResult`, `PracticeSession`, `completionFlow`, `useExercisePlay`
+- `usePracticeSession` es el único composable de práctica
+- Persistencia explícita: solo `acceptFinish()` escribe a storage
+- Se agregó `mode`, `targetPerfect` a exercises (v5)
+- Se agregó `statValue`, `actualSec`, `repsPlanned`, `repsActual`, `perfectCount`, `statisticName` a sessionExercises (v5)
+- `statisticName === null` en exercises moder timer → no se abre modal al completar
