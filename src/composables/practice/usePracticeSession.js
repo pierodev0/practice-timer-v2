@@ -92,12 +92,13 @@ export function usePracticeSession() {
 
   // ── Exercise completion flow ─────────────────────────────
 
-  function _handleTimerComplete() {
+  async function _handleTimerComplete() {
     const exId = player.activeExerciseId.value;
     if (!exId) return;
     const ex = exerciseStore.getById(exId);
     if (!ex) return;
-    import('../../infrastructure/services/audio.js').then(m => m.playBellSound());
+    const audio = await import('../../infrastructure/services/audio.js');
+    await audio.playBellSound();
     _completeWithStat(ex, () => _finalizeRepOrExercise(ex));
   }
 

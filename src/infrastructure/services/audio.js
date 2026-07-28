@@ -54,9 +54,14 @@ export function setAudioOn(val) {
 
 /**
  * Play the bell completion sound (C5, E5, G5 chord).
+ * Auto-initializes audio if not yet initialized.
  */
-export function playBellSound() {
+export async function playBellSound() {
+  if (!bellSynth) {
+    await initAudio();
+  }
   if (!bellSynth) return;
+  await Tone.start();
   bellSynth.set({
     oscillator: { type: 'sine' },
     envelope: { attack: 0.05, decay: 0.6, sustain: 0.1, release: 0.8 },
