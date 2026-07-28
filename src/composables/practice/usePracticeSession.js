@@ -97,6 +97,7 @@ export function usePracticeSession() {
     if (!exId) return;
     const ex = exerciseStore.getById(exId);
     if (!ex) return;
+    import('../../infrastructure/services/audio.js').then(m => m.playBellSound());
     _completeWithStat(ex, () => _finalizeRepOrExercise(ex));
   }
 

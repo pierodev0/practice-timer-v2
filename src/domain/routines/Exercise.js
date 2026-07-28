@@ -23,7 +23,7 @@ export function createExercise(data = {}) {
     title: '',
     bpm: 100,
     durationSec: 60,
-    remainingSec: 60,
+    remainingSec: data.durationSec ?? 60,
     completed: false,
     currentRep: 1,
     autoStart: true,
