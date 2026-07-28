@@ -41,7 +41,13 @@ export function usePracticeSession() {
     onExerciseComplete: () => _handleTimerComplete(),
   });
 
-  const player = useExercisePlayer({ timer });
+  const player = useExercisePlayer({
+    timer,
+    onExerciseComplete: (id) => {
+      const ex = exerciseStore.getById(id);
+      if (ex) _showCompleteModal(ex);
+    },
+  });
   const statModal = useStatModal();
 
   // ── Session identifiers (module-level, survive mount/unmount) ──
@@ -55,6 +61,51 @@ export function usePracticeSession() {
 
   const showFinishModal = ref(false);
   const finishSummary = ref({ exercises: 0, scheduledSec: 0, elapsedSec: 0, startedAt: null, completedAt: null });
+
+  // ── Exercise complete modal state ─────────────────────────
+
+  const showCompleteModal = ref(false);
+  const completeInfo = ref({ mode: 'timer', title: '' });
+
+  function _showCompleteModal(ex, { isSurrender = false } = {}) {
+    const mode = ex.mode || 'timer';
+    completeInfo.value = {
+      mode,
+      title: ex.title,
+      bpm: ex.bpm,
+      durationSec: ex.durationSec,
+      repsCompleted: ex.currentRep || 1,
+      repsPlanned: mode === 'perfect-reps' ? (ex.targetPerfect ?? 1) : mode === 'count' ? (ex.reps ?? 1) : mode === 'timer' ? (ex.reps ?? 1) : null,
+      perfectCount: mode === 'perfect-reps' ? (ex.perfectCount ?? 0) : null,
+      perfectTarget: mode === 'perfect-reps' ? (ex.targetPerfect ?? 1) : null,
+      attempts: mode === 'perfect-reps' ? (ex.attempts ?? 0) : null,
+      actualSec: mode === 'free' ? timer.elapsed.value : null,
+      statName: ex.statisticName || '',
+      statValue: null,
+      isSurrender,
+    };
+    showCompleteModal.value = true;
+  }
+
+  function handleCompleteNext() {
+    showCompleteModal.value = false;
+    _advanceToNextOrFinish();
+  }
+
+  function handleCompleteRepeat() {
+    showCompleteModal.value = false;
+    doRepeatExercise();
+  }
+
+  function _advanceToNextOrFinish() {
+    const visible = routine.value ? exerciseStore.getVisibleForRoutine(routine.value.id) : [];
+    const idx = visible.findIndex(e => e.id === exerciseId.value);
+    if (idx < visible.length - 1) {
+      router.push({ name: 'play', params: { exerciseId: visible[idx + 1].id } });
+    } else {
+      _showFinishModal();
+    }
+  }
 
   // ── Reactive state from route + stores ───────────────────
 
@@ -123,15 +174,7 @@ export function usePracticeSession() {
       ex.remainingSec = 0;
       ex.currentRep = ex.reps;
       player.pauseSequence();
-      if (routineStore.currentRoutine?.autoplayRoutine) {
-        const visible = exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId);
-        const idx = visible.findIndex(e => e.id === player.activeExerciseId.value);
-        if (idx < visible.length - 1) {
-          router.push({ name: 'play', params: { exerciseId: visible[idx + 1].id } });
-        } else {
-          _showFinishModal();
-        }
-      }
+      _showCompleteModal(ex);
     }
   }
 
@@ -178,7 +221,27 @@ export function usePracticeSession() {
       ex.completed = true;
       ex.remainingSec = 0;
       ex.currentRep = ex.reps;
+      player.pauseSequence();
+      _showCompleteModal(ex);
     });
+  }
+
+  function completeFreeExercise() {
+    const ex = exercise.value;
+    if (!ex) return;
+    ex.completed = true;
+    ex.remainingSec = 0;
+    player.pauseSequence();
+    _showCompleteModal(ex);
+  }
+
+  function surrenderExercise() {
+    const ex = exercise.value;
+    if (!ex) return;
+    ex.completed = true;
+    ex.remainingSec = 0;
+    player.pauseSequence();
+    _showCompleteModal(ex, { isSurrender: true });
   }
 
   // ── Finish / Persist ─────────────────────────────────────
@@ -287,6 +350,8 @@ export function usePracticeSession() {
     // Modal state
     showFinishModal,
     finishSummary,
+    showCompleteModal,
+    completeInfo,
 
     // Actions
     goBack,
@@ -294,6 +359,10 @@ export function usePracticeSession() {
     repeatExercise: doRepeatExercise,
     skipExercise,
     completeExercise,
+    completeFreeExercise,
+    surrenderExercise,
+    handleCompleteNext,
+    handleCompleteRepeat,
     startCurrentExercise: () => player.playExercise(exercise.value?.id),
     handleFinishRoutine,
     acceptFinish,

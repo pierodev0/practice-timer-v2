@@ -8,16 +8,20 @@ import { usePracticeSession } from '../composables/practice/usePracticeSession.j
 import { formatTime } from '../lib/utils.js';
 import FinishModal from '../components/modals/FinishModal.vue';
 import StatInputModal from '../components/modals/StatInputModal.vue';
+import ExerciseCompleteModal from '../components/modals/ExerciseCompleteModal.vue';
 
 const session = usePracticeSession();
 
 const {
   exercise, routine, exerciseIndex, totalExercises, displayTime,
   isExercisePlaying, activeExerciseId, showFinishModal, finishSummary,
-  showStatModal, statModalTitle,
-  goBack, togglePlay, repeatExercise, skipExercise, completeExercise,
+  showStatModal, statModalTitle, showCompleteModal, completeInfo,
+  goBack, togglePlay, skipExercise, completeExercise,
+  completeFreeExercise, surrenderExercise,
+  markPerfect, markFailed, incrementCount,
+  handleCompleteNext, handleCompleteRepeat,
+  startCurrentExercise,
   handleFinishRoutine, acceptFinish, submitStatValue, skipStat,
-  markPerfect, markFailed, incrementCount, markFreeDone, startCurrentExercise,
 } = session;
 
 const isFreeStarted = computed(() => activeExerciseId.value === exercise.value?.id);
@@ -69,9 +73,6 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
       </div>
 
       <div class="play-controls">
-        <button @click="repeatExercise" class="play-btn play-btn-repeat" aria-label="Repeat exercise">
-          <i class="fas fa-redo"></i>
-        </button>
         <button @click="skipExercise" class="play-btn play-btn-skip" aria-label="Skip exercise">
           <i :class="exerciseIndex === totalExercises ? 'fas fa-flag-checkered' : 'fas fa-forward'"></i>
           <span v-if="exerciseIndex === totalExercises" class="play-btn-label">Finish</span>
@@ -126,6 +127,10 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
           <i class="fas fa-check"></i>
           <span>Perfecta</span>
         </button>
+        <button @click="surrenderExercise" :disabled="exercise?.completed"
+          class="play-btn play-btn-complete" aria-label="Rendirse">
+          <i class="fas fa-flag"></i>
+        </button>
       </div>
 
       <div class="play-countup">
@@ -153,6 +158,10 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
           <i class="fas fa-plus"></i>
           <span>+1</span>
         </button>
+        <button @click="surrenderExercise" :disabled="exercise?.completed"
+          class="play-btn play-btn-complete" aria-label="Rendirse">
+          <i class="fas fa-flag"></i>
+        </button>
       </div>
     </template>
 
@@ -163,20 +172,20 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
           <div class="play-free-icon">
             <i class="fas fa-circle-notch"></i>
           </div>
+          <div class="play-timer">{{ formatTime(displayTime) }}</div>
           <div class="play-timer-label">modo libre</div>
         </div>
 
-        <div class="play-countup">
-          <i class="fas fa-stopwatch mr-1"></i> {{ formatTime(displayTime) }}
-        </div>
-
-        <div class="play-controls play-controls-perfect">
+        <div class="play-controls">
           <button @click="skipExercise" class="play-btn play-btn-skip" aria-label="Skip exercise">
-            <i class="fas fa-forward"></i>
+            <i :class="exerciseIndex === totalExercises ? 'fas fa-flag-checkered' : 'fas fa-forward'"></i>
+            <span v-if="exerciseIndex === totalExercises" class="play-btn-label">Finish</span>
           </button>
-          <button @click="markFreeDone(exercise?.id)" class="play-btn play-btn-complete" aria-label="Done">
+          <button @click="togglePlay" class="play-btn play-btn-pause" aria-label="Play/Pause">
+            <i :class="isExercisePlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+          </button>
+          <button @click="completeFreeExercise" class="play-btn play-btn-complete" aria-label="Done">
             <i class="fas fa-check"></i>
-            <span>Listo</span>
           </button>
         </div>
       </template>
@@ -202,6 +211,7 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
 
     <StatInputModal v-if="showStatModal" :title="statModalTitle" @save="submitStatValue" @skip="skipStat" />
     <FinishModal v-if="showFinishModal" v-bind="finishSummary" @accept="acceptFinish" @cancel="showFinishModal = false" />
+    <ExerciseCompleteModal v-if="showCompleteModal" :info="completeInfo" @next="handleCompleteNext" @repeat="handleCompleteRepeat" />
   </div>
 </template>
 
@@ -429,13 +439,6 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
   opacity: 0.4;
   cursor: default;
   transform: none;
-}
-
-.play-btn-repeat {
-  width: 56px;
-  height: 56px;
-  background: #0f3460;
-  font-size: 18px;
 }
 
 .play-btn-skip {

@@ -14,7 +14,7 @@ import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
 import { useBpmStore } from '../../stores/useBpmStore.js';
 
-export function useExercisePlayer({ timer: externalTimer } = {}) {
+export function useExercisePlayer({ timer: externalTimer, onExerciseComplete } = {}) {
   const routineStore = useRoutineStore();
   const exerciseStore = useExerciseStore();
   const sessionStore = useSessionStore();
@@ -67,11 +67,12 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     const ex = exerciseStore.getById(id);
     if (!ex) return;
 
-    // Save remaining of previous exercise
+    // Save remaining and reset timer for previous exercise
     if (activeExerciseId.value && activeExerciseId.value !== id) {
       const prev = exerciseStore.getById(activeExerciseId.value);
       if (prev && timer) {
         prev.remainingSec = timer ? timer.remaining.value : 0;
+        timer.setExercise(0);
       }
     }
 
@@ -90,10 +91,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
     if (ex.mode === 'free') {
       ex.perfectCount = 0;
       ex.attempts = 0;
-      if (timer) {
-        timer.setExercise(0);
-        timer.start();
-      }
+      if (timer) timer.start();
       return;
     }
 
@@ -160,6 +158,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       ex.completed = true;
       ex.remainingSec = 0;
       pauseSequence();
+      if (onExerciseComplete) onExerciseComplete(id);
     }
   }
 
@@ -186,6 +185,7 @@ export function useExercisePlayer({ timer: externalTimer } = {}) {
       ex.completed = true;
       ex.remainingSec = 0;
       pauseSequence();
+      if (onExerciseComplete) onExerciseComplete(id);
     }
   }
 
