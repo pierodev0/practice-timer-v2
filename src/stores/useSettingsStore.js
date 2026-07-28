@@ -10,7 +10,7 @@ import { ref } from 'vue';
 import * as settingsRepository from '../infrastructure/db/repositories/settingsRepository.js';
 
 export const useSettingsStore = defineStore('settings', () => {
-  const fullscreenPlay = ref(false);
+  const fullscreenPlay = ref(true);
   let _loaded = false;
   let _resolveReady;
   const _ready = new Promise(resolve => { _resolveReady = resolve; });

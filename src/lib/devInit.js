@@ -23,7 +23,7 @@ if (import.meta.env.VITE_DEBUG === 'true') {
       console.log('🗑️ Cleared sessions, logs, and exercise logs');
     };
 
-    await seedTestData();
+    //await seedTestData();
     const dump = await devDump();
     window.__appState = dump;
     console.log('📦 App state → window.__appState');

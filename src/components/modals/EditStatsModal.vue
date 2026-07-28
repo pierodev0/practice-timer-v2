@@ -1,11 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useExerciseStore } from '../../stores/useExerciseStore.js';
-import { StatService } from '../../application/practice/StatService.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 
 const exerciseStore = useExerciseStore();
-const statService = new StatService({ exerciseLogRepository });
 const emit = defineEmits(['close']);
 
 const editingKey = ref(null);
@@ -51,7 +49,7 @@ async function saveEdit(item) {
   const e = exerciseStore.getById(item.exerciseId);
   const log = e?.statisticLogs[item.index];
   if (log) {
-    await statService.updateStatLog(log.id, { value: num });
+    await exerciseLogRepository.update(log.id, { value: num });
     log.value = num;
   }
   editingKey.value = null;
@@ -62,7 +60,7 @@ async function deleteLog(item) {
   const e = exerciseStore.getById(item.exerciseId);
   const log = e?.statisticLogs[item.index];
   if (log) {
-    await statService.deleteStatLog(log.id);
+    await exerciseLogRepository.remove(log.id);
     e.statisticLogs.splice(item.index, 1);
   }
 }

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getDb, resetDb } from '../../../src/infrastructure/db/db.js';
 import * as routineRepository from '../../../src/infrastructure/db/repositories/routineRepository.js';
+import * as routineExerciseRepository from '../../../src/infrastructure/db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../../../src/infrastructure/db/repositories/exerciseRepository.js';
 
 let db;
@@ -55,9 +56,9 @@ describe('routineRepository', () => {
   it('addExercise links an exercise to a routine with order', async () => {
     const routineId = await routineRepository.create({ name: 'Test' });
     const exId = await exerciseRepository.create({ title: 'E1', bpm: 100, durationSec: 60 });
-    await routineRepository.addExercise(routineId, exId, 0);
+    await routineExerciseRepository.addExercise(routineId, exId, 0);
 
-    const exercises = await routineRepository.getExercises(routineId);
+    const exercises = await routineExerciseRepository.getExercises(routineId);
     expect(exercises).toHaveLength(1);
     expect(exercises[0].title).toBe('E1');
   });
@@ -67,10 +68,10 @@ describe('routineRepository', () => {
     const exId = await exerciseRepository.create({ title: 'E1', bpm: 100, durationSec: 60 });
 
     // Add same exercise twice with different order
-    await routineRepository.addExercise(routineId, exId, 0);
-    await routineRepository.addExercise(routineId, exId, 5); // upsert
+    await routineExerciseRepository.addExercise(routineId, exId, 0);
+    await routineExerciseRepository.addExercise(routineId, exId, 5); // upsert
 
-    const exercises = await routineRepository.getExercises(routineId);
+    const exercises = await routineExerciseRepository.getExercises(routineId);
     expect(exercises).toHaveLength(1);
     // Order should be the last value (upsert)
     const links = await db.routineExercises.toArray();
@@ -81,10 +82,10 @@ describe('routineRepository', () => {
     const routineId = await routineRepository.create({ name: 'Test' });
     const ex1 = await exerciseRepository.create({ title: 'First', bpm: 100, durationSec: 60 });
     const ex2 = await exerciseRepository.create({ title: 'Second', bpm: 120, durationSec: 90 });
-    await routineRepository.addExercise(routineId, ex1, 0);
-    await routineRepository.addExercise(routineId, ex2, 1);
+    await routineExerciseRepository.addExercise(routineId, ex1, 0);
+    await routineExerciseRepository.addExercise(routineId, ex2, 1);
 
-    const items = await routineRepository.getExercises(routineId);
+    const items = await routineExerciseRepository.getExercises(routineId);
     expect(items).toHaveLength(2);
     expect(items[0].title).toBe('First');
     expect(items[1].title).toBe('Second');
@@ -93,9 +94,9 @@ describe('routineRepository', () => {
   it('removeExercise unlinks an exercise from a routine', async () => {
     const routineId = await routineRepository.create({ name: 'Test' });
     const exId = await exerciseRepository.create({ title: 'E1', bpm: 100, durationSec: 60 });
-    await routineRepository.addExercise(routineId, exId, 0);
-    await routineRepository.removeExercise(routineId, exId);
-    const items = await routineRepository.getExercises(routineId);
+    await routineExerciseRepository.addExercise(routineId, exId, 0);
+    await routineExerciseRepository.removeExercise(routineId, exId);
+    const items = await routineExerciseRepository.getExercises(routineId);
     expect(items).toHaveLength(0);
   });
 
@@ -103,12 +104,12 @@ describe('routineRepository', () => {
     const routineId = await routineRepository.create({ name: 'Test' });
     const ex1 = await exerciseRepository.create({ title: 'A', bpm: 100, durationSec: 60 });
     const ex2 = await exerciseRepository.create({ title: 'B', bpm: 120, durationSec: 90 });
-    await routineRepository.addExercise(routineId, ex1, 0);
-    await routineRepository.addExercise(routineId, ex2, 1);
+    await routineExerciseRepository.addExercise(routineId, ex1, 0);
+    await routineExerciseRepository.addExercise(routineId, ex2, 1);
 
     // Swap: A→1, B→0
-    await routineRepository.reorderExercises(routineId, [ex2, ex1]);
-    const items = await routineRepository.getExercises(routineId);
+    await routineExerciseRepository.reorderExercises(routineId, [ex2, ex1]);
+    const items = await routineExerciseRepository.getExercises(routineId);
     expect(items[0].title).toBe('B');
     expect(items[1].title).toBe('A');
   });

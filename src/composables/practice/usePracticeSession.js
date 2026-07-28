@@ -1,174 +1,297 @@
 /**
- * usePracticeSession — full practice flow composable.
+ * usePracticeSession — fullscreen practice flow composable.
  *
- * Handles exercise completion (stat modal flow, reps, autoplay),
- * finish routine (save session with full snapshot), and reset.
+ * Single instance, used ONLY by ExercisePlayView.
+ * Persistence is EXPLICIT: only acceptFinish() writes to storage.
+ * goBack() and skipExercise() navigate but NEVER persist.
  *
- * sessionId is generated at composable start and regenerated after
- * each finish/reset, so all exerciseLogs are linked from creation
- * without needing a post-hoc linking step.
- *
- * @param {Object} options
- * @param {Object} options.timer - Injected timer (for testing)
+ * sessionId is generated at init and regenerated after finish/reset.
  */
 
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { nanoid } from 'nanoid';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import { useExerciseStore } from '../../stores/useExerciseStore.js';
-import { RoutineService } from '../../application/routines/RoutineService.js';
 import { useSessionStore } from '../../stores/useSessionStore.js';
-import { useSettingsStore } from '../../stores/useSettingsStore.js';
 import { useExercisePlayer } from './useExercisePlayer.js';
 import { useStatModal } from '../tracking/useStatModal.js';
-import { triggerExerciseCompletion } from '../helpers/completionFlow.js';
-import { PracticeSessionService } from '../../application/practice/PracticeSessionService.js';
+import { useTimer } from './useTimer.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 import { formatDate } from '../../lib/utils.js';
 
-export function usePracticeSession({ timer: externalTimer } = {}) {
+const DEFAULT_REPS = 1;
+
+// Module-level session identifiers — survive view mount/unmount
+// so stat logs created during play and acceptFinish after navigation
+// always use the same sessionId.
+let _sessionId = nanoid();
+let _sessionDate = formatDate(new Date());
+
+export function usePracticeSession() {
+  const route = useRoute();
+  const router = useRouter();
   const routineStore = useRoutineStore();
   const exerciseStore = useExerciseStore();
-  const routineService = new RoutineService({ routineStore, exerciseStore });
   const sessionStore = useSessionStore();
-  const router = useRouter();
 
-  const player = useExercisePlayer({ timer: externalTimer });
+  // ── Timer + Player (owned by this composable) ────────────
+
+  const timer = useTimer({
+    onExerciseComplete: () => _handleTimerComplete(),
+  });
+
+  const player = useExercisePlayer({ timer });
   const statModal = useStatModal();
-  const settingsStore = useSettingsStore();
-  const sessionService = new PracticeSessionService({ sessionStore, exerciseLogRepository });
 
-  // ── Session identifiers (regenerated after each finish/reset) ──
-
-  let _sessionId = nanoid();
-  let _sessionDate = formatDate(new Date());
+  // ── Session identifiers (module-level, survive mount/unmount) ──
 
   function _resetSession() {
     _sessionId = nanoid();
     _sessionDate = formatDate(new Date());
   }
 
-  // ── Finish / Reset modal state ──────────────────────
+  // ── Finish modal state ───────────────────────────────────
 
   const showFinishModal = ref(false);
-  const showResetModal = ref(false);
   const finishSummary = ref({ exercises: 0, scheduledSec: 0, elapsedSec: 0, startedAt: null, completedAt: null });
 
-  // ── Read-only store proxies for views ────────────────
+  // ── Reactive state from route + stores ───────────────────
 
-  const currentRoutineName = computed(() => routineStore.currentRoutine?.name || 'My routine');
-  const visibleExercises = computed(() => exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId));
-  const currentRoutineAutoplay = computed({
-    get: () => routineStore.currentRoutine.autoplayRoutine ?? false,
-    set: (val) => {
-      routineService.updateRoutineField(routineStore.currentRoutine.id, 'autoplayRoutine', val);
-    },
+  const exerciseId = computed(() => route.params.exerciseId);
+  const exercise = computed(() => exerciseStore.getById(exerciseId.value));
+  const routine = computed(() => routineStore.currentRoutine);
+  const routineExercises = computed(() =>
+    routine.value ? exerciseStore.getVisibleForRoutine(routine.value.id) : []
+  );
+  const exerciseIndex = computed(() => {
+    const visible = routineExercises.value;
+    return visible.findIndex(e => e.id === exerciseId.value) + 1;
+  });
+  const totalExercises = computed(() => routineExercises.value.length);
+
+  const displayTime = computed(() => {
+    const ex = exercise.value;
+    if (!ex) return 0;
+    const elapsed = Number(timer.globalSeconds.value) || 0;
+    const remaining = Number(timer.remaining.value) || 0;
+    if (player.activeExerciseId.value === ex.id) {
+      return ex.durationSec > 0 ? remaining : elapsed;
+    }
+    return ex.durationSec > 0 ? (Number(ex.remainingSec) || 0) : elapsed;
   });
 
-  // ── Exercise start (fullscreen vs inline) ──────────
+  // ── Auto-play (perfect-reps y count) ─────────────────────
 
-  function startExercise(id) {
-    if (settingsStore.fullscreenPlay) {
-      router.push({ name: 'play', params: { exerciseId: id } });
-    } else {
-      player.toggleExercise(id);
+  watch(exercise, (ex, oldEx) => {
+    if (!ex || ex.id === oldEx?.id) return;
+    if (ex.mode === 'perfect-reps' || ex.mode === 'count') {
+      player.playExercise(ex.id);
     }
+  });
+
+  // ── Exercise completion flow ─────────────────────────────
+
+  function _handleTimerComplete() {
+    const exId = player.activeExerciseId.value;
+    if (!exId) return;
+    const ex = exerciseStore.getById(exId);
+    if (!ex) return;
+    _completeWithStat(ex, () => _finalizeRepOrExercise(ex));
   }
 
-  // ── Exercise completion flow ─────────────────────────
-
-  function handleExerciseCompletion() {
-    const ex = exerciseStore.getById(player.activeExerciseId.value);
-    if (!ex) return;
-
-    triggerExerciseCompletion(ex, player, statModal, () => finalizeCompletion(), _sessionId, _sessionDate);
+  function _completeWithStat(ex, onComplete) {
+    if (!ex.statisticName || ex.completed) {
+      onComplete();
+      return;
+    }
+    statModal.requestStatInput(ex, onComplete, _sessionId, _sessionDate);
   }
 
-  function finalizeCompletion() {
-    const ex = exerciseStore.getById(player.activeExerciseId.value);
-    if (!ex) return;
-
-    if (ex.currentRep < ex.reps) {
-      // Advance to next rep
+  function _finalizeRepOrExercise(ex) {
+    if (ex.currentRep < (ex.reps || DEFAULT_REPS)) {
       ex.currentRep++;
       ex.remainingSec = ex.durationSec;
       player.exerciseRemaining.value = ex.durationSec;
       player.isExercisePlaying.value = true;
-      if (externalTimer) {
-        externalTimer.setExercise(ex.durationSec);
-        externalTimer.start();
-      }
-      if (ex.autoStart) {
-        player.isAudioOn.value = true;
-      }
-      routineService.saveAllToStorage();
+      timer.setExercise(ex.durationSec);
+      timer.start();
+      if (ex.autoStart) player.isAudioOn.value = true;
     } else {
-      // Exercise completed
       ex.completed = true;
       ex.remainingSec = 0;
+      ex.currentRep = ex.reps;
       player.pauseSequence();
-      routineService.saveAllToStorage();
-
-      // Advance to next exercise (sin auto-play)
       if (routineStore.currentRoutine?.autoplayRoutine) {
         const visible = exerciseStore.getVisibleForRoutine(routineStore.currentRoutineId);
         const idx = visible.findIndex(e => e.id === player.activeExerciseId.value);
         if (idx < visible.length - 1) {
-          const nextId = visible[idx + 1].id;
-          router.push({ name: 'play', params: { exerciseId: nextId } });
+          router.push({ name: 'play', params: { exerciseId: visible[idx + 1].id } });
         } else {
-          player.finishRoutine();
-          showFinishModal.value = true;
+          _showFinishModal();
         }
       }
     }
   }
 
-  // ── Finish routine ──────────────────────────────────
+  // ── Play view actions ────────────────────────────────────
+
+  function togglePlay() {
+    const ex = exercise.value;
+    if (!ex) return;
+    if (ex.completed && ex.mode === 'timer') {
+      ex.currentRep = (ex.currentRep || 0) + 1;
+      ex.completed = false;
+      player.playExercise(ex.id);
+      return;
+    }
+    player.toggleExercise(ex.id);
+  }
+
+  function doRepeatExercise() {
+    const ex = exercise.value;
+    if (!ex) return;
+    ex.currentRep = (ex.currentRep || 0) + 1;
+    ex.completed = false;
+    ex.remainingSec = ex.durationSec;
+    if (player.activeExerciseId.value === ex.id) player.pauseSequence();
+    timer.setExercise(ex.durationSec || 0);
+    timer.start();
+    player.isExercisePlaying.value = true;
+  }
+
+  function skipExercise() {
+    const visible = routine.value ? exerciseStore.getVisibleForRoutine(routine.value.id) : [];
+    const idx = visible.findIndex(e => e.id === exerciseId.value);
+    if (idx < visible.length - 1) {
+      router.push({ name: 'play', params: { exerciseId: visible[idx + 1].id } });
+    } else {
+      _showFinishModal();
+    }
+  }
+
+  function completeExercise() {
+    const ex = exercise.value;
+    if (!ex) return;
+    _completeWithStat(ex, () => {
+      ex.completed = true;
+      ex.remainingSec = 0;
+      ex.currentRep = ex.reps;
+    });
+  }
+
+  // ── Finish / Persist ─────────────────────────────────────
+
+  function _showFinishModal() {
+    finishSummary.value = player.finishRoutine();
+    showFinishModal.value = true;
+  }
 
   function handleFinishRoutine() {
-    const summary = player.finishRoutine();
-    finishSummary.value = summary;
-    showFinishModal.value = true;
+    _showFinishModal();
   }
 
   async function acceptFinish() {
     const routine = routineStore.currentRoutine;
-    const exercises = exerciseStore.getByRoutine(routine?.id);
-    await sessionService.acceptFinish(routine, exercises, player, _sessionId, _sessionDate);
+    if (!routine) return;
 
-    // Reset all state
+    const exercises = exerciseStore.getByRoutine(routine.id);
+    const completedExercises = exercises.filter(e => e.completed);
+
+    const logs = await exerciseLogRepository.getLogsBySessionId(_sessionId);
+    const logsByEx = {};
+    for (const log of logs) {
+      if (!logsByEx[log.exerciseId]) logsByEx[log.exerciseId] = [];
+      logsByEx[log.exerciseId].push(log);
+    }
+
+    const exerciseSnapshots = [];
+    for (const ex of completedExercises) {
+      const exLogs = logsByEx[ex.id];
+      if (exLogs && exLogs.length > 1) {
+        exLogs.forEach((log, idx) => {
+          exerciseSnapshots.push(_buildSnapshot(ex, log.value, 1, idx + 1));
+        });
+      } else {
+        const singleLog = exLogs?.[0];
+        const reps = ex.mode === 'perfect-reps' ? (ex.perfectCount ?? 0) : ex.reps;
+        exerciseSnapshots.push(_buildSnapshot(ex, singleLog?.value ?? null, reps, 1));
+      }
+    }
+
+    const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
+    const totalSec = completedExercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
+    const elapsedSec = timer.globalSeconds.value || totalSec;
+
+    await sessionStore.addSession({
+      id: _sessionId,
+      date: _sessionDate,
+      routineId: routine.id,
+      routineName: routine.name,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      scheduledSec,
+      totalSec,
+      elapsedSec,
+      exercises: exerciseSnapshots,
+    });
+
+    sessionStore.recordProgressSeconds(totalSec, routine.name);
+
     player.resetRoutineState();
-    routineService.saveAllToStorage();
     showFinishModal.value = false;
     _resetSession();
+    router.push({ name: 'practice' });
   }
 
-  function acceptReset() {
-    player.resetRoutineState();
-    routineService.saveAllToStorage();
-    showResetModal.value = false;
-    _resetSession();
+  function _buildSnapshot(ex, logValue, repsCompleted, repIndex) {
+    const perfect = ex.mode === 'perfect-reps';
+    return {
+      exerciseId: ex.id,
+      title: ex.title,
+      bpm: ex.bpm,
+      durationSec: ex.durationSec,
+      repsCompleted,
+      repIndex,
+      statisticName: ex.statisticName || '',
+      statValue: logValue ?? null,
+      actualSec: ex.actualSec ?? null,
+      repsPlanned: perfect ? (ex.targetPerfect ?? null) : null,
+      repsActual: perfect ? (ex.attempts ?? null) : null,
+      perfectCount: perfect ? (ex.perfectCount ?? null) : null,
+      comment: ex.comment || '',
+    };
+  }
+
+  function goBack() {
+    router.push({ name: 'practice' });
   }
 
   return {
-    player,
+    // Flatten player props
+    ...player,
+    timer,
     ...statModal,
+
+    // Reactive state
+    exercise,
+    routine,
+    exerciseIndex,
+    totalExercises,
+    displayTime,
+
+    // Modal state
     showFinishModal,
-    showResetModal,
     finishSummary,
-    currentRoutineName,
-    visibleExercises,
-    currentRoutineAutoplay,
-    saveToStorage: () => routineService.saveAllToStorage(),
-    reorderExercises: (oldIdx, newIdx) => {
-      routineService.reorderExercises(routineStore.currentRoutine.id, oldIdx, newIdx);
-    },
-    startExercise,
-    handleExerciseCompletion,
+
+    // Actions
+    goBack,
+    togglePlay,
+    repeatExercise: doRepeatExercise,
+    skipExercise,
+    completeExercise,
+    startCurrentExercise: () => player.playExercise(exercise.value?.id),
     handleFinishRoutine,
     acceptFinish,
-    acceptReset,
   };
 }
