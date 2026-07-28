@@ -71,7 +71,7 @@ export function useExerciseForm() {
       payload.reps = reps.value;
       payload.statisticName = useCustomStat.value
         ? (statName.value.trim() || null)
-        : (title.value.trim() || null);
+        : null;
     } else if (mode.value === 'perfect-reps') {
       payload.mode = 'perfect-reps';
       payload.targetPerfect = targetPerfect.value;
