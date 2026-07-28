@@ -105,6 +105,7 @@ export function usePracticeSession() {
       onComplete();
       return;
     }
+    player.pauseSequence();
     statModal.requestStatInput(ex, onComplete, _sessionId, _sessionDate);
   }
 
@@ -264,6 +265,8 @@ export function usePracticeSession() {
   }
 
   function goBack() {
+    player.pauseSequence();
+    timer.reset();
     router.push({ name: 'practice' });
   }
 
