@@ -20,8 +20,6 @@ import { useTimer } from './useTimer.js';
 import * as exerciseLogRepository from '../../infrastructure/db/repositories/exerciseLogRepository.js';
 import { formatDate } from '../../lib/utils.js';
 
-const DEFAULT_REPS = 1;
-
 // Module-level session identifiers — survive view mount/unmount
 // so stat logs created during play and acceptFinish after navigation
 // always use the same sessionId.
@@ -68,6 +66,7 @@ export function usePracticeSession() {
   const completeInfo = ref({ mode: 'timer', title: '' });
 
   function _showCompleteModal(ex, { isSurrender = false } = {}) {
+    ex.totalCompletions = (ex.totalCompletions || 0) + 1;
     const mode = ex.mode || 'timer';
     completeInfo.value = {
       mode,
@@ -162,20 +161,10 @@ export function usePracticeSession() {
   }
 
   function _finalizeRepOrExercise(ex) {
-    if (ex.currentRep < (ex.reps || DEFAULT_REPS)) {
-      ex.currentRep++;
-      ex.remainingSec = ex.durationSec;
-      player.isExercisePlaying.value = true;
-      timer.setExercise(ex.durationSec);
-      timer.start();
-      if (ex.autoStart) player.isAudioOn.value = true;
-    } else {
-      ex.completed = true;
-      ex.remainingSec = 0;
-      ex.currentRep = ex.reps;
-      player.pauseSequence();
-      _showCompleteModal(ex);
-    }
+    ex.completed = true;
+    ex.remainingSec = 0;
+    player.pauseSequence();
+    _showCompleteModal(ex);
   }
 
   // ── Play view actions ────────────────────────────────────
@@ -183,25 +172,18 @@ export function usePracticeSession() {
   function togglePlay() {
     const ex = exercise.value;
     if (!ex) return;
-    if (ex.completed && ex.mode === 'timer') {
-      ex.currentRep = (ex.currentRep || 0) + 1;
-      ex.completed = false;
-      player.playExercise(ex.id);
-      return;
-    }
     player.toggleExercise(ex.id);
   }
 
   function doRepeatExercise() {
     const ex = exercise.value;
     if (!ex) return;
-    ex.currentRep = (ex.currentRep || 0) + 1;
     ex.completed = false;
     ex.remainingSec = ex.durationSec;
+    ex.perfectCount = 0;
+    ex.attempts = 0;
     if (player.activeExerciseId.value === ex.id) player.pauseSequence();
     timer.setExercise(ex.durationSec || 0);
-    timer.start();
-    player.isExercisePlaying.value = true;
   }
 
   function skipExercise() {
@@ -271,20 +253,16 @@ export function usePracticeSession() {
 
     const exerciseSnapshots = [];
     for (const ex of completedExercises) {
-      const exLogs = logsByEx[ex.id];
-      if (exLogs && exLogs.length > 1) {
-        exLogs.forEach((log, idx) => {
-          exerciseSnapshots.push(_buildSnapshot(ex, log.value, 1, idx + 1));
-        });
-      } else {
-        const singleLog = exLogs?.[0];
-        const reps = ex.mode === 'perfect-reps' ? (ex.perfectCount ?? 0) : ex.reps;
-        exerciseSnapshots.push(_buildSnapshot(ex, singleLog?.value ?? null, reps, 1));
+      const exLogs = logsByEx[ex.id] || [];
+      const total = ex.totalCompletions ?? 1;
+      for (let i = 0; i < total; i++) {
+        const log = exLogs[i];
+        exerciseSnapshots.push(_buildSnapshot(ex, log?.value ?? null, 1, i + 1));
       }
     }
 
-    const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
-    const totalSec = completedExercises.reduce((sum, e) => sum + e.durationSec * e.reps, 0);
+    const scheduledSec = exercises.reduce((sum, e) => sum + e.durationSec, 0);
+    const totalSec = exerciseSnapshots.reduce((sum, snap) => sum + snap.durationSec, 0);
     const elapsedSec = timer.sessionElapsed.value || totalSec;
 
     await sessionStore.addSession({

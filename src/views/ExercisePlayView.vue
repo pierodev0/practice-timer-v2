@@ -64,10 +64,6 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
         <div class="play-timer-label">remaining</div>
       </div>
 
-      <div v-if="exercise" class="play-rep-badge">
-        Rep {{ exercise.currentRep }} / {{ exercise.reps }}
-      </div>
-
       <div v-if="exercise" class="play-bpm">
         Tempo: <span>{{ exercise.bpm }} BPM</span>
       </div>

@@ -68,7 +68,7 @@ export function useExerciseForm() {
       payload.bpm = bpm.value;
       payload.durationSec = (min.value * 60) + sec.value;
       payload.autoStart = autostart.value;
-      payload.reps = reps.value;
+      payload.reps = 1;
       payload.statisticName = useCustomStat.value
         ? (statName.value.trim() || null)
         : null;

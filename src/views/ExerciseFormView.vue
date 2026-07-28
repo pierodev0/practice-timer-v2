@@ -79,16 +79,6 @@ function goBack() {
               class="w-full text-sm outline-none text-gray-500 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
           </div>
 
-          <!-- Reps -->
-          <div class="flex justify-between items-center">
-            <span class="text-gray-700 font-medium">Reps</span>
-            <div class="flex items-center gap-3">
-              <button @click="reps = Math.max(1, reps - 1)" class="w-10 h-10 rounded-full border border-gray-300 text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center">-</button>
-              <span class="font-semibold text-lg w-20 text-center">{{ reps }}</span>
-              <button @click="reps++" class="w-10 h-10 rounded-full border border-[#E53935] text-[#E53935] hover:bg-red-50 transition-colors flex items-center justify-center">+</button>
-            </div>
-          </div>
-
           <!-- BPM -->
           <div class="flex justify-between items-center">
             <span class="text-gray-700 font-medium">Tempo (BPM)</span>

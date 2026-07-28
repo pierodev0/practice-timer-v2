@@ -255,6 +255,7 @@ export function useExercisePlayer({ timer: externalTimer, onExerciseComplete } =
       exercises.forEach(ex => {
         delete ex.perfectCount;
         delete ex.attempts;
+        delete ex.totalCompletions;
       });
     }
   }
