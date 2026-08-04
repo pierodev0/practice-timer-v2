@@ -14,6 +14,7 @@ import { useExerciseEditor } from '../composables/routines/useExerciseEditor.js'
 import { useStatModal } from '../composables/tracking/useStatModal.js';
 import { resetExercise as resetExerciseHelper, doComplete as doCompleteHelper, forceCompleteExercise } from '../composables/helpers/exerciseCompletion.js';
 import StatInputModal from '../components/modals/StatInputModal.vue';
+import ExerciseFormFields from '../components/exercises/ExerciseFormFields.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,11 +28,30 @@ const editor = useExerciseEditor(route.params.exerciseId);
 const statModal = useStatModal();
 const { showStatModal, statModalTitle, requestStatInput, submitStatValue, skipStat } = statModal;
 
-const { exercise, title, statName, comment, autoStart, showMenu,
-  updateTitle, updateStatName, adjustBPM, adjustReps, adjustTime,
-  updateAutoStart, updateComment, duplicate, archive, remove } = editor;
+const {
+  exercise, mode, title, statName, comment, bpm, reps, minutes, seconds,
+  targetPerfect, autoStart, showMenu,
+  updateTitle, updateStatName, adjustBPM, adjustReps, updateTargetPerfect, adjustTime,
+  updateAutoStart, updateComment, duplicate, archive, remove,
+} = editor;
 
-const { activeExerciseId } = player;
+  const { activeExerciseId } = player;
+
+function updateBpmValue(value) {
+  adjustBPM(value - bpm.value);
+}
+
+function updateRepsValue(value) {
+  adjustReps(value - reps.value);
+}
+
+function updateMinutesValue(value) {
+  adjustTime('min', value - minutes.value);
+}
+
+function updateSecondsValue(value) {
+  adjustTime('sec', value - seconds.value);
+}
 
 // ── Computed ────────────────────────────────────────────────
 
@@ -78,14 +98,11 @@ function forceComplete() {
     <div v-if="exercise" class="p-4 space-y-4 pb-10 overflow-y-auto">
       <!-- Main card -->
       <div class="card p-6">
-        <input type="text" :value="title" @input="updateTitle($event.target.value)"
-          class="text-2xl text-gray-800 mb-1 font-normal w-full bg-transparent border-b border-transparent focus:border-[#E53935] outline-none transition-colors">
+        <h3 class="text-2xl text-gray-800 mb-1 font-normal">{{ title }}</h3>
 
-        <div class="flex items-center gap-2 mb-4 text-sm text-gray-500">
+        <div v-if="mode === 'timer' && statName" class="flex items-center gap-2 mb-4 text-sm text-gray-500">
           <i class="fas fa-chart-bar text-[#E53935] opacity-70"></i>
-          <input type="text" :value="statName" @input="updateStatName($event.target.value)"
-            class="w-full bg-transparent border-b border-gray-100 focus:border-[#E53935] outline-none text-gray-600 italic placeholder-gray-300"
-            placeholder="Set Stat Name (e.g. BPM)...">
+          <span class="italic">{{ statName }}</span>
         </div>
 
         <p class="text-gray-500 mb-6 flex justify-between items-center">
@@ -102,44 +119,29 @@ function forceComplete() {
         </div>
       </div>
 
-      <!-- Controls -->
-      <div class="card p-4 space-y-6">
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700">Repetitions</span>
-          <div class="flex items-center gap-3">
-            <button @click="adjustReps(-1)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-medium w-16 text-center">{{ exercise.reps }}</span>
-            <button @click="adjustReps(1)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700">Minutes</span>
-          <div class="flex items-center gap-3">
-            <button @click="adjustTime('min', -1)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-medium w-16 text-center">{{ Math.floor(exercise.durationSec / 60) }} min</span>
-            <button @click="adjustTime('min', 1)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700">Seconds</span>
-          <div class="flex items-center gap-3">
-            <button @click="adjustTime('sec', -5)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-medium w-16 text-center">{{ String(exercise.durationSec % 60).padStart(2, '0') }} sec</span>
-            <button @click="adjustTime('sec', 5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700">Tempo</span>
-          <div class="flex items-center gap-3">
-            <button @click="adjustBPM(-5)" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-medium w-16 text-center">{{ exercise.bpm }} BPM</span>
-            <button @click="adjustBPM(5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700">Metronome Auto-Start</span>
-          <input type="checkbox" :checked="autoStart" @change="updateAutoStart($event.target.checked)" class="w-5 h-5 accent-[#E53935]">
-        </div>
+      <!-- Configuration fields -->
+      <div class="card p-4">
+        <ExerciseFormFields
+          :title="title"
+          :stat-name="statName"
+          :bpm="bpm"
+          :reps="reps"
+          :minutes="minutes"
+          :seconds="seconds"
+          :auto-start="autoStart"
+          :target-perfect="targetPerfect"
+          :mode="mode"
+          :show-mode-selector="false"
+          :show-custom-stat-toggle="false"
+          @update:title="updateTitle"
+          @update:stat-name="updateStatName"
+          @update:bpm="value => updateBpmValue(value)"
+          @update:reps="value => updateRepsValue(value)"
+          @update:minutes="value => updateMinutesValue(value)"
+          @update:seconds="value => updateSecondsValue(value)"
+          @update:auto-start="updateAutoStart"
+          @update:target-perfect="updateTargetPerfect"
+        />
 
         <div class="relative pt-4 border-t border-gray-100">
           <button @click="showMenu = !showMenu" class="flex items-center gap-2 text-gray-500 hover:text-[#E53935]">

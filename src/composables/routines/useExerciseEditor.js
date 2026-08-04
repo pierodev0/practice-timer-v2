@@ -5,7 +5,7 @@
  * Views: DetailsView
  */
 
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
 import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { useBpmStore } from '../../stores/useBpmStore.js';
@@ -25,20 +25,17 @@ export function useExerciseEditor(exerciseIdRef) {
 
   const exercise = computed(() => exerciseStore.getById(exerciseId.value));
 
-  const title = ref('');
-  const statName = ref('');
-  const comment = ref('');
-  const autoStart = ref(true);
+  const mode = computed(() => exercise.value?.mode || 'timer');
+  const title = computed(() => exercise.value?.title || '');
+  const statName = computed(() => exercise.value?.statisticName || '');
+  const comment = computed(() => exercise.value?.comment || '');
+  const bpm = computed(() => exercise.value?.bpm || 0);
+  const reps = computed(() => exercise.value?.reps || 1);
+  const targetPerfect = computed(() => exercise.value?.targetPerfect || 1);
+  const minutes = computed(() => Math.floor((exercise.value?.durationSec || 0) / 60));
+  const seconds = computed(() => (exercise.value?.durationSec || 0) % 60);
+  const autoStart = computed(() => exercise.value?.autoStart ?? true);
   const showMenu = ref(false);
-
-  watch(exercise, (ex) => {
-    if (ex) {
-      title.value = ex.title || '';
-      statName.value = ex.statisticName || '';
-      comment.value = ex.comment || '';
-      autoStart.value = ex.autoStart ?? true;
-    }
-  }, { immediate: true });
 
   // ── CRUD ───────────────────────────────────────────────
 
@@ -66,6 +63,10 @@ export function useExerciseEditor(exerciseIdRef) {
     if (ex.currentRep > newReps) {
       ex.currentRep = 1;
     }
+  }
+
+  async function updateTargetPerfect(value) {
+    await routineService.updateExerciseField(exerciseId.value, 'targetPerfect', Math.max(1, value));
   }
 
   async function adjustTime(type, delta) {
@@ -106,15 +107,22 @@ export function useExerciseEditor(exerciseIdRef) {
 
   return {
     exercise,
+    mode,
     title,
     statName,
     comment,
+    bpm,
+    reps,
+    minutes,
+    seconds,
+    targetPerfect,
     autoStart,
     showMenu,
     updateTitle,
     updateStatName,
     adjustBPM,
     adjustReps,
+    updateTargetPerfect,
     adjustTime,
     updateAutoStart,
     updateComment,
