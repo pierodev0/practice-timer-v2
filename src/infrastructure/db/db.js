@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 
-const DB_NAME = 'MusicRoutineApp_v3';
+const DB_NAME = 'MusicRoutineApp_v4';
 
 let _db = null;
 

@@ -44,11 +44,6 @@ async function getLocalRecord(entity, localId) {
   return dbLocal.table(entity).get(localId);
 }
 
-// Pull a bit further back than the cursor so a doc written between the
-// query and the cursor advance is never missed (server timestamps are
-// monotonic, but the advance happens after the read).
-const PULL_OVERLAP_MS = 60_000;
-
 async function applyMergedRecord(uid, entity, remote) {
   const localId = entityIdOf(entity, remote);
 
@@ -97,7 +92,7 @@ export async function flushOutbox(uid) {
 
 export async function pullChanges(uid) {
   const lastPulledAt = await getLastPulledAt(uid);
-  const since = lastPulledAt > 0 ? lastPulledAt - PULL_OVERLAP_MS : undefined;
+  const since = lastPulledAt > 0 ? lastPulledAt : undefined;
   const { entityRecords, newestTimestamp } = await backend.pull(uid, { since });
 
   let applied = 0;

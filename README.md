@@ -122,7 +122,7 @@ pnpm run test:watch
 
 | Almacenamiento | Propósito |
 |---|---|
-| **Dexie / IndexedDB v3** | Datos locales normalizados + outbox + metadata de sync |
+| **Dexie / IndexedDB v4** | Datos locales normalizados + outbox + metadata de sync |
 | **localStorage** | BPM global (`musicRoutineApp_bpm`) |
 | **Firebase Firestore** | Colecciones remotas por entidad (opcional) |
 | **Service Worker Cache** | Assets estáticos para funcionamiento offline |

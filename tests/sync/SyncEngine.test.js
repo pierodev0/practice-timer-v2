@@ -109,7 +109,7 @@ describe('SyncEngine', () => {
 
       const { applied, skipped } = await pullChanges('user-1');
 
-      expect(backend.pull).toHaveBeenCalledWith('user-1', { since: 100 - 60_000 });
+      expect(backend.pull).toHaveBeenCalledWith('user-1', { since: 100 });
       expect(backend.applyRemote).toHaveBeenCalledWith('user-1', 'routines', 'r1', expect.any(Object));
       expect(applied).toBe(1);
       expect(skipped).toBe(0);

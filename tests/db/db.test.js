@@ -9,8 +9,8 @@ beforeEach(async () => {
 });
 
 describe('Dexie schema', () => {
-  it('uses the clean v3 database and has sync tables', () => {
-    expect(db.name).toBe('MusicRoutineApp_v3');
+  it('uses the clean v4 database and has sync tables', () => {
+    expect(db.name).toBe('MusicRoutineApp_v4');
     expect(db.tables.map(t => t.name).sort()).toEqual([
       'exerciseLogs',
       'exercises',
