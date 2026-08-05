@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
 import { enqueue } from './syncOutboxRepository.js';
+import { getSyncOwnerUid } from './syncOwner.js';
 
 export async function create(data) {
   const db = await getDb();
@@ -11,7 +12,7 @@ export async function create(data) {
     deletedAt: null,
   };
   await db.sessions.add(record);
-  await enqueue({ entity: 'sessions', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'sessions', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -30,7 +31,7 @@ export async function update(id, data) {
   await db.sessions.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
   const record = await db.sessions.get(id);
   if (record) {
-    await enqueue({ entity: 'sessions', entityId: id, operation: 'upsert', data: record });
+    await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'sessions', entityId: id, operation: 'upsert', data: record });
   }
   return record;
 }
@@ -43,9 +44,9 @@ export async function remove(id) {
     await db.sessions.delete(id);
   });
   for (const exercise of exercises) {
-    await enqueue({ entity: 'sessionExercises', entityId: exercise.id, operation: 'delete', data: null });
+    await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'sessionExercises', entityId: exercise.id, operation: 'delete', data: null });
   }
-  await enqueue({ entity: 'sessions', entityId: id, operation: 'delete', data: null });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'sessions', entityId: id, operation: 'delete', data: null });
 }
 
 export async function addExercise(sessionId, exerciseId, data) {
@@ -59,7 +60,7 @@ export async function addExercise(sessionId, exerciseId, data) {
     deletedAt: null,
   };
   await db.sessionExercises.add(record);
-  await enqueue({ entity: 'sessionExercises', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'sessionExercises', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 

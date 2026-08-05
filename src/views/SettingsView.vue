@@ -136,10 +136,21 @@ async function syncNowAction() {
               <p class="text-xs text-green-600">Conectado</p>
             </div>
           </div>
-          <button @click="syncNowAction" class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+          <div v-if="cloudSync.syncError.value" class="p-3 rounded-lg bg-red-50 text-red-700 text-xs">
+            {{ cloudSync.syncError.value }}
+          </div>
+          <div class="flex items-center justify-between px-1 text-xs text-gray-500">
+            <span>{{ cloudSync.syncStatus.value === 'syncing' ? 'Sincronizando…' : cloudSync.syncStatus.value === 'error' ? 'Error de sincronización' : 'Sincronización lista' }}</span>
+            <span v-if="cloudSync.pendingCount.value > 0">{{ cloudSync.pendingCount.value }} pendiente(s)</span>
+          </div>
+          <button
+            @click="syncNowAction"
+            :disabled="cloudSync.syncStatus.value === 'syncing'"
+            class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600"><i class="fas fa-sync-alt"></i></div>
             <div>
-              <p class="font-medium text-gray-800 text-sm">Sincronizar ahora</p>
+              <p class="font-medium text-gray-800 text-sm">{{ cloudSync.syncStatus.value === 'syncing' ? 'Sincronizando…' : 'Sincronizar ahora' }}</p>
               <p class="text-xs text-gray-400">{{ cloudSync.lastSyncTime.value ? `Última: ${new Date(cloudSync.lastSyncTime.value).toLocaleString()}` : 'Sube y descarga los últimos cambios' }}</p>
             </div>
           </button>

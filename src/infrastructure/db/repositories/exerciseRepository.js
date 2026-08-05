@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
 import { enqueue } from './syncOutboxRepository.js';
+import { getSyncOwnerUid } from './syncOwner.js';
 
 const DEFAULTS = {
   bpm: 100,
@@ -23,7 +24,7 @@ export async function create(data) {
     deletedAt: null,
   };
   await db.exercises.add(record);
-  await enqueue({ entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -37,7 +38,7 @@ export async function update(id, data) {
   await db.exercises.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
   const record = await db.exercises.get(id);
   if (record) {
-    await enqueue({ entity: 'exercises', entityId: id, operation: 'upsert', data: record });
+    await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exercises', entityId: id, operation: 'upsert', data: record });
   }
   return record;
 }
@@ -55,14 +56,14 @@ export async function upsert(data) {
     deletedAt: null,
   };
   await db.exercises.put(record);
-  await enqueue({ entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
 export async function remove(id) {
   const db = await getDb();
   await db.exercises.delete(id);
-  await enqueue({ entity: 'exercises', entityId: id, operation: 'delete', data: null });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exercises', entityId: id, operation: 'delete', data: null });
 }
 
 export async function all() {

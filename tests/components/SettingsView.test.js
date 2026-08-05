@@ -39,6 +39,9 @@ vi.mock('../../src/composables/settings/useFirebaseAuth.js', () => ({
 vi.mock('../../src/composables/settings/useCloudSync.js', () => ({
   useCloudSync: () => ({
     lastSyncTime: ref(null),
+    syncStatus: ref('synced'),
+    syncError: ref(null),
+    pendingCount: ref(0),
     syncNow: mocks.syncNow,
   }),
 }));

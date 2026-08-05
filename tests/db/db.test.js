@@ -42,7 +42,7 @@ describe('Dexie schema', () => {
     expect(db.routineExercises.schema.primKey.auto).toBe(false);
     expect(db.exerciseLogs.schema.indexes.map(i => i.name)).toContain('[exerciseId+date]');
     expect(db.sessions.schema.indexes.map(i => i.name)).toContain('completedAt');
-    expect(db.syncOutbox.schema.indexes.map(i => i.name)).toContain('[entity+entityId]');
+    expect(db.syncOutbox.schema.indexes.map(i => i.name)).toContain('[ownerUid+entity+entityId]');
     expect(db.syncOutbox.schema.indexes.map(i => i.name)).toContain('status');
     expect(db.syncMetadata.schema.primKey.name).toBe('key');
   });

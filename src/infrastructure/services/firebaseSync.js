@@ -13,6 +13,7 @@ import {
 import { db, auth } from './firebaseConfig.js';
 import { getDb } from '../db/db.js';
 import { getDeviceId } from './firebaseDevice.js';
+import { setSyncOwnerUid } from '../db/repositories/syncOwner.js';
 import * as syncOutboxRepository from '../db/repositories/syncOutboxRepository.js';
 import { withCaptureDisabled } from '../db/repositories/syncOutboxRepository.js';
 import * as routineRepository from '../db/repositories/routineRepository.js';
@@ -39,6 +40,9 @@ const ENTITY_REPOSITORIES = {
 
 let unsubscribeListeners = [];
 let syncRun = 0;
+let activeUid = null;
+let syncPromise = null;
+let syncRequested = false;
 
 function userSyncRoot(uid) {
   return collection(db, 'users', uid, 'sync');
@@ -94,7 +98,7 @@ async function refreshLocalStores() {
   });
 }
 
-async function enqueueLocalState() {
+async function enqueueLocalState(ownerUid) {
   const dbLocal = await getDb();
   for (const entity of SYNC_COLLECTIONS) {
     const records = await dbLocal.table(entity).toArray();
@@ -103,6 +107,7 @@ async function enqueueLocalState() {
         ? `${record.routineId}__${record.exerciseId}`
         : record.id;
       await syncOutboxRepository.enqueue({
+        ownerUid,
         entity,
         entityId,
         operation: 'upsert',
@@ -166,7 +171,7 @@ async function uploadOperation(uid, operation) {
 }
 
 async function flushOutbox(uid) {
-  const pending = await syncOutboxRepository.listPending();
+  const pending = await syncOutboxRepository.listPending(uid);
   for (const operation of pending) {
     try {
       await uploadOperation(uid, operation);
@@ -236,12 +241,11 @@ function stopRealtimeListeners() {
   unsubscribeListeners = [];
 }
 
-export async function initializeSync(uid, onRemoteChange) {
-  if (!uid) return;
+async function runSync(uid, onRemoteChange) {
   const run = ++syncRun;
   dispatchSyncEvent('syncing');
   try {
-    const pendingBeforePull = await syncOutboxRepository.listPending();
+    const pendingBeforePull = await syncOutboxRepository.listPending(uid);
     if (pendingBeforePull.length > 0) {
       await flushOutbox(uid);
     }
@@ -251,7 +255,7 @@ export async function initializeSync(uid, onRemoteChange) {
     });
 
     if (appliedRecords === 0 && pendingBeforePull.length === 0) {
-      await enqueueLocalState();
+      await enqueueLocalState(uid);
       await flushOutbox(uid);
     }
 
@@ -265,14 +269,42 @@ export async function initializeSync(uid, onRemoteChange) {
   }
 }
 
-export async function syncNow() {
+export function requestSync(uid, onRemoteChange) {
+  if (!uid) return Promise.resolve();
+  if (syncPromise) {
+    syncRequested = true;
+    return syncPromise;
+  }
+
+  activeUid = uid;
+  setSyncOwnerUid(uid);
+  syncPromise = runSync(uid, onRemoteChange)
+    .finally(async () => {
+      syncPromise = null;
+      if (syncRequested && activeUid === uid) {
+        syncRequested = false;
+        await requestSync(uid, onRemoteChange);
+      }
+    });
+
+  return syncPromise;
+}
+
+export function initializeSync(uid, onRemoteChange) {
+  return requestSync(uid, onRemoteChange);
+}
+
+export function syncNow(onRemoteChange) {
   const user = auth.currentUser;
-  if (!user) return;
-  await initializeSync(user.uid);
+  if (!user) return Promise.resolve();
+  return requestSync(user.uid, onRemoteChange);
 }
 
 export function stopSync() {
   syncRun += 1;
+  activeUid = null;
+  setSyncOwnerUid(null);
+  syncRequested = false;
   stopRealtimeListeners();
   dispatchSyncEvent('idle');
 }

@@ -1,5 +1,6 @@
 import { getDb } from '../db.js';
 import { enqueue } from './syncOutboxRepository.js';
+import { getSyncOwnerUid } from './syncOwner.js';
 
 export function getKey(routineId, exerciseId) {
   return `${routineId}__${exerciseId}`;
@@ -78,6 +79,7 @@ export async function reorderExercises(routineId, exerciseIds) {
 
   for (const record of records) {
     await enqueue({
+      ownerUid: getSyncOwnerUid(),
       entity: 'routineExercises',
       entityId: getKey(record.routineId, record.exerciseId),
       operation: 'upsert',

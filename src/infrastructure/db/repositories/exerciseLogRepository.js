@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
 import { enqueue } from './syncOutboxRepository.js';
+import { getSyncOwnerUid } from './syncOwner.js';
 
 export async function addLog(exerciseId, data) {
   const db = await getDb();
@@ -12,7 +13,7 @@ export async function addLog(exerciseId, data) {
     deletedAt: null,
   };
   await db.exerciseLogs.add(record);
-  await enqueue({ entity: 'exerciseLogs', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exerciseLogs', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -35,7 +36,7 @@ export async function getLogsInRange(exerciseId, startDate, endDate, includeUppe
 export async function remove(id) {
   const db = await getDb();
   await db.exerciseLogs.delete(id);
-  await enqueue({ entity: 'exerciseLogs', entityId: id, operation: 'delete', data: null });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exerciseLogs', entityId: id, operation: 'delete', data: null });
 }
 
 export async function update(id, data) {
@@ -43,7 +44,7 @@ export async function update(id, data) {
   await db.exerciseLogs.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
   const record = await db.exerciseLogs.get(id);
   if (record) {
-    await enqueue({ entity: 'exerciseLogs', entityId: id, operation: 'upsert', data: record });
+    await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exerciseLogs', entityId: id, operation: 'upsert', data: record });
   }
   return record;
 }
@@ -62,7 +63,7 @@ export async function linkToSession(sessionId, logs) {
     await db.exerciseLogs.update(log.id, { sessionId, updatedAt: Date.now() });
     const record = await db.exerciseLogs.get(log.id);
     if (record) {
-      await enqueue({ entity: 'exerciseLogs', entityId: log.id, operation: 'upsert', data: record });
+      await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'exerciseLogs', entityId: log.id, operation: 'upsert', data: record });
     }
   }
 }

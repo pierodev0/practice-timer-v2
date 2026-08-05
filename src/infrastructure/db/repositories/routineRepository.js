@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
 import { enqueue } from './syncOutboxRepository.js';
 import { getKey } from './routineExerciseRepository.js';
+import { getSyncOwnerUid } from './syncOwner.js';
 
 export async function create(data) {
   const db = await getDb();
@@ -14,7 +15,7 @@ export async function create(data) {
     deletedAt: null,
   };
   await db.routines.add(record);
-  await enqueue({ entity: 'routines', entityId: record.id, operation: 'upsert', data: record });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'routines', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -28,7 +29,7 @@ export async function update(id, data) {
   await db.routines.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
   const record = await db.routines.get(id);
   if (record) {
-    await enqueue({ entity: 'routines', entityId: id, operation: 'upsert', data: record });
+    await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'routines', entityId: id, operation: 'upsert', data: record });
   }
   return record;
 }
@@ -42,13 +43,14 @@ export async function remove(id) {
   });
   for (const link of links) {
     await enqueue({
+      ownerUid: getSyncOwnerUid(),
       entity: 'routineExercises',
       entityId: getKey(link.routineId, link.exerciseId),
       operation: 'delete',
       data: { ...link, deletedAt: Date.now() },
     });
   }
-  await enqueue({ entity: 'routines', entityId: id, operation: 'delete', data: null });
+  await enqueue({ ownerUid: getSyncOwnerUid(), entity: 'routines', entityId: id, operation: 'delete', data: null });
 }
 
 export async function all() {

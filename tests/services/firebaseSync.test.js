@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   serverTimestamp: vi.fn(() => ({ serverTimestamp: true })),
   where: vi.fn((...args) => ({ type: 'where', args })),
   getDb: vi.fn(),
+  enqueue: vi.fn(),
+  clear: vi.fn(),
   listPending: vi.fn(),
   markError: vi.fn(),
   remove: vi.fn(),
@@ -41,6 +43,8 @@ vi.mock('../../src/infrastructure/db/db.js', () => ({
 }));
 
 vi.mock('../../src/infrastructure/db/repositories/syncOutboxRepository.js', () => ({
+  enqueue: mocks.enqueue,
+  clear: mocks.clear,
   listPending: mocks.listPending,
   markError: mocks.markError,
   remove: mocks.remove,
@@ -57,18 +61,31 @@ vi.mock('../../src/infrastructure/db/repositories/routineExerciseRepository.js',
 vi.mock('../../src/infrastructure/db/repositories/sessionRepository.js', () => ({}));
 vi.mock('../../src/infrastructure/db/repositories/exerciseLogRepository.js', () => ({}));
 
-const { flushOutbox } = await import('../../src/infrastructure/services/firebaseSync.js');
+const { flushOutbox, requestSync } = await import('../../src/infrastructure/services/firebaseSync.js');
 
 describe('firebaseSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listPending.mockResolvedValue([]);
     mocks.setDoc.mockResolvedValue(undefined);
+    mocks.getDocs.mockResolvedValue({ docs: [] });
+    mocks.onSnapshot.mockReturnValue(vi.fn());
+    mocks.getDb.mockResolvedValue({
+      syncMetadata: { get: vi.fn().mockResolvedValue(null), put: vi.fn() },
+      routines: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      exercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      routineExercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      sessions: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      sessionExercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      exerciseLogs: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+      table: vi.fn(() => ({ toArray: vi.fn().mockResolvedValue([]) })),
+    });
   });
 
   it('flushes entity operations to the new sync collections', async () => {
     mocks.listPending.mockResolvedValue([{
       id: 'outbox-1',
+      ownerUid: 'user-1',
       entity: 'routines',
       entityId: 'routine-1',
       operation: 'upsert',
@@ -85,6 +102,15 @@ describe('firebaseSync', () => {
     expect(route).toContain('records');
     expect(route).not.toContain('app');
     expect(mocks.remove).toHaveBeenCalledWith('outbox-1');
+  });
+
+  it('shares one in-flight sync promise for concurrent requests', async () => {
+    const first = requestSync('user-1');
+    const second = requestSync('user-1');
+
+    expect(second).toBe(first);
+    await first;
+    expect(mocks.getDocs).toHaveBeenCalledTimes(12);
   });
 
   it('keeps failed operations pending for retry', async () => {

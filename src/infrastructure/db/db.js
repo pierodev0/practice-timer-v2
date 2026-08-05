@@ -15,7 +15,7 @@ export function createDb(name = DB_NAME) {
     sessions: '&id, date, routineId, routineName, totalSec, elapsedSec, scheduledSec, completedAt, updatedAt, deletedAt',
     sessionExercises: '&id, sessionId, exerciseId, title, bpm, durationSec, repsCompleted, statValue, actualSec, repsPlanned, repsActual, perfectCount, statisticName, comment, updatedAt, deletedAt',
     settings: '&key, value',
-    syncOutbox: '&id, [entity+entityId], entity, entityId, operation, status, createdAt, updatedAt',
+    syncOutbox: '&id, [ownerUid+entity+entityId], ownerUid, entity, entityId, operation, status, createdAt, updatedAt, lastError, attempts',
     syncMetadata: '&key, value',
   });
 
