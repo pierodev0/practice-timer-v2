@@ -8,6 +8,7 @@ import * as routineRepository from '../db/repositories/routineRepository.js';
 import * as routineExerciseRepository from '../db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
 import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
+import { withCaptureDisabled } from '../db/repositories/syncOutboxRepository.js';
 import * as routinesSample from '../../data/defaultRoutines.js';
 
 /**
@@ -55,44 +56,43 @@ export async function loadAll() {
  * @param {Array} exercises — array de ejercicios (con routineId, order)
  */
 export async function saveAll(routines, exercises) {
-  const routineIds = routines.map(r => r.id);
+  await withCaptureDisabled(async () => {
+    const routineIds = routines.map(r => r.id);
 
-  // Detectar rutinas eliminadas
-  const existingRoutines = await routineRepository.all();
-  for (const er of existingRoutines) {
-    if (!routineIds.includes(er.id)) {
-      await routineRepository.remove(er.id);
+    const existingRoutines = await routineRepository.all();
+    for (const er of existingRoutines) {
+      if (!routineIds.includes(er.id)) {
+        await routineRepository.remove(er.id);
+      }
     }
-  }
 
-  // Upsert routines
-  for (const r of routines) {
-    const existing = await routineRepository.getById(r.id);
-    if (existing) {
-      await routineRepository.update(r.id, { name: r.name });
-    } else {
-      await routineRepository.create({
-        id: r.id, name: r.name, createdAt: r.createdAt || Date.now(),
-      });
+    for (const r of routines) {
+      const existing = await routineRepository.getById(r.id);
+      if (existing) {
+        await routineRepository.update(r.id, { name: r.name });
+      } else {
+        await routineRepository.create({
+          id: r.id, name: r.name, createdAt: r.createdAt || Date.now(),
+        });
+      }
     }
-  }
 
-  // Upsert exercises + rebuild links
-  const links = {};
-  for (const ex of exercises) {
-    await exerciseRepository.upsert(stripTransients(ex));
-    if (ex.routineId) {
-      if (!links[ex.routineId]) links[ex.routineId] = [];
-      links[ex.routineId].push({ id: ex.id, order: ex.order ?? 0 });
+    const links = {};
+    for (const ex of exercises) {
+      await exerciseRepository.upsert(stripTransients(ex));
+      if (ex.routineId) {
+        if (!links[ex.routineId]) links[ex.routineId] = [];
+        links[ex.routineId].push({ id: ex.id, order: ex.order ?? 0 });
+      }
     }
-  }
 
-  for (const [routineId, exerciseLinks] of Object.entries(links)) {
-    exerciseLinks.sort((a, b) => a.order - b.order);
-    for (let i = 0; i < exerciseLinks.length; i++) {
-      await routineExerciseRepository.addExercise(routineId, exerciseLinks[i].id, i);
+    for (const [routineId, exerciseLinks] of Object.entries(links)) {
+      exerciseLinks.sort((a, b) => a.order - b.order);
+      for (let i = 0; i < exerciseLinks.length; i++) {
+        await routineExerciseRepository.addExercise(routineId, exerciseLinks[i].id, i);
+      }
     }
-  }
+  });
 }
 
 /**

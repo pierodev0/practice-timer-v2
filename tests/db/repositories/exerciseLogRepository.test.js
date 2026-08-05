@@ -16,7 +16,7 @@ beforeEach(async () => {
 describe('exerciseLogRepository', () => {
   it('addLog creates a log entry and returns its id', async () => {
     const id = await exerciseLogRepository.addLog('ex1', { date: '2026-07-24', value: 42 });
-    expect(id).toBeGreaterThanOrEqual(1);
+    expect(typeof id).toBe('string');
   });
 
   it('getLogs returns all logs for an exercise', async () => {
@@ -24,7 +24,7 @@ describe('exerciseLogRepository', () => {
     await exerciseLogRepository.addLog('ex1', { date: '2026-07-25', value: 20 });
     const logs = await exerciseLogRepository.getLogs('ex1');
     expect(logs).toHaveLength(2);
-    expect(logs[0].value).toBe(10);
+    expect(logs.sort((a, b) => a.date.localeCompare(b.date))[0].value).toBe(10);
   });
 
   it('getLogs returns empty array for exercise with no logs', async () => {

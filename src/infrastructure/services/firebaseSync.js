@@ -1,223 +1,332 @@
-/**
- * Firebase sync service — upload, download, merge, backup.
- * Uses Pinia stores directly instead of js/state.js.
- */
-
-import { nanoid } from 'nanoid';
-import { doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { db } from './firebaseConfig.js';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from 'firebase/firestore';
+import { db, auth } from './firebaseConfig.js';
+import { getDb } from '../db/db.js';
 import { getDeviceId } from './firebaseDevice.js';
-import { exportSyncState } from './firebaseSerializer.js';
-import { mergeState } from './firebaseMerge.js';
-import { RoutineService } from '../../application/routines/RoutineService.js';
+import * as syncOutboxRepository from '../db/repositories/syncOutboxRepository.js';
+import { withCaptureDisabled } from '../db/repositories/syncOutboxRepository.js';
+import * as routineRepository from '../db/repositories/routineRepository.js';
+import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
+import * as routineExerciseRepository from '../db/repositories/routineExerciseRepository.js';
+import * as sessionRepository from '../db/repositories/sessionRepository.js';
+import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 
-const CLOUD_SYNC_KEY = 'music-cloud-sync';
+const SYNC_COLLECTIONS = [
+  'routines',
+  'exercises',
+  'routineExercises',
+  'sessions',
+  'sessionExercises',
+  'exerciseLogs',
+];
 
-let syncTimeout = null;
-let unsubscribeSnapshot = null;
-let initialSyncDone = false;
+const ENTITY_REPOSITORIES = {
+  routines: routineRepository,
+  exercises: exerciseRepository,
+  sessions: sessionRepository,
+  exerciseLogs: exerciseLogRepository,
+};
 
-function getDocRef(uid) {
-  return doc(db, 'users', uid, 'app', 'state');
+let unsubscribeListeners = [];
+let syncRun = 0;
+
+function userSyncRoot(uid) {
+  return collection(db, 'users', uid, 'sync');
 }
 
-function getLastSyncTime() {
-  const raw = localStorage.getItem(CLOUD_SYNC_KEY);
-  return raw ? JSON.parse(raw).updatedAt || 0 : 0;
+function entityCollection(uid, entity) {
+  return collection(userSyncRoot(uid), entity, 'records');
 }
 
-function setLastSyncTime(uid, updatedAt) {
-  localStorage.setItem(CLOUD_SYNC_KEY, JSON.stringify({ uid, updatedAt }));
+function entityDoc(uid, entity, entityId) {
+  return doc(entityCollection(uid, entity), entityId);
 }
 
-async function getStoreSnapshot() {
-  const { useRoutineStore } = await import('../../stores/useRoutineStore.js');
-  const { useSessionStore } = await import('../../stores/useSessionStore.js');
-  const routineStore = useRoutineStore();
-  const sessionStore = useSessionStore();
-  return {
-    routines: routineStore.routines,
-    stats: sessionStore.stats,
-    sessions: sessionStore.sessions,
-    currentRoutineId: routineStore.currentRoutineId,
-  };
+function metadataKey(uid) {
+  return `sync:${uid}:lastPulledAt`;
 }
 
-async function applyStoreSnapshot(data) {
-  const { useRoutineStore } = await import('../../stores/useRoutineStore.js');
-  const { useSessionStore } = await import('../../stores/useSessionStore.js');
-  const routineStore = useRoutineStore();
-  const sessionStore = useSessionStore();
-  routineStore.routines = data.routines;
-  sessionStore.stats = data.stats || {};
-  sessionStore.sessions = data.sessions || [];
-  if (data.currentRoutineId) routineStore.currentRoutineId = data.currentRoutineId;
-  new RoutineService().saveAllToStorage();
-  sessionStore.saveToStorage();
+async function getLastPulledAt(uid) {
+  const dbLocal = await getDb();
+  const row = await dbLocal.syncMetadata.get(metadataKey(uid));
+  return row?.value || 0;
 }
 
-export async function uploadState(uid) {
-  const state = getStoreSnapshot();
-  const payload = {
-    schemaVersion: 1,
-    updatedAt: serverTimestamp(),
-    _localUpdatedAt: Date.now(),
-    deviceId: getDeviceId(),
-    data: exportSyncState(state),
-  };
-  await setDoc(getDocRef(uid), payload);
-  setLastSyncTime(uid, Date.now());
-  dispatchSyncEvent('synced');
+async function setLastPulledAt(uid, value) {
+  const dbLocal = await getDb();
+  await dbLocal.syncMetadata.put({ key: metadataKey(uid), value });
 }
 
-export async function downloadState(uid) {
-  const snap = await getDoc(getDocRef(uid));
-  if (!snap.exists()) return null;
-  return {
-    ...snap.data(),
-    updatedAt: snap.data().updatedAt?.toMillis?.() ?? snap.data().updatedAt ?? 0,
-  };
-}
-
-export async function downloadAndMergeState(uid) {
-  try {
-    dispatchSyncEvent('syncing');
-    const cloudDoc = await downloadState(uid);
-    if (!cloudDoc) {
-      initialSyncDone = true;
-      await uploadState(uid);
-      dispatchSyncEvent('synced');
-      return;
+async function clearLocalEntities() {
+  const dbLocal = await getDb();
+  await withCaptureDisabled(async () => {
+    for (const entity of SYNC_COLLECTIONS) {
+      await dbLocal.table(entity).clear();
     }
+  });
+}
 
-    const neverSynced = getLastSyncTime() === 0;
-    if (neverSynced) {
-      applyStoreSnapshot(cloudDoc.data);
-    } else {
-      const localData = { _syncedAt: getLastSyncTime(), data: exportSyncState(getStoreSnapshot()) };
-      const result = mergeState(localData, cloudDoc);
-      if (result.changed && result.data) {
-        applyStoreSnapshot(result.data);
+async function refreshLocalStores() {
+  const { useRoutineStore } = await import('../../stores/useRoutineStore.js');
+  const { useExerciseStore } = await import('../../stores/useExerciseStore.js');
+  const { useSessionStore } = await import('../../stores/useSessionStore.js');
+  const { withCaptureDisabled: disableCapture } = await import('../db/repositories/syncOutboxRepository.js');
+  const { loadAll } = await import('./routinePersistence.js');
+
+  await disableCapture(async () => {
+    const routineStore = useRoutineStore();
+    const exerciseStore = useExerciseStore();
+    const sessionStore = useSessionStore();
+    const data = await loadAll();
+    routineStore.setRoutines(data.routines);
+    exerciseStore.setAll(data.exercises);
+    await sessionStore.loadFromDb();
+  });
+}
+
+async function enqueueLocalState() {
+  const dbLocal = await getDb();
+  for (const entity of SYNC_COLLECTIONS) {
+    const records = await dbLocal.table(entity).toArray();
+    for (const record of records) {
+      const entityId = entity === 'routineExercises'
+        ? `${record.routineId}__${record.exerciseId}`
+        : record.id;
+      await syncOutboxRepository.enqueue({
+        entity,
+        entityId,
+        operation: 'upsert',
+        data: record,
+      });
+    }
+  }
+}
+
+function normalizeRemoteRecord(snapshot) {
+  return {
+    id: snapshot.id,
+    ...snapshot.data(),
+  };
+}
+
+async function applyEntityRecord(entity, record) {
+  const repository = ENTITY_REPOSITORIES[entity];
+  if (entity === 'routineExercises') {
+    if (record.deletedAt) {
+      return routineExerciseRepository.removeExercise(record.routineId, record.exerciseId);
+    }
+    return routineExerciseRepository.addExercise(record.routineId, record.exerciseId, record.order);
+  }
+  if (entity === 'sessionExercises') {
+    const dbLocal = await getDb();
+    if (record.deletedAt) {
+      return dbLocal.sessionExercises.delete(record.id);
+    }
+    return dbLocal.sessionExercises.put(record);
+  }
+  if (!repository) return;
+  if (record.deletedAt) {
+    return repository.remove(record.id);
+  }
+  if (entity === 'routines') return repository.create(record).catch(() => repository.update(record.id, record));
+  if (entity === 'exercises') return repository.upsert(record);
+  if (entity === 'sessions') return repository.create(record).catch(() => repository.update(record.id, record));
+  if (entity === 'exerciseLogs') return repository.addLog(record.exerciseId, record).catch(() => repository.update(record.id, record));
+}
+
+async function uploadOperation(uid, operation) {
+  const ref = entityDoc(uid, operation.entity, operation.entityId);
+  if (operation.operation === 'delete') {
+    await setDoc(ref, {
+      id: operation.entityId,
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      deviceId: getDeviceId(),
+    }, { merge: true });
+    return;
+  }
+
+  await setDoc(ref, {
+    ...operation.data,
+    id: operation.entityId,
+    updatedAt: serverTimestamp(),
+    deviceId: getDeviceId(),
+    deletedAt: null,
+  }, { merge: true });
+}
+
+async function flushOutbox(uid) {
+  const pending = await syncOutboxRepository.listPending();
+  for (const operation of pending) {
+    try {
+      await uploadOperation(uid, operation);
+      await syncOutboxRepository.remove(operation.id);
+    } catch (error) {
+      await syncOutboxRepository.markError(operation.id, error);
+      throw error;
+    }
+  }
+}
+
+async function pullChanges(uid, { replaceLocalOnFirstPull = false } = {}) {
+  const lastPulledAt = await getLastPulledAt(uid);
+  let newestTimestamp = lastPulledAt;
+  let appliedRecords = 0;
+  let localCleared = false;
+
+  await withCaptureDisabled(async () => {
+    for (const entity of SYNC_COLLECTIONS) {
+      const entityQuery = lastPulledAt
+        ? query(entityCollection(uid, entity), where('updatedAt', '>', new Date(lastPulledAt)), orderBy('updatedAt'))
+        : query(entityCollection(uid, entity), orderBy('updatedAt'));
+      const snapshots = await getDocs(entityQuery);
+      if (replaceLocalOnFirstPull && !lastPulledAt && snapshots.docs.length > 0 && !localCleared) {
+        await clearLocalEntities();
+        await syncOutboxRepository.clear();
+        localCleared = true;
+      }
+      for (const snapshot of snapshots.docs) {
+        const record = normalizeRemoteRecord(snapshot);
+        const updatedAt = record.updatedAt?.toMillis?.() || record.updatedAt || 0;
+        newestTimestamp = Math.max(newestTimestamp, updatedAt);
+        if (record.deviceId === getDeviceId() && !replaceLocalOnFirstPull) continue;
+        await applyEntityRecord(entity, record);
+        appliedRecords += 1;
       }
     }
+  });
 
-    setLastSyncTime(uid, cloudDoc.updatedAt);
-    initialSyncDone = true;
+  if (newestTimestamp > lastPulledAt) {
+    await setLastPulledAt(uid, newestTimestamp);
+  }
+  return appliedRecords;
+}
+
+function startRealtimeListeners(uid, onChange) {
+  stopRealtimeListeners();
+  unsubscribeListeners = SYNC_COLLECTIONS.map(entity => onSnapshot(
+    query(entityCollection(uid, entity), orderBy('updatedAt')),
+    async (snapshot) => {
+      await withCaptureDisabled(async () => {
+        for (const change of snapshot.docChanges()) {
+          if (change.type === 'removed') continue;
+          const record = normalizeRemoteRecord(change.doc);
+          if (record.deviceId === getDeviceId()) continue;
+          await applyEntityRecord(entity, record);
+          if (onChange) await onChange({ entity, record });
+        }
+      });
+    },
+    (error) => dispatchSyncEvent('error', error),
+  ));
+}
+
+function stopRealtimeListeners() {
+  unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+  unsubscribeListeners = [];
+}
+
+export async function initializeSync(uid, onRemoteChange) {
+  if (!uid) return;
+  const run = ++syncRun;
+  dispatchSyncEvent('syncing');
+  try {
+    const pendingBeforePull = await syncOutboxRepository.listPending();
+    if (pendingBeforePull.length > 0) {
+      await flushOutbox(uid);
+    }
+
+    const appliedRecords = await pullChanges(uid, {
+      replaceLocalOnFirstPull: pendingBeforePull.length === 0,
+    });
+
+    if (appliedRecords === 0 && pendingBeforePull.length === 0) {
+      await enqueueLocalState();
+      await flushOutbox(uid);
+    }
+
+    if (run !== syncRun) return;
+    startRealtimeListeners(uid, onRemoteChange);
+    if (onRemoteChange) await onRemoteChange();
     dispatchSyncEvent('synced');
-  } catch (err) {
-    console.error('Sync download failed:', err);
-    dispatchSyncEvent('error');
+  } catch (error) {
+    dispatchSyncEvent('error', error);
+    throw error;
   }
 }
 
 export async function syncNow() {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('./firebaseConfig.js');
   const user = auth.currentUser;
   if (!user) return;
-  dispatchSyncEvent('syncing');
-  try {
-    await uploadState(user.uid);
-    dispatchSyncEvent('synced');
-  } catch {
-    dispatchSyncEvent('error');
+  await initializeSync(user.uid);
+}
+
+export function stopSync() {
+  syncRun += 1;
+  stopRealtimeListeners();
+  dispatchSyncEvent('idle');
+}
+
+export async function loginAndSync() {
+  const { loginGoogle } = await import('./firebaseAuth.js');
+  await loginGoogle();
+}
+
+export async function logout() {
+  stopSync();
+  const { logoutGoogle } = await import('./firebaseAuth.js');
+  await logoutGoogle();
+}
+
+export async function saveCloudBackup(label) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not logged in');
+  const dbLocal = await getDb();
+  const snapshot = {};
+  for (const entity of SYNC_COLLECTIONS) {
+    snapshot[entity] = await dbLocal.table(entity).toArray();
   }
-}
-
-export function scheduleCloudSync() {
-  clearTimeout(syncTimeout);
-  syncTimeout = setTimeout(async () => {
-    const autoToggle = document.getElementById('sync-auto-toggle');
-    if (!autoToggle || !autoToggle.checked) return;
-    const { getAuth } = await import('firebase/auth');
-    const { auth } = await import('./firebaseConfig.js');
-    const user = auth.currentUser;
-    if (user) {
-      dispatchSyncEvent('syncing');
-      try {
-        await uploadState(user.uid);
-        dispatchSyncEvent('synced');
-      } catch {
-        dispatchSyncEvent('error');
-      }
-    }
-  }, 2000);
-}
-
-export function startSyncListener(uid, onRemoteChange) {
-  if (unsubscribeSnapshot) return;
-  unsubscribeSnapshot = onSnapshot(getDocRef(uid), (snap) => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (data.deviceId === getDeviceId()) return;
-    if (!initialSyncDone) return;
-
-    const cloudTime = data.updatedAt?.toMillis?.() ?? data.updatedAt ?? 0;
-    const localTime = getLastSyncTime();
-    if (cloudTime > localTime) {
-      const merged = {
-        routines: data.data.routines,
-        stats: data.data.stats,
-        sessions: data.data.sessions,
-        currentRoutineId: data.data.currentRoutineId,
-      };
-      if (onRemoteChange) onRemoteChange(merged);
-      setLastSyncTime(null, cloudTime);
-    }
-  });
-  return unsubscribeSnapshot;
-}
-
-export function stopSyncListener() {
-  if (unsubscribeSnapshot) {
-    unsubscribeSnapshot();
-    unsubscribeSnapshot = null;
-  }
-}
-
-function getBackupCollRef(uid) {
-  return collection(db, 'users', uid, 'backups');
-}
-
-function getBackupDocRef(uid, backupId) {
-  return doc(db, 'users', uid, 'backups', backupId);
-}
-
-export async function saveBackup(uid, label) {
-  const state = getStoreSnapshot();
-  const backupId = `${Date.now()}-${nanoid(8)}`;
-  await setDoc(getBackupDocRef(uid, backupId), {
-    createdAt: serverTimestamp(),
+  const backupId = `${Date.now()}-${getDeviceId()}`;
+  await setDoc(doc(db, 'users', user.uid, 'backups', backupId), {
     label: label || `Copia ${new Date().toLocaleString()}`,
-    data: exportSyncState(state),
+    createdAt: serverTimestamp(),
+    data: snapshot,
   });
   return backupId;
 }
 
-export async function listBackups(uid) {
-  const q = query(getBackupCollRef(uid), orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  const backups = [];
-  snap.forEach(d => {
-    backups.push({
-      id: d.id,
-      ...d.data(),
-      createdAt: d.data().createdAt?.toMillis?.() || d.data().createdAt || 0,
-    });
-  });
-  return backups;
+export async function listCloudBackups() {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not logged in');
+  const snapshots = await getDocs(query(collection(db, 'users', user.uid, 'backups'), orderBy('createdAt', 'desc')));
+  return snapshots.docs.map(snapshot => ({ id: snapshot.id, ...snapshot.data() }));
 }
 
-export async function loadBackup(uid, backupId) {
-  const snap = await getDoc(getBackupDocRef(uid, backupId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() };
+export async function loadCloudBackup(backupId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not logged in');
+  const snapshot = await getDocs(query(collection(db, 'users', user.uid, 'backups'), where('__name__', '==', backupId)));
+  return snapshot.docs[0] ? { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } : null;
 }
 
-export async function deleteBackup(uid, backupId) {
-  await deleteDoc(getBackupDocRef(uid, backupId));
+export async function deleteCloudBackup(backupId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not logged in');
+  await deleteDoc(doc(db, 'users', user.uid, 'backups', backupId));
 }
 
-function dispatchSyncEvent(status) {
-  window.dispatchEvent(new CustomEvent('sync-status', { detail: { status } }));
+function dispatchSyncEvent(status, error = null) {
+  window.dispatchEvent(new CustomEvent('sync-status', { detail: { status, error } }));
 }
+
+export { SYNC_COLLECTIONS, flushOutbox, pullChanges, stopRealtimeListeners, refreshLocalStores };

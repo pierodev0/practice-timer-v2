@@ -67,7 +67,7 @@ describe('sessionRepository', () => {
     expect(links).toHaveLength(0);
   });
 
-  it('addExercise links an exercise snapshot to a session', async () => {
+  it('addExercise creates a stable string id for an exercise snapshot', async () => {
     const sessionId = await sessionRepository.create({
       date: '2026-07-24',
       routineId: 'r1',

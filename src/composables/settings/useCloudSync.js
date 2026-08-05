@@ -1,152 +1,74 @@
-/**
- * useCloudSync — composable wrapping js/firebase/sync.js
- * Provides sync status, backup management, and reactive sync state.
- */
-
 import { ref, readonly } from 'vue';
-import { useRoutineStore } from '../../stores/useRoutineStore.js';
-import { useSessionStore } from '../../stores/useSessionStore.js';
-import { RoutineService } from '../../application/routines/RoutineService.js';
+import {
+  deleteCloudBackup,
+  initializeSync as initializeRemoteSync,
+  listCloudBackups,
+  loadCloudBackup,
+  logout as logoutRemote,
+  saveCloudBackup,
+  syncNow as syncRemoteNow,
+  stopSync as stopRemoteSync,
+  refreshLocalStores,
+} from '../../infrastructure/services/firebaseSync.js';
 
-// ── Sync status (global singleton) ─────────────────────
-
-const syncStatus = ref('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
+const syncStatus = ref('idle');
 const lastSyncTime = ref(null);
-let unsubSnapshot = null;
-let stopRemoteSync = null;
-let initialSyncDone = false;
+let statusListenerReady = false;
+let outboxListener = null;
+let syncTimer = null;
+let activeUid = null;
 
-function setStatus(status) {
-  syncStatus.value = status;
-  if (status === 'synced' || status === 'error') {
-    lastSyncTime.value = Date.now();
-  }
+function scheduleSync() {
+  if (!activeUid) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow().catch(() => {}), 500);
 }
 
-// ── Initial sync + realtime listener ───────────────────
+function ensureStatusListener() {
+  if (statusListenerReady || typeof window === 'undefined') return;
+  statusListenerReady = true;
+  window.addEventListener('sync-status', (event) => {
+    const { status } = event.detail || {};
+    syncStatus.value = status || 'idle';
+    if (status === 'synced' || status === 'error') {
+      lastSyncTime.value = Date.now();
+    }
+  });
+  outboxListener = scheduleSync;
+  window.addEventListener('sync-outbox-changed', outboxListener);
+}
 
 export async function initializeSync(uid) {
-  if (!uid) return;
-  setStatus('syncing');
-
-  const { downloadAndMergeState, startSyncListener, stopSyncListener } = await import('../../infrastructure/services/firebaseSync.js');
-  stopRemoteSync = stopSyncListener;
-
-  try {
-    await downloadAndMergeState(uid);
-    initialSyncDone = true;
-
-    // Set up realtime listener
-    if (unsubSnapshot) unsubSnapshot();
-
-    const routineStore = useRoutineStore();
-    const sessionStore = useSessionStore();
-    unsubSnapshot = startSyncListener(uid, (merged) => {
-      if (merged.routines) routineStore.routines = merged.routines;
-      if (merged.stats) sessionStore.stats = merged.stats;
-      if (merged.sessions) sessionStore.sessions = merged.sessions;
-      if (merged.currentRoutineId) routineStore.currentRoutineId = merged.currentRoutineId;
-      new RoutineService().saveAllToStorage();
-      sessionStore.saveToStorage();
-    });
-
-    setStatus('synced');
-  } catch {
-    setStatus('error');
-  }
+  ensureStatusListener();
+  activeUid = uid;
+  await initializeRemoteSync(uid, async () => {
+    await refreshLocalStores();
+  });
 }
 
 export function stopSync() {
-  if (stopRemoteSync) {
-    stopRemoteSync();
-  } else if (unsubSnapshot) {
-    unsubSnapshot();
-  }
-  unsubSnapshot = null;
-  stopRemoteSync = null;
-  initialSyncDone = false;
-  syncStatus.value = 'idle';
+  ensureStatusListener();
+  activeUid = null;
+  clearTimeout(syncTimer);
+  stopRemoteSync();
 }
 
-// ── Sync operations ────────────────────────────────────
-
 export async function syncNow() {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
-  const user = auth.currentUser;
-  if (!user) return;
-
-  setStatus('syncing');
-  try {
-    const { uploadState, downloadAndMergeState } = await import('../../infrastructure/services/firebaseSync.js');
-    await uploadState(user.uid);
-    await downloadAndMergeState(user.uid);
-    setStatus('synced');
-  } catch {
-    setStatus('error');
-  }
+  ensureStatusListener();
+  await syncRemoteNow();
 }
 
 export async function loginAndSync() {
   const { loginGoogle } = await import('../../infrastructure/services/firebaseAuth.js');
-  try {
-    await loginGoogle();
-    // Auth observer in useFirebaseAuth will trigger sync
-  } catch (err) {
-    console.error('Login failed:', err);
-  }
+  await loginGoogle();
 }
 
 export async function logout() {
-  const { logoutGoogle } = await import('../../infrastructure/services/firebaseAuth.js');
-  await logoutGoogle();
+  await logoutRemote();
 }
-
-// ── Backup operations ──────────────────────────────────
-
-export async function saveCloudBackup(label) {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not logged in');
-
-  const { saveBackup } = await import('../../infrastructure/services/firebaseSync.js');
-  return saveBackup(user.uid, label);
-}
-
-export async function listCloudBackups() {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not logged in');
-
-  const { listBackups } = await import('../../infrastructure/services/firebaseSync.js');
-  return listBackups(user.uid);
-}
-
-export async function loadCloudBackup(backupId) {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not logged in');
-
-  const { loadBackup } = await import('../../infrastructure/services/firebaseSync.js');
-  return loadBackup(user.uid, backupId);
-}
-
-export async function deleteCloudBackup(backupId) {
-  const { getAuth } = await import('firebase/auth');
-  const { auth } = await import('../../infrastructure/services/firebaseConfig.js');
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not logged in');
-
-  const { deleteBackup } = await import('../../infrastructure/services/firebaseSync.js');
-  return deleteBackup(user.uid, backupId);
-}
-
-// ── Composable ─────────────────────────────────────────
 
 export function useCloudSync() {
+  ensureStatusListener();
   return {
     syncStatus: readonly(syncStatus),
     lastSyncTime: readonly(lastSyncTime),

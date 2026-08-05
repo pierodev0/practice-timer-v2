@@ -1,16 +1,17 @@
-/**
- * sessionRepository — CRUD for practice sessions and daily stats.
- *
- * Stats are computed directly from session queries — no denormalized
- * aggregation needed.
- */
 import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
+import { enqueue } from './syncOutboxRepository.js';
 
 export async function create(data) {
   const db = await getDb();
-  const record = { id: nanoid(), ...data };
+  const record = {
+    ...data,
+    id: data.id || nanoid(),
+    updatedAt: data.updatedAt || Date.now(),
+    deletedAt: null,
+  };
   await db.sessions.add(record);
+  await enqueue({ entity: 'sessions', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -26,39 +27,47 @@ export async function all() {
 
 export async function update(id, data) {
   const db = await getDb();
-  return db.sessions.update(id, data);
+  await db.sessions.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
+  const record = await db.sessions.get(id);
+  if (record) {
+    await enqueue({ entity: 'sessions', entityId: id, operation: 'upsert', data: record });
+  }
+  return record;
 }
 
-/**
- * Delete a session and its recorded exercise snapshots.
- */
 export async function remove(id) {
   const db = await getDb();
+  const exercises = await db.sessionExercises.where('sessionId').equals(id).toArray();
   await db.transaction('rw', [db.sessions, db.sessionExercises], async () => {
     await db.sessionExercises.where('sessionId').equals(id).delete();
     await db.sessions.delete(id);
   });
+  for (const exercise of exercises) {
+    await enqueue({ entity: 'sessionExercises', entityId: exercise.id, operation: 'delete', data: null });
+  }
+  await enqueue({ entity: 'sessions', entityId: id, operation: 'delete', data: null });
 }
 
-/**
- * Record an exercise snapshot for a session.
- */
 export async function addExercise(sessionId, exerciseId, data) {
   const db = await getDb();
-  return db.sessionExercises.add({ sessionId, exerciseId, ...data });
+  const record = {
+    ...data,
+    id: data.id || nanoid(),
+    sessionId,
+    exerciseId,
+    updatedAt: data.updatedAt || Date.now(),
+    deletedAt: null,
+  };
+  await db.sessionExercises.add(record);
+  await enqueue({ entity: 'sessionExercises', entityId: record.id, operation: 'upsert', data: record });
+  return record.id;
 }
 
-/**
- * Get all exercise snapshots for a session.
- */
 export async function getExercises(sessionId) {
   const db = await getDb();
   return db.sessionExercises.where('sessionId').equals(sessionId).toArray();
 }
 
-/**
- * Query sessions for a specific month, sorted newest first.
- */
 export async function queryByMonth(year, month) {
   const db = await getDb();
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
@@ -69,9 +78,6 @@ export async function queryByMonth(year, month) {
   return results.sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
 }
 
-/**
- * Compute daily stats purely from session data.
- */
 export async function getDailyStats(dateStr) {
   const db = await getDb();
   const daySessions = await db.sessions

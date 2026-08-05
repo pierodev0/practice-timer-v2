@@ -5,13 +5,12 @@ import { disposeAuth, initAuth } from './composables/settings/useFirebaseAuth.js
 import { initializeSync, stopSync } from './composables/settings/useCloudSync.js';
 import { RoutineService } from './application/routines/RoutineService.js';
 
-onMounted(() => {
-  // Init data stores
-  new RoutineService().init().catch(console.error);
+onMounted(async () => {
+  await new RoutineService().init();
 
   initAuth((user) => {
     if (user) {
-      initializeSync(user.uid);
+      initializeSync(user.uid).catch(console.error);
     } else {
       stopSync();
     }

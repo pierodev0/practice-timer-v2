@@ -1,11 +1,6 @@
-/**
- * exerciseRepository — CRUD for exercise entities.
- *
- * Exercises are stored independently and linked to routines via
- * the routineExercises junction table.
- */
 import { nanoid } from 'nanoid';
 import { getDb } from '../db.js';
+import { enqueue } from './syncOutboxRepository.js';
 
 const DEFAULTS = {
   bpm: 100,
@@ -23,10 +18,12 @@ export async function create(data) {
     ...DEFAULTS,
     ...data,
     id: data.id || nanoid(),
-    createdAt: now,
-    updatedAt: now,
+    createdAt: data.createdAt || now,
+    updatedAt: data.updatedAt || now,
+    deletedAt: null,
   };
   await db.exercises.add(record);
+  await enqueue({ entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
@@ -37,38 +34,35 @@ export async function getById(id) {
 
 export async function update(id, data) {
   const db = await getDb();
-  return db.exercises.update(id, { ...data, updatedAt: Date.now() });
+  await db.exercises.update(id, { ...data, updatedAt: Date.now(), deletedAt: null });
+  const record = await db.exercises.get(id);
+  if (record) {
+    await enqueue({ entity: 'exercises', entityId: id, operation: 'upsert', data: record });
+  }
+  return record;
 }
 
-/**
- * Upsert an exercise — creates or updates if id already exists.
- * Uses db.exercises.put() for upsert behavior.
- */
 export async function upsert(data) {
   const db = await getDb();
   const now = Date.now();
+  const existing = data.id ? await db.exercises.get(data.id) : null;
   const record = {
     ...DEFAULTS,
     ...data,
     id: data.id || nanoid(),
-    updatedAt: now,
+    createdAt: data.createdAt || existing?.createdAt || now,
+    updatedAt: data.updatedAt || now,
+    deletedAt: null,
   };
-  // Preserve original createdAt if exercise already exists
-  if (data.id) {
-    const existing = await db.exercises.get(data.id);
-    if (existing) {
-      record.createdAt = existing.createdAt;
-    } else {
-      record.createdAt = record.createdAt || now;
-    }
-  }
   await db.exercises.put(record);
+  await enqueue({ entity: 'exercises', entityId: record.id, operation: 'upsert', data: record });
   return record.id;
 }
 
 export async function remove(id) {
   const db = await getDb();
-  return db.exercises.delete(id);
+  await db.exercises.delete(id);
+  await enqueue({ entity: 'exercises', entityId: id, operation: 'delete', data: null });
 }
 
 export async function all() {

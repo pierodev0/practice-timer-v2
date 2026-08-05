@@ -105,9 +105,10 @@ pnpm run test:watch
 - Login con Google mediante popup, con sesión persistida en IndexedDB/localStorage
 - Botón "Sync Now": sube y descarga los últimos cambios
 - Auto-sync toggle: subida automática con debounce de 2s
-- Sincronización en tiempo real vía `onSnapshot` de Firestore
+- Sincronización por entidad vía `onSnapshot` de Firestore
+- Outbox local durable para trabajar offline y reintentar al reconectar
+- Tombstones para propagar borrados entre dispositivos
 - Indicador de estado de sync (synced/syncing/offline/error)
-- Estrategia last-write-wins
 - Offline-first: la app funciona sin login; cloud es opcional
 
 ### 📱 PWA
@@ -121,21 +122,23 @@ pnpm run test:watch
 
 | Almacenamiento | Propósito |
 |---|---|
-| **Dexie / IndexedDB** | Datos principales: rutinas, ejercicios, sesiones, logs (6 tablas normalizadas) |
+| **Dexie / IndexedDB v3** | Datos locales normalizados + outbox + metadata de sync |
 | **localStorage** | BPM global (`musicRoutineApp_bpm`) |
-| **Firebase Firestore** | Cloud sync layer (opcional, offline-safe) |
+| **Firebase Firestore** | Colecciones remotas por entidad (opcional) |
 | **Service Worker Cache** | Assets estáticos para funcionamiento offline |
 
-### Dexie Schema (6 tablas)
+### Dexie Schema (9 tablas)
 
 | Tabla | Key | Descripción |
 |---|---|---|
 | `routines` | `&id` | Rutinas con nombre y metadatos |
 | `exercises` | `&id` | Ejercicios independientes |
-| `routineExercises` | `++` | Junction: rutina → ejercicio con orden |
+| `routineExercises` | `&[routineId+exerciseId]` | Junction: rutina → ejercicio con orden |
 | `sessions` | `&id` | Sesiones de práctica completadas |
-| `sessionExercises` | `++` | Junction: sesión → ejercicio con datos |
-| `exerciseLogs` | `++` | Logs de estadísticas por ejercicio |
+| `sessionExercises` | `&id` | Snapshots de ejercicios por sesión |
+| `exerciseLogs` | `&id` | Logs de estadísticas por ejercicio |
+| `syncOutbox` | `&id` | Operaciones locales pendientes de subir |
+| `syncMetadata` | `&key` | Cursor de lectura remoto por usuario |
 
 ---
 

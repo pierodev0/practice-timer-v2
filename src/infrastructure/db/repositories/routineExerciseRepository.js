@@ -1,43 +1,40 @@
-/**
- * routineExerciseRepository — junction table between routines and exercises.
- *
- * Responsabilidad ÚNICA: operaciones sobre `routineExercises`.
- * No mezcla con routine CRUD ni exercise CRUD.
- *
- * La tabla usa compound key &[routineId+exerciseId]
- * para que put() actúe como upsert.
- */
 import { getDb } from '../db.js';
+import { enqueue } from './syncOutboxRepository.js';
 
-/**
- * Link an exercise to a routine at the given position.
- * Updates routine.updatedAt como efecto secundario.
- */
+export function getKey(routineId, exerciseId) {
+  return `${routineId}__${exerciseId}`;
+}
+
 export async function addExercise(routineId, exerciseId, order) {
   const db = await getDb();
+  const record = { routineId, exerciseId, order, updatedAt: Date.now(), deletedAt: null };
   await db.transaction('rw', [db.routines, db.routineExercises], async () => {
-    await db.routines.update(routineId, { updatedAt: Date.now() });
-    await db.routineExercises.put({ routineId, exerciseId, order });
+    await db.routines.update(routineId, { updatedAt: record.updatedAt });
+    await db.routineExercises.put(record);
+  });
+  await enqueue({
+    entity: 'routineExercises',
+    entityId: getKey(routineId, exerciseId),
+    operation: 'upsert',
+    data: record,
   });
 }
 
-/**
- * Unlink an exercise from a routine.
- */
 export async function removeExercise(routineId, exerciseId) {
   const db = await getDb();
+  const record = { routineId, exerciseId, updatedAt: Date.now(), deletedAt: Date.now() };
   await db.transaction('rw', [db.routines, db.routineExercises], async () => {
-    await db.routineExercises
-      .where({ routineId, exerciseId })
-      .delete();
-    await db.routines.update(routineId, { updatedAt: Date.now() });
+    await db.routineExercises.where({ routineId, exerciseId }).delete();
+    await db.routines.update(routineId, { updatedAt: record.updatedAt });
+  });
+  await enqueue({
+    entity: 'routineExercises',
+    entityId: getKey(routineId, exerciseId),
+    operation: 'delete',
+    data: record,
   });
 }
 
-/**
- * Get all exercises for a routine, ordered by the `order` field.
- * Hace un JOIN entre routineExercises y exercises.
- */
 export async function getExercises(routineId) {
   const db = await getDb();
   const links = await db.routineExercises
@@ -59,18 +56,32 @@ export async function getExercises(routineId) {
     .filter(Boolean);
 }
 
-/**
- * Reorder exercises for a routine.
- * Actualiza el campo `order` de cada link según el orden del array.
- */
 export async function reorderExercises(routineId, exerciseIds) {
   const db = await getDb();
+  const updatedAt = Date.now();
+  const records = exerciseIds.map((exerciseId, order) => ({
+    routineId,
+    exerciseId,
+    order,
+    updatedAt,
+    deletedAt: null,
+  }));
+
   await db.transaction('rw', [db.routineExercises, db.routines], async () => {
-    for (let i = 0; i < exerciseIds.length; i++) {
+    for (const record of records) {
       await db.routineExercises
-        .where({ routineId, exerciseId: exerciseIds[i] })
-        .modify({ order: i });
+        .where({ routineId, exerciseId: record.exerciseId })
+        .modify({ order: record.order, updatedAt, deletedAt: null });
     }
-    await db.routines.update(routineId, { updatedAt: Date.now() });
+    await db.routines.update(routineId, { updatedAt });
   });
+
+  for (const record of records) {
+    await enqueue({
+      entity: 'routineExercises',
+      entityId: getKey(record.routineId, record.exerciseId),
+      operation: 'upsert',
+      data: record,
+    });
+  }
 }
