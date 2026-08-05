@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   markError: vi.fn(),
   remove: vi.fn(),
   getDeviceId: vi.fn(() => 'device-1'),
+  routineCreate: vi.fn().mockResolvedValue(undefined),
+  routineUpdate: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -55,13 +57,34 @@ vi.mock('../../src/infrastructure/services/firebaseDevice.js', () => ({
   getDeviceId: mocks.getDeviceId,
 }));
 
-vi.mock('../../src/infrastructure/db/repositories/routineRepository.js', () => ({}));
+vi.mock('../../src/infrastructure/db/repositories/routineRepository.js', () => ({
+  create: mocks.routineCreate,
+  update: mocks.routineUpdate,
+}));
 vi.mock('../../src/infrastructure/db/repositories/exerciseRepository.js', () => ({}));
 vi.mock('../../src/infrastructure/db/repositories/routineExerciseRepository.js', () => ({}));
 vi.mock('../../src/infrastructure/db/repositories/sessionRepository.js', () => ({}));
 vi.mock('../../src/infrastructure/db/repositories/exerciseLogRepository.js', () => ({}));
 
 const { flushOutbox, requestSync } = await import('../../src/infrastructure/services/firebaseSync.js');
+
+function dbWith({ lastPulledAt = null, routines = [] } = {}) {
+  const tables = {
+    routines: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue(routines) },
+    exercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    routineExercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    sessions: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    sessionExercises: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    exerciseLogs: { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+  };
+  return {
+    syncMetadata: {
+      get: vi.fn().mockResolvedValue(lastPulledAt ? { value: lastPulledAt } : null),
+      put: vi.fn(),
+    },
+    table: vi.fn((name) => tables[name] || { clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) }),
+  };
+}
 
 describe('firebaseSync', () => {
   beforeEach(() => {
@@ -127,5 +150,50 @@ describe('firebaseSync', () => {
     await expect(flushOutbox('user-1')).rejects.toBe(error);
     expect(mocks.markError).toHaveBeenCalledWith('outbox-1', error);
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it('seeds the cloud from local data only on the first sync', async () => {
+    mocks.getDb.mockResolvedValue(dbWith({ routines: [{ id: 'routine-1', name: 'R' }] }));
+
+    await requestSync('user-1');
+
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it('does not re-enqueue the full local state on quiet subsequent syncs', async () => {
+    mocks.getDb.mockResolvedValue(dbWith({
+      lastPulledAt: 12345,
+      routines: [{ id: 'routine-1', name: 'R', updatedAt: 100 }],
+    }));
+
+    await requestSync('user-1');
+
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('seeds local records never captured by the outbox (e.g. edits while signed out)', async () => {
+    mocks.getDb.mockResolvedValue(dbWith({
+      lastPulledAt: 12345,
+      routines: [{ id: 'routine-1', name: 'R', updatedAt: 99999 }],
+    }));
+
+    await requestSync('user-1');
+
+    expect(mocks.enqueue).toHaveBeenCalled();
+  });
+
+  it('only refreshes stores when changes were actually applied', async () => {
+    mocks.getDb.mockResolvedValue(dbWith());
+    mocks.getDocs
+      .mockImplementationOnce(() => Promise.resolve({ docs: [{
+        id: 'routine-1',
+        data: () => ({ name: 'Practice', updatedAt: { toMillis: () => 1000 }, deviceId: 'device-2' }),
+      }] }))
+      .mockResolvedValue({ docs: [] });
+
+    const onChange = vi.fn();
+    await requestSync('user-1', onChange);
+
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });

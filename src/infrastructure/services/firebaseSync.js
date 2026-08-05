@@ -39,6 +39,7 @@ const ENTITY_REPOSITORIES = {
 };
 
 let unsubscribeListeners = [];
+let listenersUid = null;
 let syncRun = 0;
 let activeUid = null;
 let syncPromise = null;
@@ -96,6 +97,19 @@ async function refreshLocalStores() {
     exerciseStore.setAll(data.exercises);
     await sessionStore.loadFromDb();
   });
+}
+
+async function hasLocalRecordsNewerThan(lastPulledAt) {
+  // Solo se necesita sembrar si hay registros locales que nunca se encolaron
+  // (p.ej. ediciones hechas sin sesión, donde capture no tuvo ownerUid).
+  const dbLocal = await getDb();
+  for (const entity of SYNC_COLLECTIONS) {
+    const records = await dbLocal.table(entity).toArray();
+    for (const record of records) {
+      if ((record.updatedAt || 0) > lastPulledAt) return true;
+    }
+  }
+  return false;
 }
 
 async function enqueueLocalState(ownerUid) {
@@ -222,15 +236,17 @@ function startRealtimeListeners(uid, onChange) {
   unsubscribeListeners = SYNC_COLLECTIONS.map(entity => onSnapshot(
     query(entityCollection(uid, entity), orderBy('updatedAt')),
     async (snapshot) => {
+      let changed = false;
       await withCaptureDisabled(async () => {
         for (const change of snapshot.docChanges()) {
           if (change.type === 'removed') continue;
           const record = normalizeRemoteRecord(change.doc);
           if (record.deviceId === getDeviceId()) continue;
           await applyEntityRecord(entity, record);
-          if (onChange) await onChange({ entity, record });
+          changed = true;
         }
       });
+      if (changed && onChange) await onChange({ entity });
     },
     (error) => dispatchSyncEvent('error', error),
   ));
@@ -246,22 +262,61 @@ async function runSync(uid, onRemoteChange) {
   dispatchSyncEvent('syncing');
   try {
     const pendingBeforePull = await syncOutboxRepository.listPending(uid);
+    let flushedCount = 0;
     if (pendingBeforePull.length > 0) {
+      flushedCount = pendingBeforePull.length;
       await flushOutbox(uid);
+    }
+
+    const lastPulledAt = await getLastPulledAt(uid);
+    // Detectar registros locales que capture nunca encoló (p.ej. ediciones
+    // sin sesión) ANTES del pull, para que los registros remotos recién
+    // aplicados no ensucien el escaneo.
+    let localHasUnsynced = false;
+    if (lastPulledAt > 0 && pendingBeforePull.length === 0) {
+      localHasUnsynced = await hasLocalRecordsNewerThan(lastPulledAt);
     }
 
     const appliedRecords = await pullChanges(uid, {
       replaceLocalOnFirstPull: pendingBeforePull.length === 0,
     });
 
-    if (appliedRecords === 0 && pendingBeforePull.length === 0) {
-      await enqueueLocalState(uid);
-      await flushOutbox(uid);
+    // Sembrar el cloud solo cuando hace falta, nunca como ruta regular:
+    // - Primer sync literal (lastPulledAt === 0) con cloud vacío: subir local una vez.
+    // - Syncs posteriores: solo si hay registros locales nunca capturados.
+    // En el resto, el outbox captura cada cambio (delta) y no se vuelca la base.
+    let seeded = false;
+    if (pendingBeforePull.length === 0) {
+      if (lastPulledAt === 0) {
+        if (appliedRecords === 0) {
+          await enqueueLocalState(uid);
+          await flushOutbox(uid);
+          seeded = true;
+        }
+      } else if (localHasUnsynced) {
+        await enqueueLocalState(uid);
+        await flushOutbox(uid);
+        seeded = true;
+      }
+    }
+
+    // Avanzar el cursor tras el primer flujo completo (seed o flush inicial):
+    // evita que el siguiente sync vuelva a caer en el camino "primer pull" y
+    // borre lo local para re-descargarlo todo.
+    if (lastPulledAt === 0 && (seeded || flushedCount > 0)) {
+      await setLastPulledAt(uid, Date.now());
     }
 
     if (run !== syncRun) return;
-    startRealtimeListeners(uid, onRemoteChange);
-    if (onRemoteChange) await onRemoteChange();
+    // Los listeners se registran una sola vez por sesión: reiniciarlos en cada
+    // sync re-descargaba las colecciones completas y re-aplicaba todo.
+    if (listenersUid !== uid) {
+      startRealtimeListeners(uid, onRemoteChange);
+      listenersUid = uid;
+    }
+    if ((appliedRecords > 0 || flushedCount > 0) && onRemoteChange) {
+      await onRemoteChange();
+    }
     dispatchSyncEvent('synced');
   } catch (error) {
     dispatchSyncEvent('error', error);
@@ -303,6 +358,7 @@ export function syncNow(onRemoteChange) {
 export function stopSync() {
   syncRun += 1;
   activeUid = null;
+  listenersUid = null;
   setSyncOwnerUid(null);
   syncRequested = false;
   stopRealtimeListeners();
