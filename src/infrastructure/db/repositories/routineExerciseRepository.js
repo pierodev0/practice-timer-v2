@@ -14,6 +14,7 @@ export async function addExercise(routineId, exerciseId, order) {
     await db.routineExercises.put(record);
   });
   await enqueue({
+    ownerUid: getSyncOwnerUid(),
     entity: 'routineExercises',
     entityId: getKey(routineId, exerciseId),
     operation: 'upsert',
@@ -29,6 +30,7 @@ export async function removeExercise(routineId, exerciseId) {
     await db.routines.update(routineId, { updatedAt: record.updatedAt });
   });
   await enqueue({
+    ownerUid: getSyncOwnerUid(),
     entity: 'routineExercises',
     entityId: getKey(routineId, exerciseId),
     operation: 'delete',
