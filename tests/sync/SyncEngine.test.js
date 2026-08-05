@@ -97,21 +97,39 @@ describe('SyncEngine', () => {
   });
 
   describe('pullChanges', () => {
-    it('pulls with the cursor and advances it to the newest remote timestamp', async () => {
+    it('pulls with a cursor overlap and advances it to the newest remote timestamp', async () => {
       mocks.getDb.mockResolvedValue(dbWith({ lastPulledAt: 100 }));
       backend.pull.mockResolvedValue({
         entityRecords: [{
           entity: 'routines',
-          records: [{ id: 'r1', name: 'R', updatedAt: 500 }],
+          records: [{ id: 'r1', name: 'R', updatedAt: 500, deviceId: 'device-2' }],
         }],
         newestTimestamp: 500,
       });
 
       const { applied, skipped } = await pullChanges('user-1');
 
-      expect(backend.pull).toHaveBeenCalledWith('user-1', { since: 100 });
+      expect(backend.pull).toHaveBeenCalledWith('user-1', { since: 100 - 60_000 });
       expect(backend.applyRemote).toHaveBeenCalledWith('user-1', 'routines', 'r1', expect.any(Object));
       expect(applied).toBe(1);
+      expect(skipped).toBe(0);
+    });
+
+    it('does not apply or re-queue records pushed by this device', async () => {
+      mocks.getDb.mockResolvedValue(dbWith({ lastPulledAt: 100 }));
+      backend.pull.mockResolvedValue({
+        entityRecords: [{
+          entity: 'routines',
+          records: [{ id: 'r1', name: 'R', updatedAt: 500, deviceId: 'device-1' }],
+        }],
+        newestTimestamp: 500,
+      });
+
+      const { applied, skipped } = await pullChanges('user-1');
+
+      expect(backend.applyRemote).not.toHaveBeenCalled();
+      expect(mocks.enqueue).not.toHaveBeenCalled();
+      expect(applied).toBe(0);
       expect(skipped).toBe(0);
     });
 
@@ -123,7 +141,7 @@ describe('SyncEngine', () => {
       backend.pull.mockResolvedValue({
         entityRecords: [{
           entity: 'routines',
-          records: [{ id: 'r1', name: 'Remote', updatedAt: 500 }],
+          records: [{ id: 'r1', name: 'Remote', updatedAt: 500, deviceId: 'device-2' }],
         }],
         newestTimestamp: 500,
       });

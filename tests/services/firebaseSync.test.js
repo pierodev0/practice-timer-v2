@@ -95,12 +95,12 @@ const { flushOutbox, requestSync, stopSync } = await import('../../src/infrastru
 
 function dbWith({ lastPulledAt = null, tables = {} } = {}) {
   const defaults = {
-    routines: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
-    exercises: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
-    routineExercises: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
-    sessions: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
-    sessionExercises: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
-    exerciseLogs: { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    routines: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    exercises: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    routineExercises: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    sessions: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    sessionExercises: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
+    exerciseLogs: { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) },
     ...tables,
   };
   return {
@@ -108,7 +108,7 @@ function dbWith({ lastPulledAt = null, tables = {} } = {}) {
       get: vi.fn().mockResolvedValue(lastPulledAt ? { value: lastPulledAt } : null),
       put: vi.fn(),
     },
-    table: vi.fn((name) => defaults[name] || { get: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) }),
+    table: vi.fn((name) => defaults[name] || { get: vi.fn().mockResolvedValue(undefined), put: vi.fn().mockResolvedValue(undefined), delete: vi.fn().mockResolvedValue(undefined), clear: vi.fn(), toArray: vi.fn().mockResolvedValue([]) }),
   };
 }
 

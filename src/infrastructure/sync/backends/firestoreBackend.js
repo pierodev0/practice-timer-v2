@@ -11,11 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig.js';
 import { getDeviceId } from '../../services/firebaseDevice.js';
-import * as routineRepository from '../../db/repositories/routineRepository.js';
-import * as exerciseRepository from '../../db/repositories/exerciseRepository.js';
 import * as routineExerciseRepository from '../../db/repositories/routineExerciseRepository.js';
-import * as sessionRepository from '../../db/repositories/sessionRepository.js';
-import * as exerciseLogRepository from '../../db/repositories/exerciseLogRepository.js';
 
 export const SYNC_ENTITIES = [
   'routines',
@@ -25,13 +21,6 @@ export const SYNC_ENTITIES = [
   'sessionExercises',
   'exerciseLogs',
 ];
-
-const ENTITY_REPOSITORIES = {
-  routines: routineRepository,
-  exercises: exerciseRepository,
-  sessions: sessionRepository,
-  exerciseLogs: exerciseLogRepository,
-};
 
 function userSyncRoot(uid) {
   return collection(db, 'users', uid, 'sync');
@@ -72,7 +61,7 @@ function operationPayload(operation) {
   return {
     ...operation.data,
     id: operation.entityId,
-    updatedAt: operation.data?.updatedAt || serverTimestamp(),
+    updatedAt: serverTimestamp(),
     deviceId: getDeviceId(),
     deletedAt: null,
   };
@@ -131,7 +120,11 @@ export function listen(uid, deviceId, onChange) {
 }
 
 async function applyEntityRecord(entity, record) {
-  const repository = ENTITY_REPOSITORIES[entity];
+  // Write the remote record verbatim (preserving its updatedAt) so LWW
+  // never sees a local clock that fights the remote. The engine disables
+  // outbox capture while pulling, so no enqueue happens here.
+  const { getDb } = await import('../../db/db.js');
+  const dbLocal = await getDb();
   if (entity === 'routineExercises') {
     if (record.deletedAt) {
       return routineExerciseRepository.removeExercise(record.routineId, record.exerciseId);
@@ -139,21 +132,15 @@ async function applyEntityRecord(entity, record) {
     return routineExerciseRepository.addExercise(record.routineId, record.exerciseId, record.order);
   }
   if (entity === 'sessionExercises') {
-    const { getDb } = await import('../../db/db.js');
-    const dbLocal = await getDb();
     if (record.deletedAt) {
       return dbLocal.sessionExercises.delete(record.id);
     }
     return dbLocal.sessionExercises.put(record);
   }
-  if (!repository) return;
   if (record.deletedAt) {
-    return repository.remove(record.id);
+    return dbLocal.table(entity).delete(record.id);
   }
-  if (entity === 'routines') return repository.create(record).catch(() => repository.update(record.id, record));
-  if (entity === 'exercises') return repository.upsert(record);
-  if (entity === 'sessions') return repository.create(record).catch(() => repository.update(record.id, record));
-  if (entity === 'exerciseLogs') return repository.addLog(record.exerciseId, record).catch(() => repository.update(record.id, record));
+  return dbLocal.table(entity).put(record);
 }
 
 export async function applyRemote(uid, entity, entityId, record) {
