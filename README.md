@@ -102,7 +102,7 @@ pnpm run test:watch
 - Link a la página de estadísticas
 
 ### ☁️ Cloud Sync (Firebase)
-- Login con Google (popup en desktop, redirect fallback en mobile)
+- Login con Google mediante popup, con sesión persistida en IndexedDB/localStorage
 - Botón "Sync Now": sube y descarga los últimos cambios
 - Auto-sync toggle: subida automática con debounce de 2s
 - Sincronización en tiempo real vía `onSnapshot` de Firestore

@@ -12,6 +12,9 @@ import { useSettings } from '../composables/settings/useSettings.js';
 
 const router = useRouter();
 const auth = useFirebaseAuth();
+const authUser = auth.user;
+const authLoading = auth.isLoading;
+const authError = auth.error;
 const cloudSync = useCloudSync();
 const settingsStore = useSettings();
 const { exportAllData, restoreAllData, deleteAllData } = useDataManager();
@@ -21,19 +24,11 @@ function goToStats() {
 }
 
 async function login() {
-  try {
-    await auth.login();
-  } catch (err) {
-    alert('Error al iniciar sesión: ' + err.message);
-  }
+  await auth.login().catch(() => {});
 }
 
 async function logout() {
-  try {
-    await auth.logout();
-  } catch (err) {
-    console.error('Logout failed:', err);
-  }
+  await auth.logout().catch(() => {});
 }
 
 async function syncNowAction() {
@@ -114,34 +109,48 @@ async function syncNowAction() {
       <!-- Cloud Sync -->
       <div class="card p-4">
         <h3 class="text-xs uppercase text-gray-500 font-bold tracking-wider mb-3"><i class="fas fa-cloud mr-1"></i>Sincronización Cloud</h3>
-        <div class="flex items-center gap-3 p-3 rounded-lg bg-green-50">
-          <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><i class="fas fa-cloud"></i></div>
-          <div>
-            <p class="font-medium text-gray-800 text-sm truncate">{{ auth.user?.email || 'No conectado' }}</p>
-            <p class="text-xs text-gray-400">{{ auth.user ? 'Conectado' : 'Sin sesión' }}</p>
-          </div>
+        <div v-if="authError" class="flex items-start justify-between gap-3 p-3 rounded-lg bg-red-50 text-red-700 text-xs">
+          <span>{{ authError }}</span>
+          <button type="button" class="shrink-0 font-bold" aria-label="Cerrar error" @click="auth.clearError">×</button>
         </div>
-        <button @click="login" class="w-full mt-2 flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
-          <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><i class="fab fa-google"></i></div>
-          <div>
-            <p class="font-medium text-gray-800 text-sm">Iniciar sesión con Google</p>
-            <p class="text-xs text-gray-400">Activa la sincronización en la nube</p>
+
+        <div v-if="!authUser">
+          <button
+            @click="login"
+            :disabled="authLoading"
+            class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><i class="fab fa-google"></i></div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm">{{ authLoading ? 'Conectando con Google…' : 'Iniciar sesión con Google' }}</p>
+              <p class="text-xs text-gray-400">Activa la sincronización en la nube</p>
+            </div>
+          </button>
+        </div>
+
+        <div v-else class="space-y-2">
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-green-50">
+            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><i class="fas fa-cloud"></i></div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm truncate">{{ authUser.email }}</p>
+              <p class="text-xs text-green-600">Conectado</p>
+            </div>
           </div>
-        </button>
-        <button @click="syncNowAction" class="w-full mt-2 flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
-          <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600"><i class="fas fa-sync-alt"></i></div>
-          <div>
-            <p class="font-medium text-gray-800 text-sm">Sincronizar ahora</p>
-            <p class="text-xs text-gray-400">{{ cloudSync.lastSyncTime.value ? `Última: ${new Date(cloudSync.lastSyncTime.value).toLocaleString()}` : 'Sube y descarga los últimos cambios' }}</p>
-          </div>
-        </button>
-        <button @click="logout" class="w-full mt-2 flex items-center gap-3 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-left">
-          <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center text-red-700"><i class="fas fa-sign-out-alt"></i></div>
-          <div>
-            <p class="font-medium text-red-800 text-sm">Cerrar sesión</p>
-            <p class="text-xs text-red-500">Desconectar sincronización cloud</p>
-          </div>
-        </button>
+          <button @click="syncNowAction" class="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600"><i class="fas fa-sync-alt"></i></div>
+            <div>
+              <p class="font-medium text-gray-800 text-sm">Sincronizar ahora</p>
+              <p class="text-xs text-gray-400">{{ cloudSync.lastSyncTime.value ? `Última: ${new Date(cloudSync.lastSyncTime.value).toLocaleString()}` : 'Sube y descarga los últimos cambios' }}</p>
+            </div>
+          </button>
+          <button @click="logout" class="w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 hover:bg-red-100 transition-colors text-left">
+            <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center text-red-700"><i class="fas fa-sign-out-alt"></i></div>
+            <div>
+              <p class="font-medium text-red-800 text-sm">Cerrar sesión</p>
+              <p class="text-xs text-red-500">Desconectar sincronización cloud</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       <!-- Danger Zone -->

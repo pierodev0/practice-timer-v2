@@ -13,6 +13,7 @@ import { RoutineService } from '../../application/routines/RoutineService.js';
 const syncStatus = ref('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
 const lastSyncTime = ref(null);
 let unsubSnapshot = null;
+let stopRemoteSync = null;
 let initialSyncDone = false;
 
 function setStatus(status) {
@@ -29,6 +30,7 @@ export async function initializeSync(uid) {
   setStatus('syncing');
 
   const { downloadAndMergeState, startSyncListener, stopSyncListener } = await import('../../infrastructure/services/firebaseSync.js');
+  stopRemoteSync = stopSyncListener;
 
   try {
     await downloadAndMergeState(uid);
@@ -55,11 +57,15 @@ export async function initializeSync(uid) {
 }
 
 export function stopSync() {
-  if (unsubSnapshot) {
+  if (stopRemoteSync) {
+    stopRemoteSync();
+  } else if (unsubSnapshot) {
     unsubSnapshot();
-    unsubSnapshot = null;
   }
+  unsubSnapshot = null;
+  stopRemoteSync = null;
   initialSyncDone = false;
+  syncStatus.value = 'idle';
 }
 
 // ── Sync operations ────────────────────────────────────
