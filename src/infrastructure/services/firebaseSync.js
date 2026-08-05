@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from './firebaseConfig.js';
 import { getDb } from '../db/db.js';
@@ -163,35 +164,42 @@ async function applyEntityRecord(entity, record) {
   if (entity === 'exerciseLogs') return repository.addLog(record.exerciseId, record).catch(() => repository.update(record.id, record));
 }
 
-async function uploadOperation(uid, operation) {
-  const ref = entityDoc(uid, operation.entity, operation.entityId);
+const WRITE_BATCH_SIZE = 400;
+
+function operationPayload(operation) {
   if (operation.operation === 'delete') {
-    await setDoc(ref, {
+    return {
       id: operation.entityId,
       deletedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       deviceId: getDeviceId(),
-    }, { merge: true });
-    return;
+    };
   }
 
-  await setDoc(ref, {
+  return {
     ...operation.data,
     id: operation.entityId,
     updatedAt: serverTimestamp(),
     deviceId: getDeviceId(),
     deletedAt: null,
-  }, { merge: true });
+  };
 }
 
 async function flushOutbox(uid) {
   const pending = await syncOutboxRepository.listPending(uid);
-  for (const operation of pending) {
+  for (let i = 0; i < pending.length; i += WRITE_BATCH_SIZE) {
+    const chunk = pending.slice(i, i + WRITE_BATCH_SIZE);
     try {
-      await uploadOperation(uid, operation);
-      await syncOutboxRepository.remove(operation.id);
+      const batch = writeBatch(db);
+      for (const operation of chunk) {
+        batch.set(entityDoc(uid, operation.entity, operation.entityId), operationPayload(operation), { merge: true });
+      }
+      await batch.commit();
+      await syncOutboxRepository.removeMany(chunk.map(operation => operation.id));
     } catch (error) {
-      await syncOutboxRepository.markError(operation.id, error);
+      for (const operation of chunk) {
+        await syncOutboxRepository.markError(operation.id, error);
+      }
       throw error;
     }
   }
@@ -204,11 +212,13 @@ async function pullChanges(uid, { replaceLocalOnFirstPull = false } = {}) {
   let localCleared = false;
 
   await withCaptureDisabled(async () => {
-    for (const entity of SYNC_COLLECTIONS) {
+    const results = await Promise.all(SYNC_COLLECTIONS.map(async (entity) => {
       const entityQuery = lastPulledAt
         ? query(entityCollection(uid, entity), where('updatedAt', '>', new Date(lastPulledAt)), orderBy('updatedAt'))
         : query(entityCollection(uid, entity), orderBy('updatedAt'));
-      const snapshots = await getDocs(entityQuery);
+      return { entity, snapshots: await getDocs(entityQuery) };
+    }));
+    for (const { entity, snapshots } of results) {
       if (replaceLocalOnFirstPull && !lastPulledAt && snapshots.docs.length > 0 && !localCleared) {
         await clearLocalEntities();
         await syncOutboxRepository.clear();

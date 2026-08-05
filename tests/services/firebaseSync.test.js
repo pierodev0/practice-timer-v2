@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   listPending: vi.fn(),
   markError: vi.fn(),
   remove: vi.fn(),
+  removeMany: vi.fn(),
+  writeBatch: vi.fn(),
   getDeviceId: vi.fn(() => 'device-1'),
   routineCreate: vi.fn().mockResolvedValue(undefined),
   routineUpdate: vi.fn().mockResolvedValue(undefined),
@@ -33,6 +35,7 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: mocks.serverTimestamp,
   setDoc: mocks.setDoc,
   where: mocks.where,
+  writeBatch: mocks.writeBatch,
 }));
 
 vi.mock('../../src/infrastructure/services/firebaseConfig.js', () => ({
@@ -50,6 +53,7 @@ vi.mock('../../src/infrastructure/db/repositories/syncOutboxRepository.js', () =
   listPending: mocks.listPending,
   markError: mocks.markError,
   remove: mocks.remove,
+  removeMany: mocks.removeMany,
   withCaptureDisabled: async (callback) => callback(),
 }));
 
@@ -91,6 +95,7 @@ describe('firebaseSync', () => {
     vi.clearAllMocks();
     mocks.listPending.mockResolvedValue([]);
     mocks.setDoc.mockResolvedValue(undefined);
+    mocks.writeBatch.mockReturnValue({ set: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) });
     mocks.getDocs.mockResolvedValue({ docs: [] });
     mocks.onSnapshot.mockReturnValue(vi.fn());
     mocks.getDb.mockResolvedValue({
@@ -114,17 +119,24 @@ describe('firebaseSync', () => {
       operation: 'upsert',
       data: { id: 'routine-1', name: 'Practice' },
     }]);
+    const batchSet = vi.fn();
+    const batchCommit = vi.fn().mockResolvedValue(undefined);
+    mocks.writeBatch.mockReturnValue({ set: batchSet, commit: batchCommit });
 
     await flushOutbox('user-1');
 
-    const ref = mocks.setDoc.mock.calls[0][0];
+    expect(mocks.writeBatch).toHaveBeenCalled();
+    expect(batchSet).toHaveBeenCalledTimes(1);
+    const ref = batchSet.mock.calls[0][0];
     expect(ref.type).toBe('doc');
     const route = JSON.stringify(ref);
     expect(route).toContain('sync');
     expect(route).toContain('routines');
     expect(route).toContain('records');
     expect(route).not.toContain('app');
-    expect(mocks.remove).toHaveBeenCalledWith('outbox-1');
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+    expect(mocks.removeMany).toHaveBeenCalledWith(['outbox-1']);
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 
   it('shares one in-flight sync promise for concurrent requests', async () => {
@@ -145,11 +157,14 @@ describe('firebaseSync', () => {
       operation: 'upsert',
       data: { id: 'session-1' },
     }]);
-    mocks.setDoc.mockRejectedValue(error);
+    mocks.writeBatch.mockReturnValue({
+      set: vi.fn(),
+      commit: vi.fn().mockRejectedValue(error),
+    });
 
     await expect(flushOutbox('user-1')).rejects.toBe(error);
     expect(mocks.markError).toHaveBeenCalledWith('outbox-1', error);
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.removeMany).not.toHaveBeenCalled();
   });
 
   it('seeds the cloud from local data only on the first sync', async () => {

@@ -62,6 +62,12 @@ export async function remove(id) {
   await db.syncOutbox.delete(id);
 }
 
+export async function removeMany(ids) {
+  if (!ids?.length) return;
+  const db = await getDb();
+  await db.syncOutbox.bulkDelete(ids);
+}
+
 export async function markError(id, error) {
   const db = await getDb();
   const record = await db.syncOutbox.get(id);
