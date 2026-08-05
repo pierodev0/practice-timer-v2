@@ -91,7 +91,7 @@ vi.mock('../../src/infrastructure/services/routinePersistence.js', () => ({
   loadAll: vi.fn().mockResolvedValue({ routines: [], exercises: [] }),
 }));
 
-const { flushOutbox, requestSync } = await import('../../src/infrastructure/services/firebaseSync.js');
+const { flushOutbox, requestSync, stopSync } = await import('../../src/infrastructure/services/firebaseSync.js');
 
 function dbWith({ lastPulledAt = null, tables = {} } = {}) {
   const defaults = {
@@ -215,5 +215,25 @@ describe('firebaseSync composition root', () => {
     await requestSync('user-1', onChange);
 
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it('triggers a sync when the realtime bell detects a remote change', async () => {
+    stopSync(); // reset listenersUid so the listener registers again
+    mocks.getDb.mockResolvedValue(dbWith({ lastPulledAt: 500 }));
+    let bellCallback = null;
+    mocks.onSnapshot.mockImplementation((queryRef, cb) => {
+      bellCallback = cb;
+      return vi.fn();
+    });
+    // First requestSync registers the listener (bell) and returns.
+    const first = requestSync('user-1', vi.fn());
+    await first;
+    expect(bellCallback).toBeTypeOf('function');
+
+    // The bell fires -> a new requestSync must be issued (pull happens again).
+    const getDocsBefore = mocks.getDocs.mock.calls.length;
+    await bellCallback({ docChanges: () => [{ type: 'added', doc: { id: 'r2', data: () => ({ name: 'R2', updatedAt: { toMillis: () => 600 }, deviceId: 'device-2' }) } }] });
+    await new Promise(r => setTimeout(r, 0));
+    expect(mocks.getDocs.mock.calls.length).toBeGreaterThan(getDocsBefore);
   });
 });

@@ -13,7 +13,9 @@ export const SYNC_ENTITIES = [
 ];
 
 function metadataKey(uid) {
-  return `sync:${uid}:lastPulledAt`;
+  // v2: reset the cursor from the old strategy (it used local Date.now(),
+  // which could run ahead of the server and skip remote docs forever).
+  return `sync:${uid}:lastPulledAt:v2`;
 }
 
 async function getLastPulledAt(uid) {

@@ -79,12 +79,12 @@ function dispatchSyncEvent(status, error = null) {
   window.dispatchEvent(new CustomEvent('sync-status', { detail: { status, error } }));
 }
 
-function startRealtimeListeners(uid, onChange) {
+function startRealtimeListeners(uid, onRemoteChange) {
   stopRealtimeListeners();
   unsubscribeListeners = [
     listenForRemoteChanges(uid, () => {
-      // Bell only: remote changes trigger a sync, never apply data here.
-      if (onChange) onChange({ bell: true });
+      // Bell only: remote changes trigger a full sync, never apply data here.
+      requestSync(uid, onRemoteChange);
     }),
   ];
 }

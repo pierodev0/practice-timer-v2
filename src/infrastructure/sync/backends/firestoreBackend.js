@@ -72,7 +72,7 @@ function operationPayload(operation) {
   return {
     ...operation.data,
     id: operation.entityId,
-    updatedAt: serverTimestamp(),
+    updatedAt: operation.data?.updatedAt || serverTimestamp(),
     deviceId: getDeviceId(),
     deletedAt: null,
   };
