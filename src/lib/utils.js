@@ -1,0 +1,80 @@
+import { format } from 'date-fns';
+
+/**
+ * Pure utility functions — no DOM, no state, no side effects.
+ */
+
+/**
+ * Format seconds into MM:SS or H:MM:SS display string.
+ */
+export function formatTime(seconds) {
+  const totalSec = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Extract first URL from a text string.
+ */
+export function getFirstUrl(text) {
+  return (text.match(/(https?:\/\/[^\s]+)/i) || [])[0];
+}
+
+/**
+ * Extract first image URL from a text string.
+ */
+export function getFirstImage(text) {
+  return (text.match(/(https?:\/\/[^\s]*\.(?:png|jpg|jpeg|gif|webp|svg)[^\s]*)/i) || [])[0];
+}
+
+/**
+ * Generate a consistent color from a string (for chart datasets).
+ */
+export function stringToColor(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return '#' + "00000".substring(0, 6 - (hash & 0x00FFFFFF).toString(16).toUpperCase().length) + (hash & 0x00FFFFFF).toString(16).toUpperCase();
+}
+
+/**
+ * Trigger a file download in the browser.
+ */
+export function downloadJSON(content, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * Create today's date string in YYYY-MM-DD format.
+ */
+export function formatDate(date) {
+  return format(date, 'yyyy-MM-dd');
+}
+
+export function todayStr() {
+  return formatDate(new Date());
+}
+
+/**
+ * Format an ISO datetime string to "h:mm a.m/p.m" (e.g. "12:03 a.m").
+ */
+export function formatISOTime(isoStr) {
+  if (!isoStr) return '--:--';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '--:--';
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const ampm = h < 12 ? 'a.m' : 'p.m';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}

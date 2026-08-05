@@ -1,0 +1,96 @@
+<script setup>
+import { useStats } from '../composables/tracking/useStats.js';
+import EditStatsModal from '../components/modals/EditStatsModal.vue';
+import { Line, Bar, Doughnut } from 'vue-chartjs';
+
+const {
+  showEditStats, filterStart, filterEnd,
+  totalHours, totalMinutes, sessionsCount, avgMinutes, streak,
+  weeklyData, weeklyOptions,
+  routineData, routineOptions,
+  scheduleData, scheduleOptions,
+  progressData, progressOptions,
+  goBack, toggleEditStats,
+} = useStats();
+
+</script>
+
+<template>
+  <div class="view-section active flex flex-col">
+    <div class="bg-[#E53935] text-white p-4 pt-6 pb-4 shadow-md flex justify-between items-center sticky top-0 z-20">
+      <button @click="goBack" class="text-xl p-2 -ml-2"><i class="fas fa-arrow-left"></i></button>
+      <h2 class="text-lg font-medium">Professional Stats</h2>
+      <div class="w-8"></div>
+    </div>
+
+    <div class="p-4 space-y-6 pb-12 overflow-y-auto">
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Total Practicado</div>
+          <div class="text-2xl font-bold text-[#E53935]">{{ totalHours > 0 ? `${totalHours}h ${totalMinutes}m` : `${totalMinutes}m` }}</div>
+          <div class="text-xs text-gray-400 mt-1">tiempo acumulado</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Racha</div>
+          <div class="text-2xl font-bold text-gray-800">{{ streak }}</div>
+          <div class="text-xs text-gray-400 mt-1">días consecutivos</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Sesiones</div>
+          <div class="text-2xl font-bold text-gray-800">{{ sessionsCount }}</div>
+          <div class="text-xs text-gray-400 mt-1">días con práctica</div>
+        </div>
+        <div class="card p-4">
+          <div class="text-gray-400 text-xs uppercase font-bold mb-1">Promedio</div>
+          <div class="text-2xl font-bold text-gray-800">{{ avgMinutes }}m</div>
+          <div class="text-xs text-gray-400 mt-1">minutos por sesión</div>
+        </div>
+      </div>
+
+      <!-- Progress Chart -->
+      <div class="card p-5">
+        <div class="flex justify-between items-center mb-1">
+          <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-chart-line text-[#E53935]"></i> Progreso por Ejercicio</h3>
+          <button @click="toggleEditStats" class="text-xs text-gray-500 border border-gray-300 px-2 py-1 rounded hover:bg-gray-50 flex items-center gap-1">
+            <i class="fas fa-pen text-[10px]"></i> Editar datos
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-4">Evolución del valor registrado en cada ejercicio</p>
+        <div class="flex flex-wrap gap-2 mb-4 items-end bg-gray-50 p-2 rounded-lg">
+          <label class="flex flex-col text-xs text-gray-500 font-bold">Inicio:
+            <input type="date" v-model="filterStart" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
+          </label>
+          <label class="flex flex-col text-xs text-gray-500 font-bold">Fin:
+            <input type="date" v-model="filterEnd" class="mt-1 border border-gray-200 rounded p-1 text-sm text-gray-700 outline-none focus:border-red-300">
+          </label>
+        </div>
+        <div class="h-64"><Line :data="progressData" :options="progressOptions" /></div>
+      </div>
+
+      <!-- Weekly Chart -->
+      <div class="card p-5">
+        <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="far fa-calendar-alt text-[#E53935]"></i> Últimos 7 Días</h3>
+        <p class="text-xs text-gray-400 mb-4">Minutos de práctica por rutina</p>
+        <div class="h-64"><Bar :data="weeklyData" :options="weeklyOptions" /></div>
+      </div>
+
+      <!-- Distribution -->
+      <div class="card p-5">
+        <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-chart-pie text-[#E53935]"></i> Distribución por Rutina</h3>
+        <p class="text-xs text-gray-400 mb-4">Porcentaje del tiempo total invertido en cada rutina</p>
+        <div class="h-48 flex justify-center"><Doughnut :data="routineData" :options="routineOptions" /></div>
+      </div>
+
+      <!-- Scheduled vs Real -->
+      <div class="card p-5">
+        <h3 class="font-bold text-gray-800 mb-1 flex items-center gap-2"><i class="fas fa-clock text-[#E53935]"></i> Programado vs Real</h3>
+        <p class="text-xs text-gray-400 mb-4">Comparación entre el tiempo programado y el real</p>
+        <div class="h-64"><Bar :data="scheduleData" :options="scheduleOptions" /></div>
+      </div>
+
+    </div>
+  </div>
+
+  <EditStatsModal v-if="showEditStats" @close="toggleEditStats" />
+</template>

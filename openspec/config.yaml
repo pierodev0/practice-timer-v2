@@ -1,0 +1,35 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Vue 3 (Composition API, <script setup>), Vite 8, Pinia, Dexie.js (IndexedDB), Vue Router 5, Nanoid, TailwindCSS 4, Chart.js + vue-chartjs, Firebase (auth/sync)
+  Architecture: Views (pure presentation) → Composables (orchestration) → Stores (state + persistence) → db/ (Dexie schema + repositories)
+  Testing: Vitest 4 with jsdom, Vue Test Utils 2, fake-indexeddb 6. Integration-style tests with real Dexie + fake IndexedDB
+  Style: JavaScript (no TypeScript), jsconfig.json with strict mode, @/ path alias, PascalCase for components, camelCase for composables/stores
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    guidelines:
+      - Follow existing code patterns
+      - Views import zero stores — data comes from composables
+      - Composables orchestrate, stores hold state
+      - New tables require schema version bump in db.js
+    tdd: true
+    test_command: pnpm run test
+  verify:
+    test_command: pnpm run test
+    build_command: pnpm run build
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
