@@ -33,6 +33,7 @@ export function createExercise(data = {}) {
     statisticName: null,
     statisticLogs: [],
     mode: 'timer',          // 'timer' | 'perfect-reps' | 'count' | 'free'
+    timerPolicy: 'required', // 'required' | 'reference' | 'none'
     targetPerfect: 1,       // solo aplica si mode === 'perfect-reps'
     ...data,
   };

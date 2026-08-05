@@ -24,6 +24,13 @@ export function useExerciseForm() {
   // Nuevos campos para modos de práctica
   const mode = ref('timer');
   const targetPerfect = ref(5);
+  const timerPolicy = ref('required');
+
+  watch(mode, (value) => {
+    if (value === 'timer') timerPolicy.value = 'required';
+    else if (value === 'free') timerPolicy.value = 'none';
+    else if (timerPolicy.value !== 'reference') timerPolicy.value = 'none';
+  });
 
   // Toggle for custom statistic name (off by default = uses title)
   const useCustomStat = ref(false);
@@ -52,6 +59,7 @@ export function useExerciseForm() {
     autostart.value = true;
     mode.value = 'timer';
     targetPerfect.value = 5;
+    timerPolicy.value = 'required';
     useCustomStat.value = false;
   }
 
@@ -67,6 +75,7 @@ export function useExerciseForm() {
     if (mode.value === 'timer') {
       payload.bpm = bpm.value;
       payload.durationSec = (min.value * 60) + sec.value;
+      payload.timerPolicy = 'required';
       payload.autoStart = autostart.value;
       payload.reps = 1;
       payload.statisticName = useCustomStat.value
@@ -76,19 +85,22 @@ export function useExerciseForm() {
       payload.mode = 'perfect-reps';
       payload.targetPerfect = targetPerfect.value;
       payload.bpm = bpm.value;
-      payload.durationSec = 0;
+      payload.durationSec = timerPolicy.value === 'reference' ? Math.max(1, (min.value * 60) + sec.value || 60) : 0;
+      payload.timerPolicy = timerPolicy.value;
       payload.reps = 1;
       payload.autoStart = false;
       payload.statisticName = null;
     } else if (mode.value === 'count') {
       payload.mode = 'count';
       payload.reps = reps.value;
-      payload.durationSec = 0;
+      payload.durationSec = timerPolicy.value === 'reference' ? Math.max(1, (min.value * 60) + sec.value || 60) : 0;
+      payload.timerPolicy = timerPolicy.value;
       payload.bpm = 0;
       payload.autoStart = false;
       payload.statisticName = null;
     } else if (mode.value === 'free') {
       payload.mode = 'free';
+      payload.timerPolicy = 'none';
       payload.durationSec = 0;
       payload.bpm = 0;
       payload.reps = 1;
@@ -113,6 +125,7 @@ export function useExerciseForm() {
     autostart,
     mode,
     targetPerfect,
+    timerPolicy,
     MODES,
     addNewExercise,
     resetForm,

@@ -29,9 +29,9 @@ const statModal = useStatModal();
 const { showStatModal, statModalTitle, requestStatInput, submitStatValue, skipStat } = statModal;
 
 const {
-  exercise, mode, title, statName, comment, bpm, reps, minutes, seconds,
+  exercise, mode, timerPolicy, title, statName, comment, bpm, reps, minutes, seconds,
   targetPerfect, autoStart, showMenu,
-  updateTitle, updateStatName, adjustBPM, adjustReps, updateTargetPerfect, adjustTime,
+  updateTitle, updateStatName, adjustBPM, adjustReps, updateTargetPerfect, updateTimerPolicy, adjustTime,
   updateAutoStart, updateComment, duplicate, archive, remove,
 } = editor;
 
@@ -130,6 +130,7 @@ function forceComplete() {
           :seconds="seconds"
           :auto-start="autoStart"
           :target-perfect="targetPerfect"
+          :timer-policy="timerPolicy"
           :mode="mode"
           :show-mode-selector="false"
           :show-custom-stat-toggle="false"
@@ -141,6 +142,7 @@ function forceComplete() {
           @update:seconds="value => updateSecondsValue(value)"
           @update:auto-start="updateAutoStart"
           @update:target-perfect="updateTargetPerfect"
+          @update:timer-policy="updateTimerPolicy"
         />
 
         <div class="relative pt-4 border-t border-gray-100">

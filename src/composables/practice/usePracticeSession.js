@@ -64,6 +64,7 @@ export function usePracticeSession() {
 
   const showCompleteModal = ref(false);
   const completeInfo = ref({ mode: 'timer', title: '' });
+  const referenceTimerExpired = ref(false);
 
   function _showCompleteModal(ex, { isSurrender = false } = {}) {
     ex.totalCompletions = (ex.totalCompletions || 0) + 1;
@@ -124,20 +125,23 @@ export function usePracticeSession() {
     const ex = exercise.value;
     if (!ex) return 0;
     const elapsed = Number(timer.elapsed.value) || 0;
+    const policy = ex.timerPolicy || (ex.mode === 'timer' ? 'required' : ex.mode === 'free' ? 'none' : 'reference');
+    const hasCountdown = policy !== 'none' && (ex.durationSec > 0 || policy === 'reference');
     if (player.activeExerciseId.value === ex.id) {
-      return ex.durationSec > 0 ? timer.remaining.value : elapsed;
+      return hasCountdown && !referenceTimerExpired.value ? timer.remaining.value : elapsed;
     }
-    return ex.durationSec > 0 ? (Number(ex.remainingSec) || 0) : elapsed;
+    return hasCountdown && !referenceTimerExpired.value ? (Number(ex.remainingSec) || 0) : elapsed;
   });
 
   // ── Auto-play (perfect-reps y count) ─────────────────────
 
   watch(exercise, (ex, oldEx) => {
     if (!ex || ex.id === oldEx?.id) return;
+    referenceTimerExpired.value = false;
     if (ex.mode === 'perfect-reps' || ex.mode === 'count') {
       player.playExercise(ex.id);
     }
-  });
+  }, { immediate: true });
 
   // ── Exercise completion flow ─────────────────────────────
 
@@ -148,7 +152,21 @@ export function usePracticeSession() {
     if (!ex) return;
     const audio = await import('../../infrastructure/services/audio.js');
     await audio.playBellSound();
+
+    if (ex.timerPolicy === 'reference') {
+      referenceTimerExpired.value = true;
+      player.pauseSequence();
+      return;
+    }
+
     _completeWithStat(ex, () => _finalizeRepOrExercise(ex));
+  }
+
+  function continueAfterReference() {
+    const ex = exercise.value;
+    if (!ex || ex.timerPolicy !== 'reference') return;
+    referenceTimerExpired.value = false;
+    player.continueWithoutLimit();
   }
 
   function _completeWithStat(ex, onComplete) {
@@ -330,6 +348,7 @@ export function usePracticeSession() {
     finishSummary,
     showCompleteModal,
     completeInfo,
+    referenceTimerExpired,
 
     // Actions
     goBack,
@@ -341,6 +360,7 @@ export function usePracticeSession() {
     surrenderExercise,
     handleCompleteNext,
     handleCompleteRepeat,
+    continueAfterReference,
     startCurrentExercise: () => player.playExercise(exercise.value?.id),
     handleFinishRoutine,
     acceptFinish,

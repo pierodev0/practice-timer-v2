@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { nextTick, ref } from 'vue';
 
 const updateExerciseField = vi.fn(() => Promise.resolve());
 
@@ -67,6 +66,20 @@ describe('useExerciseEditor', () => {
 
     expect(updateExerciseField).toHaveBeenCalledWith('legacy', 'durationSec', 0);
     expect(editor.exercise.value.remainingSec).toBe(0);
+  });
+
+  it('exposes legacy timer policy as required', () => {
+    const editor = useExerciseEditor('legacy');
+
+    expect(editor.timerPolicy.value).toBe('required');
+  });
+
+  it('updates timer policy', async () => {
+    const editor = useExerciseEditor('legacy');
+
+    await editor.updateTimerPolicy('reference');
+
+    expect(updateExerciseField).toHaveBeenCalledWith('legacy', 'timerPolicy', 'reference');
   });
 
   it('updates auto-start', async () => {

@@ -81,22 +81,20 @@ export function useExercisePlayer({ timer: externalTimer, onExerciseComplete } =
     isExercisePlaying.value = true;
 
     if (ex.mode === 'perfect-reps' || ex.mode === 'count') {
-      // Sin timer count-down. Inicializar contadores de sesión.
       ex.perfectCount = 0;
       ex.attempts = 0;
-      if (timer) timer.setExercise(0);
+    }
+
+    if (ex.timerPolicy === 'none' || (!ex.timerPolicy && ex.mode === 'free')) {
+      if (timer) {
+        timer.setExercise(0);
+        timer.start();
+      }
       return;
     }
 
-    if (ex.mode === 'free') {
-      ex.perfectCount = 0;
-      ex.attempts = 0;
-      if (timer) timer.start();
-      return;
-    }
-
-    // Timer mode: count-down normal
-    const secs = (ex.remainingSec <= 0) ? ex.durationSec : ex.remainingSec;
+    const configuredDuration = ex.durationSec > 0 ? ex.durationSec : ex.timerPolicy === 'reference' ? 60 : 0;
+    const secs = (ex.remainingSec <= 0) ? configuredDuration : ex.remainingSec;
     if (timer) {
       timer.setExercise(secs);
       timer.start();
@@ -113,6 +111,12 @@ export function useExercisePlayer({ timer: externalTimer, onExerciseComplete } =
         });
       });
     }
+  }
+
+  function continueWithoutLimit() {
+    if (!timer) return;
+    isExercisePlaying.value = true;
+    timer.continueWithoutLimit();
   }
 
   function pauseSequence() {
@@ -273,6 +277,7 @@ export function useExercisePlayer({ timer: externalTimer, onExerciseComplete } =
     adjustBpm,
     playExercise,
     pauseSequence,
+    continueWithoutLimit,
     toggleExercise,
     repeatExercise,
     finishRoutine,

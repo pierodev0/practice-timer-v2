@@ -15,11 +15,11 @@ const session = usePracticeSession();
 const {
   exercise, routine, exerciseIndex, totalExercises, displayTime,
   isExercisePlaying, activeExerciseId, showFinishModal, finishSummary,
-  showStatModal, statModalTitle, showCompleteModal, completeInfo,
+  showStatModal, statModalTitle, showCompleteModal, completeInfo, referenceTimerExpired,
   goBack, togglePlay, skipExercise, completeExercise,
   completeFreeExercise, surrenderExercise,
   markPerfect, markFailed, incrementCount,
-  handleCompleteNext, handleCompleteRepeat,
+  handleCompleteNext, handleCompleteRepeat, continueAfterReference,
   startCurrentExercise,
   handleFinishRoutine, acceptFinish, submitStatValue, skipStat,
 } = session;
@@ -94,6 +94,15 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
         <div class="play-timer-label">perfectas</div>
       </div>
 
+      <div v-if="referenceTimerExpired" class="play-bpm text-yellow-300">
+        <i class="fas fa-bell mr-1"></i> Tiempo de referencia cumplido — tiempo extra
+        <button @click="continueAfterReference" class="ml-2 underline">Continuar</button>
+      </div>
+
+      <div v-else-if="exercise?.timerPolicy === 'reference'" class="play-countup">
+        <i class="fas fa-hourglass-half mr-1"></i> {{ formatTime(displayTime) }} restantes
+      </div>
+
       <div v-if="attempts > 0" class="play-bpm">
         Intentos: <span>{{ attempts }}</span>
         <span v-if="perfectCount >= targetPerfect" class="text-green-400 ml-2">¡Completado!</span>
@@ -143,6 +152,15 @@ const attempts = computed(() => exercise.value?.attempts ?? 0);
           <div class="play-perfect-target">{{ exercise?.reps ?? 1 }}</div>
         </div>
         <div class="play-timer-label">repeticiones</div>
+      </div>
+
+      <div v-if="referenceTimerExpired" class="play-bpm text-yellow-300">
+        <i class="fas fa-bell mr-1"></i> Tiempo de referencia cumplido — tiempo extra
+        <button @click="continueAfterReference" class="ml-2 underline">Continuar</button>
+      </div>
+
+      <div v-else-if="exercise?.timerPolicy === 'reference'" class="play-countup">
+        <i class="fas fa-hourglass-half mr-1"></i> {{ formatTime(displayTime) }} restantes
       </div>
 
       <div class="play-controls play-controls-perfect">

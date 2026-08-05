@@ -26,6 +26,7 @@ export function useExerciseEditor(exerciseIdRef) {
   const exercise = computed(() => exerciseStore.getById(exerciseId.value));
 
   const mode = computed(() => exercise.value?.mode || 'timer');
+  const timerPolicy = computed(() => exercise.value?.timerPolicy || (mode.value === 'timer' ? 'required' : mode.value === 'free' ? 'none' : 'reference'));
   const title = computed(() => exercise.value?.title || '');
   const statName = computed(() => exercise.value?.statisticName || '');
   const comment = computed(() => exercise.value?.comment || '');
@@ -69,6 +70,10 @@ export function useExerciseEditor(exerciseIdRef) {
     await routineService.updateExerciseField(exerciseId.value, 'targetPerfect', Math.max(1, value));
   }
 
+  async function updateTimerPolicy(value) {
+    await routineService.updateExerciseField(exerciseId.value, 'timerPolicy', value);
+  }
+
   async function adjustTime(type, delta) {
     const ex = exercise.value;
     if (!ex) return;
@@ -108,6 +113,7 @@ export function useExerciseEditor(exerciseIdRef) {
   return {
     exercise,
     mode,
+    timerPolicy,
     title,
     statName,
     comment,
@@ -123,6 +129,7 @@ export function useExerciseEditor(exerciseIdRef) {
     adjustBPM,
     adjustReps,
     updateTargetPerfect,
+    updateTimerPolicy,
     adjustTime,
     updateAutoStart,
     updateComment,

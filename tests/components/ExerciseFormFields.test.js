@@ -40,11 +40,36 @@ describe('ExerciseFormFields', () => {
     expect(wrapper.text()).not.toContain('Target Reps');
   });
 
+  it('renders reference timer fields for perfect-reps and count', () => {
+    const perfect = mountFields({ mode: 'perfect-reps', timerPolicy: 'reference' });
+    const count = mountFields({ mode: 'count', timerPolicy: 'reference' });
+
+    expect(perfect.text()).toContain('Reference timer');
+    expect(perfect.text()).toContain('Reference minutes');
+    expect(count.text()).toContain('Reference timer');
+    expect(count.text()).toContain('Reference seconds');
+  });
+
+  it('hides reference duration when the policy is none', () => {
+    const wrapper = mountFields({ mode: 'count', timerPolicy: 'none' });
+
+    expect(wrapper.text()).toContain('Reference timer');
+    expect(wrapper.text()).not.toContain('Reference minutes');
+  });
+
+  it('shows a disabled reference timer by default for count creation', () => {
+    const wrapper = mountFields({ mode: 'count', timerPolicy: 'none' });
+    const toggle = wrapper.find('input[type="checkbox"]');
+
+    expect(toggle.exists()).toBe(true);
+    expect(toggle.element.checked).toBe(false);
+    expect(wrapper.text()).not.toContain('Reference seconds');
+  });
+
   it('renders count fields only for count mode', () => {
     const wrapper = mountFields({ mode: 'count' });
 
     expect(wrapper.text()).toContain('Target Reps');
-    expect(wrapper.text()).not.toContain('Minutes');
     expect(wrapper.text()).not.toContain('Target Perfectas');
   });
 

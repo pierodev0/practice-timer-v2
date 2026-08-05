@@ -65,6 +65,12 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
     _duration = durationSec;
   }
 
+  function continueWithoutLimit() {
+    _duration = 0;
+    isRunning.value = true;
+    worker.postMessage('start');
+  }
+
   function reset() {
     stop();
     elapsed.value = 0;
@@ -88,6 +94,7 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
     start,
     stop,
     setExercise,
+    continueWithoutLimit,
     reset,
     dispose,
   };

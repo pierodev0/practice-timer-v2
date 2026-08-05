@@ -6,7 +6,7 @@ import ExerciseFormFields from '../components/exercises/ExerciseFormFields.vue';
 const router = useRouter();
 const {
   title, statName, bpm, reps, min, sec, autostart,
-  mode, targetPerfect,
+  mode, targetPerfect, timerPolicy,
   addNewExercise, resetForm, useCustomStat,
 } = useExerciseForm();
 
@@ -41,6 +41,7 @@ function goBack() {
           v-model:seconds="sec"
           v-model:auto-start="autostart"
           v-model:target-perfect="targetPerfect"
+          v-model:timer-policy="timerPolicy"
           v-model:use-custom-stat="useCustomStat"
           v-model:mode="mode"
           :show-mode-selector="true"
