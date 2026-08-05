@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ExerciseFormFields from '../../src/components/exercises/ExerciseFormFields.vue';
 
@@ -24,11 +24,50 @@ describe('ExerciseFormFields', () => {
     const wrapper = mountFields();
 
     expect(wrapper.text()).toContain('Tempo (BPM)');
+    expect(wrapper.text()).toContain('Duration');
     expect(wrapper.text()).toContain('Minutes');
     expect(wrapper.text()).toContain('Seconds');
+    expect(wrapper.find('[data-testid="duration-input"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Auto-Start');
     expect(wrapper.text()).not.toContain('Target Perfectas');
     expect(wrapper.text()).not.toContain('Target Reps');
+  });
+
+  it('renders duration above the tempo and auto-start settings', () => {
+    const wrapper = mountFields();
+    const settingsGrid = wrapper.get('[data-testid="timer-settings-grid"]');
+    const html = wrapper.html();
+
+    expect(settingsGrid.findAll(':scope > *')).toHaveLength(2);
+    expect(settingsGrid.classes()).toContain('space-y-4');
+    expect(settingsGrid.text()).toContain('Tempo (BPM)');
+    expect(settingsGrid.text()).toContain('Auto-Start');
+    expect(html.indexOf('data-testid="duration-input"')).toBeLessThan(html.indexOf('data-testid="timer-settings-grid"'));
+  });
+
+  it('does not render the duration control outside timer mode', () => {
+    expect(mountFields({ mode: 'perfect-reps' }).find('[data-testid="duration-input"]').exists()).toBe(false);
+    expect(mountFields({ mode: 'count' }).find('[data-testid="duration-input"]').exists()).toBe(false);
+  });
+
+  it('forwards duration segment changes', async () => {
+    const onMinutesUpdate = vi.fn();
+    const onSecondsUpdate = vi.fn();
+    const wrapper = mountFields({
+      'onUpdate:minutes': onMinutesUpdate,
+      'onUpdate:seconds': onSecondsUpdate,
+    });
+    const minutesInput = wrapper.get('input[aria-label="Minutes"]');
+    const secondsInput = wrapper.get('input[aria-label="Seconds"]');
+
+    minutesInput.element.value = '3';
+    secondsInput.element.value = '40';
+    minutesInput.element.dispatchEvent(new window.Event('input', { bubbles: true }));
+    secondsInput.element.dispatchEvent(new window.Event('input', { bubbles: true }));
+    await wrapper.vm.$nextTick();
+
+    expect(onMinutesUpdate).toHaveBeenCalledWith(3);
+    expect(onSecondsUpdate).toHaveBeenCalledWith(40);
   });
 
   it('renders perfect-reps fields only for perfect-reps mode', () => {
@@ -40,21 +79,24 @@ describe('ExerciseFormFields', () => {
     expect(wrapper.text()).not.toContain('Target Reps');
   });
 
-  it('renders reference timer fields for perfect-reps and count', () => {
+  it('renders the duration control for reference timers', () => {
     const perfect = mountFields({ mode: 'perfect-reps', timerPolicy: 'reference' });
     const count = mountFields({ mode: 'count', timerPolicy: 'reference' });
 
     expect(perfect.text()).toContain('Reference timer');
-    expect(perfect.text()).toContain('Reference minutes');
+    expect(perfect.text()).toContain('Reference duration');
+    expect(perfect.find('[data-testid="duration-input"]').exists()).toBe(true);
     expect(count.text()).toContain('Reference timer');
-    expect(count.text()).toContain('Reference seconds');
+    expect(count.text()).toContain('Reference duration');
+    expect(count.find('[data-testid="duration-input"]').exists()).toBe(true);
   });
 
   it('hides reference duration when the policy is none', () => {
     const wrapper = mountFields({ mode: 'count', timerPolicy: 'none' });
 
     expect(wrapper.text()).toContain('Reference timer');
-    expect(wrapper.text()).not.toContain('Reference minutes');
+    expect(wrapper.find('[data-testid="duration-input"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Reference duration');
   });
 
   it('shows a disabled reference timer by default for count creation', () => {

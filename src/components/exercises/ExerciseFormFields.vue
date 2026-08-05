@@ -1,4 +1,6 @@
 <script setup>
+import DurationInput from './DurationInput.vue';
+
 defineProps({
   mode: { type: String, required: true },
   title: { type: String, default: '' },
@@ -78,38 +80,32 @@ const MODES = [
           class="w-full text-sm outline-none text-gray-500 border-b-2 border-gray-200 focus:border-[#E53935] transition-colors pb-1">
       </div>
 
-      <div class="flex justify-between items-center">
-        <span class="text-gray-700 font-medium">Tempo (BPM)</span>
-        <div class="flex items-center gap-3">
-          <button type="button" @click="emit('update:bpm', Math.max(1, bpm - 5))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-          <span class="font-semibold text-lg w-20 text-center">{{ bpm }} BPM</span>
-          <button type="button" @click="emit('update:bpm', bpm + 5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-        </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-2">Duration</label>
+        <DurationInput
+          :minutes="minutes"
+          :seconds="seconds"
+          @update:minutes="emit('update:minutes', $event)"
+          @update:seconds="emit('update:seconds', $event)"
+        />
       </div>
 
-      <div class="flex justify-between items-center">
-        <span class="text-gray-700 font-medium">Minutes</span>
-        <div class="flex items-center gap-3">
-          <button type="button" @click="emit('update:minutes', Math.max(0, minutes - 1))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-          <span class="font-semibold text-lg w-20 text-center">{{ minutes }} min</span>
-          <button type="button" @click="emit('update:minutes', minutes + 1)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+      <div data-testid="timer-settings-grid" class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-gray-700 font-medium">Tempo (BPM)</span>
+          <div class="flex items-center gap-2">
+            <button type="button" @click="emit('update:bpm', Math.max(1, bpm - 5))" class="btn-icon shrink-0 border border-gray-300 text-gray-500">-</button>
+            <span class="w-20 text-center text-sm font-semibold">{{ bpm }} BPM</span>
+            <button type="button" @click="emit('update:bpm', bpm + 5)" class="btn-icon shrink-0 border border-[#E53935] text-[#E53935]">+</button>
+          </div>
         </div>
-      </div>
 
-      <div class="flex justify-between items-center">
-        <span class="text-gray-700 font-medium">Seconds</span>
-        <div class="flex items-center gap-3">
-          <button type="button" @click="emit('update:seconds', Math.max(0, seconds - 5))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-          <span class="font-semibold text-lg w-20 text-center">{{ String(seconds).padStart(2, '0') }} sec</span>
-          <button type="button" @click="emit('update:seconds', seconds + 5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-gray-700 font-medium">Auto-Start</span>
+          <input type="checkbox" :checked="autoStart"
+            @change="emit('update:autoStart', $event.target.checked)"
+            class="h-5 w-5 shrink-0 accent-[#E53935]">
         </div>
-      </div>
-
-      <div class="flex justify-between items-center">
-        <span class="text-gray-700 font-medium">Auto-Start</span>
-        <input type="checkbox" :checked="autoStart"
-          @change="emit('update:autoStart', $event.target.checked)"
-          class="w-5 h-5 accent-[#E53935]">
       </div>
     </template>
 
@@ -125,21 +121,14 @@ const MODES = [
       </div>
 
       <template v-if="timerPolicy === 'reference'">
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Reference minutes</span>
-          <div class="flex items-center gap-3">
-            <button type="button" @click="emit('update:minutes', Math.max(0, minutes - 1))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ minutes }} min</span>
-            <button type="button" @click="emit('update:minutes', minutes + 1)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Reference seconds</span>
-          <div class="flex items-center gap-3">
-            <button type="button" @click="emit('update:seconds', Math.max(0, seconds - 5))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ String(seconds).padStart(2, '0') }} sec</span>
-            <button type="button" @click="emit('update:seconds', seconds + 5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-2">Reference duration</label>
+          <DurationInput
+            :minutes="minutes"
+            :seconds="seconds"
+            @update:minutes="emit('update:minutes', $event)"
+            @update:seconds="emit('update:seconds', $event)"
+          />
         </div>
       </template>
 
@@ -175,21 +164,14 @@ const MODES = [
       </div>
 
       <template v-if="timerPolicy === 'reference'">
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Reference minutes</span>
-          <div class="flex items-center gap-3">
-            <button type="button" @click="emit('update:minutes', Math.max(0, minutes - 1))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ minutes }} min</span>
-            <button type="button" @click="emit('update:minutes', minutes + 1)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-gray-700 font-medium">Reference seconds</span>
-          <div class="flex items-center gap-3">
-            <button type="button" @click="emit('update:seconds', Math.max(0, seconds - 5))" class="btn-icon border border-gray-300 text-gray-500">-</button>
-            <span class="font-semibold text-lg w-20 text-center">{{ String(seconds).padStart(2, '0') }} sec</span>
-            <button type="button" @click="emit('update:seconds', seconds + 5)" class="btn-icon border border-[#E53935] text-[#E53935]">+</button>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-2">Reference duration</label>
+          <DurationInput
+            :minutes="minutes"
+            :seconds="seconds"
+            @update:minutes="emit('update:minutes', $event)"
+            @update:seconds="emit('update:seconds', $event)"
+          />
         </div>
       </template>
 
