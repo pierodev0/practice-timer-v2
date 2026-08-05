@@ -135,8 +135,14 @@ export async function seedIfNeeded(uid) {
   });
   if (seeded > 0) {
     await flushOutbox(uid);
+    // We just uploaded the full local state, so the cloud now contains it.
+    // Advance the cursor past the local clock to avoid re-seeding; remote
+    // docs written later by other devices still have server timestamps
+    // newer than any local clock that seeded here.
+    await setLastPulledAt(uid, Date.now());
   }
-  await setLastPulledAt(uid, Date.now());
+  // If nothing was seeded, leave the cursor at the server timestamps seen
+  // by the pull (or 0 → full pull next time, idempotent).
   return seeded;
 }
 

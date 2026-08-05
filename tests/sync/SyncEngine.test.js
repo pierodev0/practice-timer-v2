@@ -160,11 +160,12 @@ describe('SyncEngine', () => {
   });
 
   describe('seedIfNeeded', () => {
-    it('seeds once when the cursor is missing, then advances it', async () => {
-      mocks.getDb.mockResolvedValue(dbWith({
+    it('seeds once when the cursor is missing and advances the cursor after uploading', async () => {
+      const fakeDb = dbWith({
         lastPulledAt: null,
         tables: { routines: { get: vi.fn(), toArray: vi.fn().mockResolvedValue([{ id: 'r1', name: 'R', updatedAt: 1 }]) } },
-      }));
+      });
+      mocks.getDb.mockResolvedValue(fakeDb);
       mocks.enqueue.mockImplementation(async () => 'outbox-1');
       mocks.listPending.mockResolvedValue([{ id: 'outbox-1', entity: 'routines', entityId: 'r1', operation: 'upsert' }]);
 
@@ -173,6 +174,9 @@ describe('SyncEngine', () => {
       expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ entity: 'routines', entityId: 'r1' }));
       expect(backend.push).toHaveBeenCalledWith('user-1', [{ id: 'outbox-1', entity: 'routines', entityId: 'r1', operation: 'upsert' }]);
       expect(seeded).toBe(1);
+      // After uploading the full local state, the cursor advances past the
+      // local clock to avoid re-seeding on every sync.
+      expect(fakeDb.syncMetadata.put).toHaveBeenCalled();
     });
 
     it('does not seed when the cursor already exists', async () => {

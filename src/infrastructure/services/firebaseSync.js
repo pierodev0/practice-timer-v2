@@ -37,7 +37,8 @@ let syncRequested = false;
 setBackend(assertBackend(firestoreBackend));
 
 export function userSyncRoot(uid) {
-  return collection(db, 'users', uid, 'sync');
+  // Keep in sync with the backend adapter (syncV2).
+  return collection(db, 'users', uid, 'syncV2');
 }
 
 export function entityCollection(uid, entity) {
