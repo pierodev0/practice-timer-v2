@@ -39,11 +39,29 @@ function toMillis(value) {
   return value || 0;
 }
 
+// Model date fields are YYYY-MM-DD strings locally. Old cloud records may
+// store them as Firestore Timestamps; normalize so Dexie compound indexes
+// ([exerciseId+date]) never receive an invalid key.
+function toDateString(value) {
+  if (!value) return value;
+  if (typeof value === 'string') return value;
+  if (typeof value.toDate === 'function') {
+    const d = value.toDate();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  if (typeof value.toMillis === 'function') {
+    const d = new Date(value.toMillis());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return value;
+}
+
 function normalizeRemoteRecord(snapshot) {
   const data = snapshot.data();
   return {
     id: snapshot.id,
     ...data,
+    date: toDateString(data.date),
     updatedAt: toMillis(data.updatedAt),
     createdAt: toMillis(data.createdAt),
   };

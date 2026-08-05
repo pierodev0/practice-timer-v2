@@ -217,6 +217,35 @@ describe('firebaseSync composition root', () => {
     expect(onChange).toHaveBeenCalled();
   });
 
+  it('normalizes a remote exerciseLog date Timestamp to a YYYY-MM-DD string', async () => {
+    const fakeDb = dbWith();
+    mocks.getDb.mockResolvedValue(fakeDb);
+    const timestampDoc = {
+      id: 'log-1',
+      data: () => ({
+        exerciseId: 'ex-1',
+        value: 5,
+        date: { toDate: () => new Date('2026-08-01T12:00:00Z') },
+        updatedAt: { toMillis: () => 1000 },
+        deviceId: 'device-2',
+      }),
+    };
+    // Return the log doc only for the exerciseLogs collection.
+    mocks.getDocs.mockImplementation((q) => {
+      const isExerciseLogs = JSON.stringify(q).includes('exerciseLogs');
+      return Promise.resolve({ docs: isExerciseLogs ? [timestampDoc] : [] });
+    });
+
+    const onChange = vi.fn();
+    await requestSync('user-1', onChange);
+
+    // The engine applied the record via the adapter: find the put call on exerciseLogs
+    const exerciseLogsTable = fakeDb.table('exerciseLogs');
+    expect(exerciseLogsTable.put).toHaveBeenCalled();
+    const putArg = exerciseLogsTable.put.mock.calls[0][0];
+    expect(putArg.date).toBe('2026-08-01');
+  });
+
   it('triggers a sync when the realtime bell detects a remote change', async () => {
     stopSync(); // reset listenersUid so the listener registers again
     mocks.getDb.mockResolvedValue(dbWith({ lastPulledAt: 500 }));
