@@ -22,12 +22,9 @@ import {
   runSync as engineRunSync,
   flushOutbox as engineFlushOutbox,
   pullChanges as enginePullChanges,
-  listenForRemoteChanges,
 } from '../sync/SyncEngine.js';
 import { SYNC_ENTITIES } from '../sync/SyncEngine.js';
 
-let unsubscribeListeners = [];
-let listenersUid = null;
 let syncRun = 0;
 let activeUid = null;
 let syncPromise = null;
@@ -80,21 +77,6 @@ function dispatchSyncEvent(status, error = null) {
   window.dispatchEvent(new CustomEvent('sync-status', { detail: { status, error } }));
 }
 
-function startRealtimeListeners(uid, onRemoteChange) {
-  stopRealtimeListeners();
-  unsubscribeListeners = [
-    listenForRemoteChanges(uid, () => {
-      // Bell only: remote changes trigger a full sync, never apply data here.
-      requestSync(uid, onRemoteChange);
-    }),
-  ];
-}
-
-function stopRealtimeListeners() {
-  unsubscribeListeners.forEach(unsubscribe => unsubscribe());
-  unsubscribeListeners = [];
-}
-
 async function runSync(uid, onRemoteChange) {
   const run = ++syncRun;
   dispatchSyncEvent('syncing');
@@ -102,12 +84,6 @@ async function runSync(uid, onRemoteChange) {
     const result = await engineRunSync(uid);
 
     if (run !== syncRun) return;
-
-    // Listeners are registered once per session.
-    if (listenersUid !== uid) {
-      startRealtimeListeners(uid, onRemoteChange);
-      listenersUid = uid;
-    }
 
     if (result.flushed > 0 || result.applied > 0) {
       await refreshLocalStores();
@@ -154,10 +130,8 @@ export function syncNow(onRemoteChange) {
 export function stopSync() {
   syncRun += 1;
   activeUid = null;
-  listenersUid = null;
   setSyncOwnerUid(null);
   syncRequested = false;
-  stopRealtimeListeners();
   dispatchSyncEvent('idle');
 }
 
@@ -213,5 +187,4 @@ export {
   SYNC_ENTITIES,
   engineFlushOutbox as flushOutbox,
   enginePullChanges as pullChanges,
-  stopRealtimeListeners,
 };

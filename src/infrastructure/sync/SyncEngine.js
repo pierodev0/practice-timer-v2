@@ -152,8 +152,3 @@ export async function runSync(uid) {
   await seedIfNeeded(uid);
   return { flushed, applied, skipped };
 }
-
-export function listenForRemoteChanges(uid, onChange) {
-  if (!backend) throw new Error('SyncEngine backend not set');
-  return backend.listen(uid, getDeviceId(), onChange);
-}

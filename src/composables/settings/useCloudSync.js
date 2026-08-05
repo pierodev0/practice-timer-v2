@@ -17,14 +17,7 @@ const pendingCount = ref(0);
 const lastSyncTime = ref(null);
 let statusListenerReady = false;
 let outboxListener = null;
-let syncTimer = null;
 let activeUid = null;
-
-function scheduleSync() {
-  if (!activeUid) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => syncNow().catch(() => {}), 500);
-}
 
 async function updatePendingCount(uid = activeUid) {
   if (!uid) {
@@ -47,11 +40,10 @@ function ensureStatusListener() {
     }
     updatePendingCount().catch(() => {});
   });
-  outboxListener = (event) => {
-    if (!activeUid || !event.detail?.ownerUid || event.detail.ownerUid === activeUid) {
-      updatePendingCount().catch(() => {});
-      scheduleSync();
-    }
+  // Manual sync only: the outbox listener only refreshes the pending count,
+  // it never triggers a sync automatically.
+  outboxListener = () => {
+    if (activeUid) updatePendingCount().catch(() => {});
   };
   window.addEventListener('sync-outbox-changed', outboxListener);
 }
@@ -71,7 +63,6 @@ export function stopSync() {
   ensureStatusListener();
   activeUid = null;
   pendingCount.value = 0;
-  clearTimeout(syncTimer);
   stopRemoteSync();
 }
 

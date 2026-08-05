@@ -36,7 +36,6 @@ const {
   pullChanges,
   seedIfNeeded,
   runSync,
-  listenForRemoteChanges,
 } = await import('../../src/infrastructure/sync/SyncEngine.js');
 
 function makeBackend() {
@@ -198,21 +197,6 @@ describe('SyncEngine', () => {
       expect(backend.push).toHaveBeenCalledWith('user-1', [{ id: 'o1', entity: 'routines', entityId: 'r1' }]);
       expect(backend.pull).toHaveBeenCalledWith('user-1', { since: undefined });
       expect(results).toEqual(expect.objectContaining({ flushed: 1, applied: 0 }));
-    });
-  });
-
-  describe('listenForRemoteChanges', () => {
-    it('subscribes through the backend with the device id', () => {
-      const onChange = vi.fn();
-      const unsubscribe = listenForRemoteChanges('user-1', onChange);
-
-      expect(backend.listen).toHaveBeenCalledWith('user-1', 'device-1', onChange);
-      expect(typeof unsubscribe).toBe('function');
-    });
-
-    it('throws when no backend is set', () => {
-      setBackend(null);
-      expect(() => listenForRemoteChanges('user-1', vi.fn())).toThrow();
     });
   });
 });
