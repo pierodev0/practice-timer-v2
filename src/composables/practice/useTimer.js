@@ -23,10 +23,10 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
   const sessionElapsed = ref(0);
   const isRunning = ref(false);
 
-  let _duration = 0;
+  const _duration = ref(0);
 
   const remaining = computed(() =>
-    _duration > 0 ? Math.max(0, _duration - elapsed.value) : 0
+    _duration.value > 0 ? Math.max(0, _duration.value - elapsed.value) : 0
   );
   let worker = externalWorker;
 
@@ -44,7 +44,7 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
     if (!isRunning.value) return;
     elapsed.value++;
     sessionElapsed.value++;
-    if (_duration > 0 && elapsed.value >= _duration) {
+    if (_duration.value > 0 && elapsed.value >= _duration.value) {
       isRunning.value = false;
       if (onExerciseComplete) onExerciseComplete();
     }
@@ -62,11 +62,11 @@ export function useTimer({ onExerciseComplete, worker: externalWorker } = {}) {
 
   function setExercise(durationSec) {
     elapsed.value = 0;
-    _duration = durationSec;
+    _duration.value = durationSec;
   }
 
   function continueWithoutLimit() {
-    _duration = 0;
+    _duration.value = 0;
     isRunning.value = true;
     worker.postMessage('start');
   }

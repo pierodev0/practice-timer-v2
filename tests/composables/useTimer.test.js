@@ -24,6 +24,18 @@ describe('useTimer', () => {
     expect(timer.remaining.value).toBe(0);
   });
 
+  it('updates remaining immediately when switching exercises', () => {
+    const worker = createWorker();
+    const timer = useTimer({ worker });
+
+    timer.setExercise(5);
+    expect(timer.remaining.value).toBe(5);
+
+    timer.setExercise(10);
+
+    expect(timer.remaining.value).toBe(10);
+  });
+
   it('continues without a limit while preserving elapsed time', () => {
     const worker = createWorker();
     const timer = useTimer({ worker });
