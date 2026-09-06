@@ -13,6 +13,7 @@ import * as routineRepository from '../../infrastructure/db/repositories/routine
 import * as routineExerciseRepository from '../../infrastructure/db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../../infrastructure/db/repositories/exerciseRepository.js';
 import * as settingsRepository from '../../infrastructure/db/repositories/settingsRepository.js';
+import * as currentRoutineRepository from '../../infrastructure/db/repositories/currentRoutineRepository.js';
 import { createRoutine } from '../../domain/routines/Routine.js';
 import { createExercise, stripTransients } from '../../domain/routines/Exercise.js';
 import { getDefaultRoutines, saveAll, loadAll } from '../../infrastructure/services/routinePersistence.js';
@@ -36,7 +37,8 @@ export class RoutineService {
       );
       this._routineStore.setRoutines(routines);
       this._exerciseStore.setAll(exercises);
-      this._routineStore.setCurrentRoutine(routines[0]?.id || null);
+      const defaultId = routines[0]?.id || null;
+      this._routineStore.setCurrentRoutine(defaultId);
       await saveAll(routines, exercises);
       const fresh = await loadAll();
       this._routineStore.setRoutines(fresh.routines);
@@ -51,8 +53,10 @@ export class RoutineService {
     const routines = this._routineStore.routines;
     if (savedId && routines.some(r => r.id === savedId)) {
       this._routineStore.setCurrentRoutine(savedId);
-    } else if (routines.length > 0 && !this._routineStore.currentRoutineId) {
-      this._routineStore.setCurrentRoutine(routines[0].id);
+    } else if (routines.length > 0) {
+      const firstId = routines[0].id;
+      this._routineStore.setCurrentRoutine(firstId);
+      await currentRoutineRepository.setCurrentRoutine(firstId);
     }
   }
 
@@ -69,7 +73,9 @@ export class RoutineService {
     if (savedId && data.routines.some(r => r.id === savedId)) {
       this._routineStore.setCurrentRoutine(savedId);
     } else if (data.routines.length > 0 && !this._routineStore.currentRoutineId) {
-      this._routineStore.setCurrentRoutine(data.routines[0].id);
+      const firstId = data.routines[0].id;
+      this._routineStore.setCurrentRoutine(firstId);
+      await currentRoutineRepository.setCurrentRoutine(firstId);
     }
   }
 
@@ -92,7 +98,7 @@ export class RoutineService {
     const toRemove = this._exerciseStore.getByRoutine(id);
     toRemove.forEach(ex => this._exerciseStore.remove(ex.id));
     // Persistir la rutina que quedó activa tras la eliminación
-    await settingsRepository.set('currentRoutineId', this._routineStore.currentRoutineId);
+    await currentRoutineRepository.setCurrentRoutine(this._routineStore.currentRoutineId);
   }
 
   async duplicateRoutine(originalId) {
@@ -201,7 +207,7 @@ export class RoutineService {
 
   async setCurrentRoutine(id) {
     this._routineStore.setCurrentRoutine(id);
-    await settingsRepository.set('currentRoutineId', id);
+    await currentRoutineRepository.setCurrentRoutine(id);
   }
 
   async updateRoutineField(routineId, field, value) {
@@ -265,7 +271,7 @@ export class RoutineService {
     this._exerciseStore.setAll(exercises);
     const defaultId = routines[0]?.id || null;
     this._routineStore.setCurrentRoutine(defaultId);
-    await settingsRepository.set('currentRoutineId', defaultId);
+    await currentRoutineRepository.setCurrentRoutine(defaultId);
 
     await saveAll(routines, exercises);
   }

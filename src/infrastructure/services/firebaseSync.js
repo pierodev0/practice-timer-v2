@@ -52,15 +52,26 @@ export async function refreshLocalStores() {
   const { useSessionStore } = await import('../../stores/useSessionStore.js');
   const { withCaptureDisabled: disableCapture } = await import('../db/repositories/syncOutboxRepository.js');
   const { loadAll } = await import('./routinePersistence.js');
+  const { getCurrentRoutine, setCurrentRoutine } = await import('../db/repositories/currentRoutineRepository.js');
 
   await disableCapture(async () => {
     const routineStore = useRoutineStore();
     const exerciseStore = useExerciseStore();
     const sessionStore = useSessionStore();
     const data = await loadAll();
-    routineStore.setRoutines(data.routines);
+    const { routines } = data;
+    routineStore.setRoutines(routines);
     exerciseStore.setAll(data.exercises);
     await sessionStore.loadFromDb();
+    let routineId = await getCurrentRoutine();
+    if (routineId && !routines.some(r => r.id === routineId)) routineId = null;
+    if (routineId) {
+      routineStore.setCurrentRoutine(routineId);
+    } else if (routines.length > 0) {
+      const firstId = routines[0].id;
+      routineStore.setCurrentRoutine(firstId);
+      await setCurrentRoutine(firstId);
+    }
   });
 }
 

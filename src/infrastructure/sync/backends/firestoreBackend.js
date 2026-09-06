@@ -20,6 +20,7 @@ export const SYNC_ENTITIES = [
   'sessions',
   'sessionExercises',
   'exerciseLogs',
+  'uiState',
 ];
 
 function userSyncRoot(uid) {

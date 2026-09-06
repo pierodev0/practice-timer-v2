@@ -19,6 +19,12 @@ export function createDb(name = DB_NAME) {
     syncMetadata: '&key, value',
   });
 
+  // uiState: shared device-agnostic UI selection (currently the active routine).
+  // Tracked as a synced entity so it flows through the same outbox/pull engine.
+  db.version(2).stores({
+    uiState: '&id, updatedAt, deletedAt',
+  });
+
   return db;
 }
 

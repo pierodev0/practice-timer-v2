@@ -21,6 +21,7 @@ describe('Dexie schema', () => {
       'settings',
       'syncMetadata',
       'syncOutbox',
+      'uiState',
     ]);
   });
 
