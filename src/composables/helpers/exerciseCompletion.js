@@ -1,6 +1,10 @@
 import { RoutineService } from '../../application/routines/RoutineService.js';
+import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 
-const _routineService = new RoutineService();
+function getService() {
+  return new RoutineService({ routineStore: useRoutineStore(), exerciseStore: useExerciseStore() });
+}
 
 export function resetExercise(exercise, timer, player) {
   if (!exercise) return;
@@ -15,7 +19,7 @@ export function resetExercise(exercise, timer, player) {
   exercise.completed = false;
   exercise.currentRep = 1;
   timer.setExercise(exercise.durationSec);
-  _routineService.saveAllToStorage();
+  getService().saveAllToStorage();
 }
 
 export function doComplete(exercise, timer, player) {
@@ -31,7 +35,7 @@ export function doComplete(exercise, timer, player) {
   timer.sessionElapsed.value += timeToAdd;
   exercise.completed = true;
   exercise.remainingSec = 0;
-  _routineService.saveAllToStorage();
+  getService().saveAllToStorage();
 }
 
 export function forceCompleteExercise(exercise, player, statModal, onSuccess) {

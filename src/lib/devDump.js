@@ -46,20 +46,23 @@ async function dumpStores() {
     { useSessionStore },
     { useBpmStore },
     { useSettingsStore },
+    { useExerciseStore },
   ] = await Promise.all([
     import('../stores/useRoutineStore.js'),
     import('../stores/useSessionStore.js'),
     import('../stores/useBpmStore.js'),
     import('../stores/useSettingsStore.js'),
+    import('../stores/useExerciseStore.js'),
   ]);
 
   const routineStore = useRoutineStore();
   const sessionStore = useSessionStore();
   const bpmStore = useBpmStore();
   const settingsStore = useSettingsStore();
+  const exerciseStore = useExerciseStore();
 
   const { RoutineService } = await import('../application/routines/RoutineService.js');
-  await Promise.all([new RoutineService().init(), sessionStore._ready]);
+  await Promise.all([new RoutineService({ routineStore, exerciseStore }).init(), sessionStore._ready]);
 
   return {
     routines: {

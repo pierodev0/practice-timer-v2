@@ -6,11 +6,13 @@
 
 import { ref, watch } from 'vue';
 import { useRoutineStore } from '../../stores/useRoutineStore.js';
+import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import { RoutineService } from '../../application/routines/RoutineService.js';
 
 export function useExerciseForm() {
   const routineStore = useRoutineStore();
-  const routineService = new RoutineService();
+  const exerciseStore = useExerciseStore();
+  const routineService = new RoutineService({ routineStore, exerciseStore });
 
   const showCreateModal = ref(false);
   const title = ref('');
