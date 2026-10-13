@@ -43,6 +43,20 @@ src/workers/         timerWorker.js tal cual (ref + useEffect)
 | `pnpm run build` | Build producción → `dist/` |
 | `pnpm run preview` | Preview del build |
 
+## Agent skills
+
+### Issue tracker
+
+Issues en GitHub (`pierodev0/practice-timer-v2`) vía `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Vocabulario default (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` en root. See `docs/agents/domain.md`.
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 
