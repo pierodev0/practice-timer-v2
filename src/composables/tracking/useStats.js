@@ -30,7 +30,8 @@ export function useStats() {
   const filterEnd = ref('');
 
   async function initFilters() {
-    await Promise.all([new RoutineService().init(), sessionStore._ready]);
+    const routineService = new RoutineService({ routineStore, exerciseStore: useExerciseStore() });
+    await Promise.all([routineService.init(), sessionStore._ready]);
     const statDates = Object.keys(sessionStore.stats);
     const allDates = new Set(statDates);
     useExerciseStore().exercises.forEach(e => {

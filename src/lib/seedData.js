@@ -33,7 +33,7 @@ export async function seedTestData() {
   const routineStore = useRoutineStore();
   const exerciseStore = useExerciseStore();
   const sessionStore = useSessionStore();
-  const routineService = new RoutineService();
+  const routineService = new RoutineService({ routineStore, exerciseStore });
 
   await Promise.all([routineService.init(), sessionStore._ready]);
 

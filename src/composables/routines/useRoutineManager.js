@@ -21,7 +21,7 @@ export const SORT_MODES = [
 export function useRoutineManager() {
   const routineStore = useRoutineStore();
   const exerciseStore = useExerciseStore();
-  const routineService = new RoutineService();
+  const routineService = new RoutineService({ routineStore, exerciseStore });
   const sessionStore = useSessionStore();
   const router = useRouter();
 

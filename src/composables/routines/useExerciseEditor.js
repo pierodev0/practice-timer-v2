@@ -14,7 +14,7 @@ import { RoutineService } from '../../application/routines/RoutineService.js';
 export function useExerciseEditor(exerciseIdRef) {
   const routineStore = useRoutineStore();
   const exerciseStore = useExerciseStore();
-  const routineService = new RoutineService();
+  const routineService = new RoutineService({ routineStore, exerciseStore });
   const bpmStore = useBpmStore();
 
   const exerciseId = computed(() => {

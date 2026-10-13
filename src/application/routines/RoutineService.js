@@ -7,21 +7,22 @@
  */
 
 import { nanoid } from 'nanoid';
-import { useRoutineStore } from '../../stores/useRoutineStore.js';
-import { useExerciseStore } from '../../stores/useExerciseStore.js';
 import * as routineRepository from '../../infrastructure/db/repositories/routineRepository.js';
 import * as routineExerciseRepository from '../../infrastructure/db/repositories/routineExerciseRepository.js';
 import * as exerciseRepository from '../../infrastructure/db/repositories/exerciseRepository.js';
 import * as settingsRepository from '../../infrastructure/db/repositories/settingsRepository.js';
 import * as currentRoutineRepository from '../../infrastructure/db/repositories/currentRoutineRepository.js';
 import { createRoutine } from '../../domain/routines/Routine.js';
-import { createExercise, stripTransients } from '../../domain/routines/Exercise.js';
+import { createExercise, stripTransients, assertExerciseMode, assertTimerPolicy } from '../../domain/routines/Exercise.js';
 import { getDefaultRoutines, saveAll, loadAll } from '../../infrastructure/services/routinePersistence.js';
 
 export class RoutineService {
   constructor({ routineStore, exerciseStore } = {}) {
-    this._routineStore = routineStore || useRoutineStore();
-    this._exerciseStore = exerciseStore || useExerciseStore();
+    if (!routineStore || !exerciseStore) {
+      throw new Error('RoutineService requires { routineStore, exerciseStore }');
+    }
+    this._routineStore = routineStore;
+    this._exerciseStore = exerciseStore;
   }
 
   // ── Init / Persistencia global ─────────────────────────
@@ -161,6 +162,8 @@ export class RoutineService {
   }
 
   async updateExerciseField(exerciseId, field, value) {
+    if (field === 'mode') assertExerciseMode(value);
+    if (field === 'timerPolicy') assertTimerPolicy(value);
     const ex = this._exerciseStore.getById(exerciseId);
     if (!ex) return;
     ex[field] = value;

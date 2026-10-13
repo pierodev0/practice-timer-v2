@@ -9,6 +9,7 @@ import * as routineExerciseRepository from '../db/repositories/routineExerciseRe
 import * as exerciseRepository from '../db/repositories/exerciseRepository.js';
 import * as exerciseLogRepository from '../db/repositories/exerciseLogRepository.js';
 import * as routinesSample from '../../data/defaultRoutines.js';
+import { stripTransients } from '../../domain/routines/Exercise.js';
 
 /**
  * Cargar todo desde Dexie.
@@ -116,9 +117,4 @@ export function getDefaultRoutines() {
     routinesSample.module12Routine,
     routinesSample.testRoutine,
   ];
-}
-
-function stripTransients(ex) {
-  const { statisticLogs, completed, remainingSec, currentRep, ...clean } = ex;
-  return clean;
 }
